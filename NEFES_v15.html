@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"><title>NEFES v10</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#161018;display:flex;flex-direction:column;align-items:center;min-height:100vh;
+    padding:16px;gap:10px;font-family:'Courier New',monospace;color:#e8dcc8}
+  .title{color:#ffcf7a;font-size:20px;letter-spacing:6px}
+  .tag{color:#7a9b6a;font-size:11px;letter-spacing:2px;margin-top:-4px}
+  .frame{position:relative;width:960px;max-width:98vw;border-radius:8px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(60,30,40,.6),0 0 0 1px #3d2b40}
+  canvas{display:block;width:100%}
+  .hud{position:absolute;top:0;left:0;right:0;padding:14px 18px;display:flex;justify-content:space-between;
+    pointer-events:none;background:linear-gradient(180deg,rgba(43,30,46,.4),transparent)}
+  .clock{font-size:16px;color:#ffe6a8}.sub{font-size:11px;color:#c9a892;letter-spacing:2px}
+  .stat{font-size:11px;color:#c9a892;text-align:right}.stat b{color:#ffcf7a}
+  .bar{width:960px;max-width:98vw;background:#241a2a;padding:9px 14px;border-radius:6px;border:1px solid #3d2b40;
+    font-size:11px;color:#a88f82}
+</style>
+</head>
+<body>
+  <div class="title">N E F E S</div>
+  <div class="tag">gün batımında uyanan kasaba · v10 · yaşayan şehir</div>
+  <div class="frame">
+    <canvas id="c" width="960" height="360"></canvas>
+    <div class="hud">
+      <div><span class="clock" id="clock">18:30</span><div class="sub" id="sub">kasaba uyanıyor</div></div>
+      <div class="stat">ev <b id="lit">0</b> · sakin <b id="res">0</b></div>
+    </div>
+  </div>
+  <div class="bar" style="display:flex;gap:10px;align-items:center">
+    <select id="modeSel" style="background:#2a1f30;color:#c9a892;border:1px solid #5a3f52;font-family:inherit;font-size:11px;padding:6px;border-radius:5px"></select>
+    <button id="focusBtn" style="background:#2a1f30;color:#ffcf7a;border:1px solid #5a3f52;font-family:inherit;font-size:11px;padding:7px 12px;border-radius:5px;cursor:pointer">🎯 Başlat</button>
+    <span id="streakTag" style="font-size:11px;color:#7a9b6a">seri 0</span>
+    <button id="sndBtn" style="background:#2a1f30;color:#e8dcc8;border:1px solid #5a3f52;font-family:inherit;font-size:11px;padding:7px 10px;border-radius:5px;cursor:pointer">🔊</button>
+    <button id="melBtn" style="background:#2a1f30;color:#e8dcc8;border:1px solid #5a3f52;font-family:inherit;font-size:11px;padding:7px 10px;border-radius:5px;cursor:pointer">🎼 Kule melodisi</button>
+    <span id="wishChip" style="display:none;background:#241a2a;border:1px solid #7a9b6a;color:#c9e0b0;font-size:11px;padding:6px 10px;border-radius:12px;cursor:pointer"></span>
+    <span style="flex:1"></span>
+    <button id="mailBtn" style="background:#2a1f30;color:#e8dcc8;border:1px solid #5a3f52;font-family:inherit;font-size:11px;padding:7px 12px;border-radius:5px;cursor:pointer">✉ Mektuplar <b id="mailN" style="color:#ffcf7a">0</b></button>
+  </div>
+  <div class="bar" id="events">Kasaba yaşıyor: aileler taşınır, çocuklar doğar, bilgeler yıldızlara karışır…</div>
+  <div id="sndBox" style="display:none;position:fixed;left:20px;bottom:20px;background:#1d1424;border:1px solid #5a3f52;border-radius:8px;padding:12px;z-index:50;font-size:11px;color:#c9a892">
+    <div style="color:#ffcf7a;letter-spacing:2px;margin-bottom:8px">SES ATMOSFERİ <span style="color:#5a4a52">(tamamı sentez, telifsiz)</span></div>
+    <div>🌧 yağmur <input type="range" id="vol_rain" min="0" max="1" step="0.01" value="0"></div>
+    <div>💧 dere <input type="range" id="vol_water" min="0" max="1" step="0.01" value="0"></div>
+    <div>🎹 lo-fi pad <input type="range" id="vol_pad" min="0" max="1" step="0.01" value="0"></div>
+    <div>🦗 gece <input type="range" id="vol_night" min="0" max="1" step="0.01" value="0"></div>
+    <div>🔊 ana <input type="range" id="vol_master" min="0" max="1" step="0.01" value="0.7"></div>
+  </div>
+  <div id="melBox" style="display:none;position:fixed;left:20px;top:80px;background:#1d1424;border:1px solid #5a3f52;border-radius:8px;padding:12px;z-index:60;font-size:11px;color:#c9a892">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="color:#ffcf7a;letter-spacing:2px">KULE MELODİN</span>
+      <span id="melX" style="cursor:pointer;color:#a88f82">✕</span></div>
+    <div id="melGrid" style="display:grid;grid-template-columns:repeat(8,22px);grid-auto-rows:16px;gap:3px"></div>
+    <div style="margin-top:9px;display:flex;gap:8px">
+      <button id="melPlay" style="background:#2a1f30;color:#c9e0b0;border:1px solid #5a3f52;font-family:inherit;font-size:10px;padding:5px 9px;border-radius:4px;cursor:pointer">▶ dinle</button>
+      <button id="melSave" style="background:#2a1f30;color:#ffcf7a;border:1px solid #5a3f52;font-family:inherit;font-size:10px;padding:5px 9px;border-radius:4px;cursor:pointer">🗼 kuleye öğret</button>
+    </div>
+    <div id="melNote" style="margin-top:7px;color:#7a6a72;max-width:200px;line-height:1.5">Kule her saat başı senin melodini çalar. Sütuna dokun: nota koy/kaldır.</div>
+  </div>
+  <div id="mailBox" style="display:none;position:fixed;right:20px;bottom:20px;width:340px;max-height:60vh;overflow:auto;background:#1d1424;border:1px solid #5a3f52;border-radius:8px;padding:12px;z-index:50;box-shadow:0 16px 50px rgba(0,0,0,.6)">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#ffcf7a;font-size:12px;letter-spacing:2px">MEKTUPLAR</span><span id="mailX" style="color:#a88f82;cursor:pointer">✕</span></div>
+    <div id="mailList" style="display:flex;flex-direction:column;gap:8px;font-size:12px"></div>
+  </div>
+
+<script>
+// ============================================================
+// NEFES v10 — ciddi yeniden mimari
+// Çözülen kusurlar:
+//  1. Gerçek YOL AĞI (grid boşluğu değil) — kasabadan ormana kesintisiz
+//  2. Binalar yola BAĞLI (organik, Foundation/Town-to-City dersi)
+//  3. Gece/gündüz + mevsim SOKAKLARA da işler
+//  4. Lambalar sadece akşam/gece yanar (gündüz sönük)
+//  5. Kademeli İNŞA: ev yükselerek kurulur, sakin yürüyerek taşınır
+//  6. Dengeli başlangıç (az ev) + görünür büyüme
+// ============================================================
+const cv=c,ctx=cv.getContext('2d');
+const VW=960,VH=360;
+function h(x){x=(x^61)^(x>>>16);x+=x<<3;x^=x>>>4;x=Math.imul(x,0x27d4eb2d);x^=x>>>15;return x>>>0}
+function hf(x){return (h(x)%10000)/10000;}
+
+const GW=64,GH=26, CW=VW/GW, CH=VH/GH;
+let tick=0, timeOfDay=18.5, season=0, seasonTick=0;
+const SEASONS=[
+  {name:'ilkbahar',grass:[92,124,78],tree:[111,155,95],flowers:['#e8a0b0','#f5d76e','#c9a0e0'],road:[120,104,92]},
+  {name:'yaz',      grass:[80,120,62],tree:[90,150,74], flowers:['#f5d76e','#ffffff','#e8806a'],road:[128,112,98]},
+  {name:'sonbahar', grass:[124,96,58],tree:[200,120,56],flowers:['#e08040','#d0a040','#c05030'],road:[118,98,84]},
+  {name:'kış',      grass:[168,176,186],tree:[164,180,190],flowers:['#ffffff','#e0e8f0','#d0dae8'],road:[150,150,160],snow:1},
+];
+
+// ---- world ----
+let roadSet, roadList, buildings, lamps, trees, river, riverSet, people, landmark, birds, clouds;
+let fountains=[];
+let plazaCells;
+let frontier, growth, goal, wind;
+let snow=[];for(let i=0;i<70;i++)snow.push({x:Math.random()*VW,y:Math.random()*VH,sp:.3+Math.random()*.6,dr:Math.random()*2});
+
+const key=(x,y)=>x+','+y;
+
+function buildRoadNetwork(maxX){
+  // A spine road runs the whole width (town → forest continuity, fixes #1 & forest-path).
+  // Branch roads come off it. Roads are a real connected set, not modulo gaps.
+  roadSet=new Set(); roadList=[];
+  const spineY=Math.floor(GH*0.5);
+  // main spine, gently meandering, spans ENTIRE map (into forest)
+  for(let gx=0;gx<GW;gx++){const y=spineY+Math.round(Math.sin(gx*0.18)*2);
+    addRoad(gx,y);addRoad(gx,y+1);}
+  // vertical branch streets off the spine, only in town area, spaced, meandering
+  for(let bx=8; bx<maxX; bx+=6+ (h(bx)%3)){
+    const len=4+h(bx*7)%6, dir=h(bx)%2?1:-1;
+    let x=bx, y=spineY;
+    for(let s=0;s<len;s++){ y+=dir; if(y<2||y>=GH-2)break;
+      x+=(h(bx*13+s)%3)-1; addRoad(x,y);}
+  }
+  // a couple of horizontal side lanes
+  for(let by=4; by<GH-3; by+=7){ if(Math.abs(by-spineY)<3)continue;
+    const x0=8+h(by)%6, x1=Math.min(maxX, x0+8+h(by*3)%10);
+    let yy=by; for(let x=x0;x<x1;x++){yy+=(h(x*by)%3)-1;yy=Math.max(2,Math.min(GH-3,yy));addRoad(x,yy);}}
+}
+function addRoad(x,y){ if(x<0||y<0||x>=GW||y>=GH)return; const k=key(x,y);
+  if(!roadSet.has(k)){roadSet.add(k);roadList.push([x,y]);}}
+
+function nextToRoad(x,y){ for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]])if(roadSet.has(key(x+dx,y+dy)))return true; return false;}
+
+function gen(){
+  buildings=[];lamps=[];trees=[];river=[];people=[];birds=[];clouds=[];plazaCells=[];fountains=[];
+  frontier=Math.floor(GW*0.30);            // START SMALL (fixes #6)
+  growth=0; goal=12;
+  riverSet=new Set();
+  for(let gy=0;gy<GH;gy++){const cx=2+Math.round(Math.sin(gy*0.35)*1.2);
+    for(let k2=0;k2<2;k2++){river.push([cx+k2,gy]);riverSet.add(key(cx+k2,gy));}}
+  buildRoadNetwork(GW);                     // full-width spine (forest continuity)
+  // central plaza around landmark
+  const spineY=Math.floor(GH*0.5);
+  landmark={gx:Math.floor(frontier*0.6), gy:spineY};
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)plazaCells.push([landmark.gx+dx,landmark.gy+dy]);
+  // place buildings ALONG roads (organic, connected — fixes #2)
+  const occ=new Set();
+  for(const [rx,ry] of roadList){
+    if(rx>=frontier) continue;
+    for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]]){
+      const bx=rx+dx, by=ry+dy;
+      if(bx<5||by<1||bx>=frontier||by>=GH-1)continue;
+      if(roadSet.has(key(bx,by))||riverSet.has(key(bx,by))||occ.has(key(bx,by)))continue;
+      if(plazaCells.some(p=>p[0]===bx&&p[1]===by))continue;
+      if(hf(bx*97+by*61)<0.45)continue;      // gaps → gardens/trees
+      occ.add(key(bx,by));
+      const shop=hf(bx*3+by*7)<0.18;
+      addBuilding(bx,by,shop,true);          // true = pre-existing (awake town core decides below)
+    }
+  }
+  // only a SMALL core starts awake; rest are built/awaken over time (fixes #6)
+  buildings.sort((a,b)=>(a.gx-b.gx)||(a.gy-b.gy));
+  buildings.forEach((b,i)=>{ b.awake = i<6; b.built = i<6 ? 1 : 0; b.litFrac=0; b.buildProg = b.awake?1:0; });
+  // trees fill garden gaps + line some roads
+  for(let gx=5;gx<frontier;gx++)for(let gy=1;gy<GH-1;gy++){
+    if(occ.has(key(gx,gy))||roadSet.has(key(gx,gy))||riverSet.has(key(gx,gy)))continue;
+    if(plazaCells.some(p=>p[0]===gx&&p[1]===gy))continue;
+    if(hf(gx*31+gy*17)<0.12)trees.push({gx,gy,s:h(gx*7+gy)%3,sway:hf(gx+gy)});
+  }
+  // lamps ALONG roads (fixes #4 placement; lit state handled at render by time)
+  for(const [rx,ry] of roadList){ if(rx<frontier && h(rx*7+ry*13)%5===0)
+    lamps.push({gx:rx,gy:ry,ph:hf(rx*ry)*6.28}); }
+  // people start as 2 small families housed in the core
+  const core=buildings.filter(b=>b.awake&&b.type==='house').slice(0,2);
+  for(const hb of core){ hb.cap=Math.max(3,hb.cap);
+    for(let k=0;k<2;k++){const p=addPerson(hb.gx,hb.gy,hb,1);hb.members.push(p);}
+  }
+  birds=[];for(let i=0;i<4;i++)birds.push({x:hf(i*17)*VW,y:16+hf(i*7)*50,sp:.35+hf(i)*.4,ph:hf(i*3)*6.28});
+  clouds=[];for(let i=0;i<5;i++)clouds.push({x:hf(i*29)*VW,y:6+hf(i*11)*36,w:60+h(i)%80,sp:.04+hf(i)*.05});
+  recount();
+}
+function addBuilding(gx,gy,shop){
+  buildings.push({gx,gy,bw:1,
+    roofType:h(gx+gy*3)%3, roof:h(gx*17+gy*7)%5, seed:h(gx*99+gy),
+    type:shop?'shop':'house', chimney:h(gx*7+gy)%3===0,
+    awake:false, built:0, buildProg:0, litFrac:0,
+    cap: 2+(h(gx*13+gy*7)%3), members:[]});   // HANE: kapasite 2-4
+}
+function totalCap(){let c=0;for(const b of buildings)if(b.built&&b.type==='house')c+=b.cap;return c;}
+function housingPressure(){const c=totalCap();return c===0?1:people.length/c;}
+const NAMES=['Elif','Kemal','Ayşe','Demir','Zeynep','Ali','Nazlı','Cem','Melis','Onur','Sude','Baran','Derya','Emre','İpek','Rüzgar','Lale','Poyraz','Mina','Aras'];
+let nameIdx=0, eventLog=[], memTrees=[];
+function nextName(){return NAMES[(nameIdx++)%NAMES.length];}
+function logEvent(t){eventLog.push(t); if(eventLog.length>4)eventLog.shift();
+  const el=document.getElementById('events'); if(el)el.textContent=eventLog.join('   ·   ');}
+// stage: 0 çocuk, 1 yetişkin, 2 yaşlı. ageT sayaç; eşikler kişi-tohumlu (determinist)
+function addPerson(gx,gy,home,stage){const seed=h((people.length+1)*99+tick*7);
+  const p={x:gx,y:gy,tx:gx,ty:gy,col:h(seed*31)%6,seed,moving:false,home:home||null,
+    name:nextName(), stage:stage==null?1:stage, ageT:0,
+    spanA:2000+h(seed)%900,          // çocuk→yetişkin (~1 gün)
+    spanB:7000+h(seed*3)%9000,       // yetişkin→yaşlı (~3-6.5 gün, geniş varyans)
+    spanC:4500+h(seed*7)%2500,       // yaşlı→veda (~2-3 gün)
+    wantsHome:false};
+  people.push(p); return p;}
+
+function litCount(){return buildings.filter(b=>b.awake).length;}
+function recount(){lit_.textContent=litCount();res_.textContent=people.length;}
+
+// ---- construction & move-in queue (fixes #5 & #6) ----
+let lightCurve=0, lastHour=-1, chimeT=0;
+// --- SES MOTORU (WebAudio, %100 sentez — telif yok, Godot'a stem/Generator olarak taşınır) ---
+let AC=null, master=null, chans={};
+function audioInit(){ if(AC) return; AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=0.7; master.connect(AC.destination);
+  // 🌧 yağmur: filtreli beyaz gürültü
+  chans.rain=mkChan(0.0); const rn=noiseSrc(); const rf=AC.createBiquadFilter();
+  rf.type='lowpass'; rf.frequency.value=900; rn.connect(rf); rf.connect(chans.rain.g);
+  // 💧 dere/çeşme: bandpass fokurtu + yavaş LFO
+  chans.water=mkChan(0.0); const wn=noiseSrc(); const wf=AC.createBiquadFilter();
+  wf.type='bandpass'; wf.frequency.value=1400; wf.Q.value=2.5;
+  const wl=AC.createOscillator(), wg=AC.createGain(); wl.frequency.value=0.3; wg.gain.value=500;
+  wl.connect(wg); wg.connect(wf.frequency); wl.start();
+  wn.connect(wf); wf.connect(chans.water.g);
+  // 🎹 lo-fi pad: detune akor + çok yavaş tremolo
+  chans.pad=mkChan(0.0); const freqs=[130.8,164.8,196.0,246.9];
+  for(const f of freqs){const o=AC.createOscillator(),og=AC.createGain();
+    o.type='triangle'; o.frequency.value=f; o.detune.value=(hf(f)*10-5);
+    og.gain.value=0.05; o.connect(og); og.connect(chans.pad.g); o.start();}
+  const tl=AC.createOscillator(), tg=AC.createGain();
+  tl.frequency.value=0.11; tg.gain.value=0.04; tl.connect(tg); tg.connect(chans.pad.g.gain); tl.start();
+  // 🦗 gece: seyrek cırcır blipleri (zamanlayıcıyla)
+  chans.night=mkChan(0.0);
+  setInterval(()=>{ if(!AC||chans.night.g.gain.value<0.02) return;
+    if(Math.random()<0.5) cricket(); }, 700);
+}
+function mkChan(v){const g=AC.createGain(); g.gain.value=v; g.connect(master); return {g};}
+function noiseSrc(){const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);
+  const d=b.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const s=AC.createBufferSource(); s.buffer=b; s.loop=true; s.start(); return s;}
+function cricket(){const o=AC.createOscillator(),g=AC.createGain();
+  o.frequency.value=4200+Math.random()*800; g.gain.setValueAtTime(0.0,AC.currentTime);
+  g.gain.linearRampToValueAtTime(0.03,AC.currentTime+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+0.14);
+  o.connect(g); g.connect(chans.night.g); o.start(); o.stop(AC.currentTime+0.16);}
+function tone(f,dur,vol,type,when){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'sine'; o.frequency.value=f; const t=AC.currentTime+(when||0);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol||0.12,t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.05);}
+function sfx(kind){ if(!AC) return;
+  if(kind==='focusDone'){[523,659,784,1046].forEach((f,i)=>tone(f,0.9,0.10,'sine',i*0.14));}
+  else if(kind==='lamp'){tone(1800,0.06,0.03,'square');}
+  else if(kind==='letter'){const n=noiseSrc();const g=AC.createGain(),f=AC.createBiquadFilter();
+    f.type='highpass';f.frequency.value=2500;g.gain.setValueAtTime(0.05,AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+0.25);
+    n.connect(f);f.connect(g);g.connect(master);setTimeout(()=>n.stop(),300);}
+  else if(kind==='farewell'){tone(392,1.6,0.07,'sine');tone(494,1.6,0.05,'sine',0.05);}
+  else if(kind==='birth'){tone(659,0.35,0.08,'triangle');tone(880,0.5,0.08,'triangle',0.12);}
+  else if(kind==='unlock'){[392,523,659,784,1046].forEach((f,i)=>tone(f,1.0,0.09,'triangle',i*0.11));}
+}
+// --- ÇALIŞMA TEKNİKLERİ + SERİ ---
+const MODES=[{name:'Pomodoro 25/5',len:640},{name:'Derin 50/10',len:1280}];  // demo tickleri; gerçek: 25dk/50dk
+let modeIdx=0, sessions=0, streak=0, unlocked={atolye:false,kutuphane:false};
+// --- KASABA MELODİSİ (Animal Crossing 'Town Tune' dersi): oyuncu besteler, kule çalar ---
+const SCALE=[262,294,330,392,440,523];   // pentatonik+oktav: her kombinasyon kulağa hoş
+let melody=[0,2,4,2,-1,3,1,0];           // -1=sus; başlangıç örneği
+let melodySaved=false, concertDone=false;
+function playMelody(vol){ if(!AC)return;
+  melody.forEach((n,i)=>{ if(n>=0) tone(SCALE[n],0.32,vol||0.09,'triangle',i*0.22); });}
+function melodyQuality(){ const notes=melody.filter(n=>n>=0);
+  const distinct=new Set(notes).size;
+  let moves=0; for(let i=1;i<notes.length;i++) if(notes[i]!==notes[i-1])moves++;
+  return {ok: notes.length>=5 && distinct>=3 && moves>=3, notes:notes.length, distinct, moves};}
+// --- OYUNCUDAN ALINAN KATMAN (rakip dersleri AL-3, AL-5, mektup imzası) ---
+let focus={active:false,left:0,len:640};   // demo: ~45sn; gerçek oyunda 25dk
+let wish=null, letters=[], bond=0;
+const WISH_TYPES=[
+  {k:'çeşme', txt:'meydana küçük bir çeşme', place:(gx,gy)=>fountains.push({gx,gy}),
+   thank:'Çeşmenin sesi geceleri pencereme geliyor. Su gibi aziz ol.'},
+  {k:'ağaç', txt:'sokağıma bir ağaç', place:(gx,gy)=>trees.push({gx,gy,s:1,sway:hf(gx+gy)}),
+   thank:'Diktiğin ağacın ilk yaprağını kitabımın arasına koydum.'},
+  {k:'fener', txt:'kapımın önüne bir fener', place:(gx,gy)=>lamps.push({gx,gy,ph:hf(gx*gy)*6.28}),
+   thank:'Artık eve dönerken karanlıktan korkmuyorum. Fenerin için teşekkürler.'}];
+function pushLetter(from,text,kind){sfx('letter');letters.unshift({from,text,kind,replied:false,t:tick});
+  document.getElementById('mailN').textContent=letters.filter(l=>!l.replied).length;
+  renderMail();}
+function renderMail(){const L=document.getElementById('mailList');L.innerHTML='';
+  for(const [i,l] of letters.entries()){const d=document.createElement('div');
+    d.style.cssText='background:#241a2a;border-left:2px solid #ffcf7a;border-radius:4px;padding:9px;line-height:1.5;color:#d8ccc0';
+    d.innerHTML=l.text+'<div style="color:#ffcf7a;font-size:10px;text-align:right;margin-top:5px">— '+l.from+'</div>'+
+      (l.replied?'<div style="color:#7a9b6a;font-size:10px;margin-top:4px">✓ yanıtladın · bağ +1</div>'
+      :'<div style="margin-top:6px"><button data-i="'+i+'" class="rp" style="background:#2a1f30;color:#c9e0b0;border:1px solid #5a3f52;font-family:inherit;font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer">İçtenlikle yanıtla</button></div>');
+    L.appendChild(d);}
+  L.querySelectorAll('.rp').forEach(b=>b.onclick=()=>{const l=letters[+b.dataset.i];l.replied=true;bond++;
+    const per=people.find(p=>p.name===l.from); if(per)per.scarf=true;   // atkı: bağ nişanı
+    document.getElementById('mailN').textContent=letters.filter(x=>!x.replied).length;
+    logEvent('💛 '+l.from+' yanıtını aldı');renderMail();});}
+document.addEventListener('DOMContentLoaded',()=>{
+  const ms=document.getElementById('modeSel');
+  MODES.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m.name;ms.appendChild(o);});
+  ms.onchange=()=>{modeIdx=+ms.value;focus.len=MODES[modeIdx].len;};
+  const mg=document.getElementById('melGrid');
+  function drawMel(){ mg.innerHTML='';
+    for(let r=5;r>=0;r--)for(let c=0;c<8;c++){const d=document.createElement('div');
+      d.style.cssText='background:'+(melody[c]===r?'#ffcf7a':'#2a1f30')+';border:1px solid #3d2b40;border-radius:3px;cursor:pointer';
+      d.onclick=()=>{audioInit();melody[c]=(melody[c]===r?-1:r);tone(SCALE[r],0.25,0.1,'triangle');drawMel();};
+      mg.appendChild(d);}}
+  drawMel();
+  document.getElementById('melBtn').onclick=()=>{audioInit();
+    const m=document.getElementById('melBox');m.style.display=m.style.display==='none'?'block':'none';};
+  document.getElementById('melX').onclick=()=>document.getElementById('melBox').style.display='none';
+  document.getElementById('melPlay').onclick=()=>{audioInit();playMelody(0.11);};
+  document.getElementById('melSave').onclick=()=>{audioInit();
+    melodySaved=true; playMelody(0.1);
+    const q=melodyQuality();
+    document.getElementById('melNote').textContent='Kule melodini öğrendi — her saat başı çalacak.';
+    logEvent('🎼 kule yeni melodini öğrendi');
+    if(q.ok&&!concertDone){concertDone=true;
+      // ÖDÜL: MEYDAN KONSERİ — sakinler kuleye akın eder, kutlama + mektup + bağ
+      setTimeout(()=>{sfx('unlock');
+        for(const P of people){ if(!P.moving&&hf(P.seed)<0.7){P.x=landmark.gx+((h(P.seed)%5)-2);P.y=landmark.gy+((h(P.seed*3)%5)-2);}}
+        spawn(landmark.gx*CW,landmark.gy*CH-CH*2,'mote',18,{sp:1.5,up:1,decay:0.012});
+        bond++;
+        pushLetter('Gezgin Müzisyen','Melodini kulenin tepesinden dinledim. Yıllardır yol alırım, böylesine yürekten bir ezgi az duydum. Bu akşam meydanda herkes senin şarkınla dans etti. Ben de artık burada kalıyorum.','konser');
+        logEvent('🎻 MEYDAN KONSERİ! Gezgin Müzisyen kasabaya yerleşti');},1400);}
+    else if(!q.ok){document.getElementById('melNote').textContent='Kule öğrendi. İpucu: en az 5 nota, 3 farklı ses ve iniş-çıkış olursa kasaba coşar…';}};
+  document.getElementById('sndBtn').onclick=()=>{audioInit();
+    const s=document.getElementById('sndBox');s.style.display=s.style.display==='none'?'block':'none';};
+  ['rain','water','pad'].forEach(k=>{const el=()=>document.getElementById('vol_'+k);
+    document.addEventListener('input',e=>{if(e.target&&e.target.id==='vol_'+k&&AC)chans[k].g.gain.value=+e.target.value;});});
+  document.addEventListener('input',e=>{if(e.target&&e.target.id==='vol_master'&&AC)master.gain.value=+e.target.value;});
+  document.getElementById('mailX').onclick=()=>document.getElementById('mailBox').style.display='none';
+  document.getElementById('mailBtn').onclick=()=>{const m=document.getElementById('mailBox');
+    m.style.display=m.style.display==='none'?'block':'none';};
+  document.getElementById('focusBtn').onclick=()=>{
+    if(focus.active)return;
+    audioInit();focus.active=true;focus.len=MODES[modeIdx].len;focus.left=focus.len;
+    document.getElementById('focusBtn').textContent='🎯 Odaktasın… kasaba ×1.5 büyüyor';
+    logEvent('🎯 odak seansı başladı — kasaba sessizce eşlik ediyor');};
+  document.getElementById('wishChip').onclick=()=>{ if(!wish)return;
+    // dileği yerine getir: dilek sahibinin evinin yanına yerleştir
+    const hb=wish.who.home||buildings.find(b=>b.built);
+    let px=hb?hb.gx+1:landmark.gx, py=hb?hb.gy+1:landmark.gy;
+    wish.type.place(px,py);
+    spawn(px*CW+CW/2,py*CH+CH/2,'mote',9,{sp:1,up:1,decay:0.02});
+    pushLetter(wish.who.name,wish.type.thank,'dilek');
+    logEvent('🌟 '+wish.who.name+"'nın dileği gerçek oldu");
+    wish=null;document.getElementById('wishChip').style.display='none';};
+});
+let building_now=null;     // building currently rising
+let movers=[];             // people walking to new homes
+function stepWorld(){
+  tick++;
+  timeOfDay=(17.2+tick/2400*24)%24;   // FULL 24h cycle; starts just before dusk (the show)
+  seasonTick++; if(seasonTick>=1200){seasonTick=0;season=(season+1)%4;}
+  const evening=nightAmount();
+
+  // windows awaken gradually in the evening
+  // pencere programı: akşam yanar, 23'ten sonra UYKU (ışıklar söner) — ışık bütçesi
+  const t24=timeOfDay, sleep=(t24>=23||t24<5)?Math.min(1,((t24>=23?t24-23:t24+1))/2):0;
+  lightCurve=evening*(1-sleep*0.55);   // KURAL: 20-23 zirve, sonra kasaba uykuya dalar
+  for(const b of buildings){ if(b.awake){const t=(0.04+evening*0.72)*(1-sleep*0.85); b.litFrac+=(t-b.litFrac)*0.03; } }
+
+  // animate a building rising
+  if(building_now){ building_now.buildProg=Math.min(1,building_now.buildProg+0.02);
+    if(tick%6===0)spawn((building_now.gx+.5)*CW,(building_now.gy+1)*CH,'dust',2,{sp:0.6,decay:0.03,size:2});
+    if(building_now.buildProg>=1){ building_now.built=1;
+      spawn((building_now.gx+.5)*CW,building_now.gy*CH,'mote',10,{sp:1.1,up:1,decay:0.02});
+      queueMoveIn(building_now); building_now=null; } }
+
+  // animate residents walking to their new homes
+  for(const m of [...movers]) stepMover(m);
+
+  // growth accrues; when goal hit → start next construction (only if idle)
+  // KULLANICI ÇALIŞTIKÇA KASABA BÜYÜR: seans sırasında ×1.5
+  growth += (0.28 + evening*0.22) * (focus.active?1.5:1);
+  // ambient otomasyonu: gece cırcır kanalı kullanıcının seviyesine, geceyle nefes alır
+  if(AC&&chans.night){const u=+((document.getElementById('vol_night')||{}).value||0);
+    chans.night.g.gain.value=u*evening;}
+  // KURAL: inşaat yalnız konut sıkışıklığında (Banished dersi) — ev/kişi mantığı
+  const homeless=people.some(p=>p.wantsHome&&!p.moving);
+  if(growth>=goal && !building_now && (housingPressure()>=0.75 || (homeless&&emptyHouses().length===0))){
+    growth-=goal; goal*=1.18; startConstruction(); }
+
+  movePeople();
+  lifeCycle(evening);
+  // ODAK SEANSI: kullanıcının gerçek çalışması kasabayı besler (AL-3)
+  if(focus.active){focus.left--;
+    if(focus.left<=0){focus.active=false;
+      document.getElementById('focusBtn').textContent='🎯 Başlat';document.getElementById('streakTag').textContent='seri '+streak;
+      growth+=goal;                                      // ödül: bir inşaat hemen
+      spawn(landmark.gx*CW,landmark.gy*CH-CH*3,'mote',16,{sp:1.4,up:1,decay:0.015});
+      sfx('focusDone');
+      sessions++; streak++;
+      if(streak>=3&&!unlocked.atolye){unlocked.atolye=true;sfx('unlock');
+        const b2=buildings.find(b=>!b.built); if(b2){b2.type='shop';building_now=b2;b2.buildProg=0.01;}
+        pushLetter('Kasaba halkı','Üç seanslık emeğinin şerefine bir ATÖLYE kuruyoruz. Ellerine sağlık.','seri');
+        logEvent('🔨 seri ödülü: Atölye kuruluyor');}
+      if(streak>=5&&!unlocked.kutuphane){unlocked.kutuphane=true;sfx('unlock');
+        pushLetter('Kasaba halkı','Beş seans! Meydanda bir KÜTÜPHANE yükselecek. Kasaba seninle akıllanıyor.','seri');
+        logEvent('📚 seri ödülü: Kütüphane sözü verildi');}
+      pushLetter('Kasaba halkı','Bugün masanda çalışırken hepimiz hissettik: birlikte üretiyoruz. Meydanda senin için bir kutlama yaptık.','odak');
+      logEvent('🎉 odak seansı tamamlandı — kasaba kutluyor');}}
+  // DİLEK: arada bir yetişkin bir şey diler (AL-5 nazik istekler; zorlamasız)
+  if(!wish && tick%700===0){const cands=people.filter(p=>p.stage===1&&!p.moving);
+    if(cands.length&&hf(tick*31)<0.6){const who=cands[h(tick)%cands.length];
+      const type=WISH_TYPES[h(tick*7)%WISH_TYPES.length];
+      wish={who,type};
+      const chip=document.getElementById('wishChip');
+      chip.textContent='💭 '+who.name+': "keşke '+type.txt+' olsa" — dokun, gerçekleştir';
+      chip.style.display='inline-block';
+      logEvent('💭 '+who.name+' bir dilek tuttu');}}
+  // saat başı çan: kule nabzı + kuşlar ürker
+  const hr=Math.floor(timeOfDay);
+  if(hr!==lastHour){lastHour=hr;chimeT=1; if(melodySaved)playMelody(0.07);
+    for(const bd of birds){bd.sp+=1.2;setTimeout(()=>bd.sp=Math.max(0.35,bd.sp-1.2),1400);}}
+  if(chimeT>0)chimeT-=0.02;
+  // mevsim juice: sonbahar yaprak / ilkbahar taç yaprağı serpintisi
+  if(tick%50===0){const S2=SEASONS[season];
+    if(S2.name==='sonbahar'&&trees.length)
+      {const t2=trees[h(tick)%trees.length];spawn(t2.gx*CW+CW/2,t2.gy*CH,'leaf',1,{decay:0.008});}
+    if(S2.name==='ilkbahar'&&trees.length)
+      {const t2=trees[h(tick)%trees.length];spawn(t2.gx*CW+CW/2,t2.gy*CH,'petal',1,{decay:0.008});}}
+  wind=0.5+0.5*Math.sin(tick*0.01);
+  for(const bd of birds){bd.x+=bd.sp*(1+wind);if(bd.x>VW+20)bd.x=-20;bd.ph+=0.3;}
+  for(const cl of clouds){cl.x+=cl.sp;if(cl.x>VW+cl.w)cl.x=-cl.w;}
+}
+function nightAmount(){ const t=timeOfDay;
+  if(t>=8&&t<17) return 0;                    // gündüz
+  if(t>=17&&t<21) return (t-17)/4;            // alacakaranlık: ışıklar birer birer
+  if(t>=21||t<5) return 1;                    // gece
+  return 1-(t-5)/3; }                          // şafak 5→8 söner
+
+function startConstruction(){
+  // choose an un-built building nearest the lit core to rise next
+  const cand=buildings.filter(b=>!b.built).sort((a,b)=>dist(a)-dist(b));
+  if(cand.length){ building_now=cand[0]; building_now.buildProg=0.01; pops.push({x:(building_now.gx+.5)*CW,y:building_now.gy*CH,t:1,kind:'dust'}); }
+  else if(frontier<GW-8){ expandFrontier(); }
+}
+function dist(b){ return Math.abs(b.gx-landmark.gx)+Math.abs(b.gy-landmark.gy); }
+function expandFrontier(){
+  const old=frontier; frontier=Math.min(GW-6,frontier+5);
+  // add new buildings along the already-existing spine in the newly-townified band
+  const occ=new Set(buildings.map(b=>key(b.gx,b.gy)));
+  for(const [rx,ry] of roadList){ if(rx<old||rx>=frontier)continue;
+    for(const [dx,dy] of [[0,-1],[0,1]]){const bx=rx+dx,by=ry+dy;
+      if(bx<5||by<1||bx>=frontier||by>=GH-1)continue;
+      if(roadSet.has(key(bx,by))||riverSet.has(key(bx,by))||occ.has(key(bx,by)))continue;
+      if(hf(bx*97+by*61)<0.5)continue;
+      occ.add(key(bx,by));addBuilding(bx,by,hf(bx*3+by*7)<0.18);}}
+  for(const [rx,ry] of roadList){ if(rx>=old&&rx<frontier&&h(rx*7+ry*13)%5===0)lamps.push({gx:rx,gy:ry,ph:hf(rx*ry)*6.28}); }
+}
+function queueMoveIn(b){ // yeni ev: %60 aile taşınır, %40 boş kalır (kuşak/göç bekler)
+  if(b.type!=='house'){b.awake=true;return;}
+  if(hf(b.seed*17)<0.4){logEvent('🔨 yeni bir ev tamamlandı, sahibini bekliyor');return;}
+  for(let k=0;k<2;k++){
+    const p=addPerson(landmark.gx,landmark.gy,b,1);
+    p.ageT=h(p.seed*11)%3000;
+    p.tx=b.gx;p.ty=b.gy;p.moving=true;p.steps=k*2;
+    b.members.push(p); movers.push(p);
+  }
+  logEvent('🏡 '+b.members[0].name+' ile '+b.members[1].name+' kasabaya taşındı');
+  recount();
+}
+function stepMover(p){
+  p.steps=(p.steps||0)+1;
+  const d0=Math.abs(p.x-p.tx)+Math.abs(p.y-p.ty);
+  if(d0<=1 || p.steps>90){ // arrived (or too long: just settle in)
+    p.x=p.tx;p.y=p.ty;p.moving=false;
+    if(p.home&&!p.home.awake){p.home.awake=true; pops.push({x:(p.home.gx+.5)*CW,y:p.home.gy*CH,t:1,kind:'light'});}
+    movers=movers.filter(m=>m!==p); recount(); return; }
+  // prefer road cells that reduce distance; fall back to any cell that reduces distance
+  const cand=[[1,0],[-1,0],[0,1],[0,-1]].map(([dx,dy])=>[p.x+dx,p.y+dy])
+    .filter(([x,y])=>x>=0&&y>=0&&x<GW&&y<GH);
+  const better=cand.filter(([x,y])=>Math.abs(x-p.tx)+Math.abs(y-p.ty)<d0);
+  const road=better.filter(([x,y])=>roadSet.has(key(x,y)));
+  const pick=(road.length?road:(better.length?better:cand));
+  if(pick.length){const o=pick[h(p.seed+p.steps)%pick.length];p.x=o[0];p.y=o[1];}
+}
+let pops=[];
+// --- JUICE çekirdeği: tek partikül sistemi + easing ---
+let parts=[];
+function spawn(x,y,type,n,opt){opt=opt||{};if(parts.length>240)parts.splice(0,parts.length-240);for(let i=0;i<(n||1);i++){
+  const a=hf(tick*7+i*13+x)*6.28, sp=(opt.sp||0.5)*(0.5+hf(i*31+tick));
+  parts.push({x,y,vx:Math.cos(a)*sp,vy:(opt.up?-Math.abs(Math.sin(a)):Math.sin(a))*sp+(opt.vy||0),
+    life:1,decay:opt.decay||0.02,type,size:opt.size||2,color:opt.color,seed:h(i*99+tick)});}}
+function easeOutBack(t){const c=1.70158;return 1+ (c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);}
+function easeOutCubic(t){return 1-Math.pow(1-t,3);}
+function updateDrawParts(evening){
+  ctx.globalCompositeOperation='lighter';
+  parts=parts.filter(P=>{P.life-=P.decay;if(P.life<=0)return false;
+    P.x+=P.vx;P.y+=P.vy;
+    if(P.type==='mote'){P.vy-=0.01;
+      ctx.fillStyle='rgba(255,225,150,'+P.life*0.8+')';ctx.fillRect(P.x,P.y,P.size,P.size);}
+    else if(P.type==='dust'){P.vy-=0.005;
+      ctx.fillStyle='rgba(200,180,160,'+P.life*0.35+')';
+      ctx.beginPath();ctx.arc(P.x,P.y,P.size*(1.6-P.life),0,7);ctx.fill();}
+    else if(P.type==='petal'){P.vy=Math.sin(tick*0.1+P.seed)*0.15-0.25;P.vx=Math.sin(tick*0.07+P.seed)*0.3;
+      ctx.fillStyle='rgba(240,190,210,'+P.life*0.85+')';ctx.fillRect(P.x,P.y,2,2);}
+    else if(P.type==='leaf'){P.vy=0.35+Math.sin(tick*0.08+P.seed)*0.1;P.vx=Math.sin(tick*0.05+P.seed)*0.5;
+      ctx.fillStyle='rgba(200,120,56,'+P.life*0.8+')';ctx.fillRect(P.x,P.y,2.2,1.6);}
+    else if(P.type==='stardust'){
+      ctx.fillStyle='rgba(230,220,255,'+P.life*0.7+')';ctx.fillRect(P.x,P.y,1.4,1.4);}
+    else if(P.type==='spark'){P.vy+=0.02;
+      ctx.fillStyle='rgba(255,240,180,'+P.life+')';ctx.fillRect(P.x,P.y,1.5,1.5);}
+    return true;});
+  // ateşböcekleri: gece çayırda süzülen minik ışıklar (bütçeli: 8)
+  if(evening>0.5){
+    for(let i=0;i<8;i++){const fx=(frontier+3)*CW+((h(i*77)% (VW-(frontier+4)*CW))+Math.sin(tick*0.02+i*2.1)*18);
+      const fy=VH*0.2+ (h(i*31)%(VH*7/10)) + Math.cos(tick*0.017+i)*10;
+      const tw=0.4+0.6*Math.abs(Math.sin(tick*0.05+i*1.7));
+      ctx.fillStyle='rgba(220,255,160,'+(0.5*tw*(evening-0.4))+')';
+      ctx.beginPath();ctx.arc(fx,fy,1.3+tw,0,7);ctx.fill();}}
+  ctx.globalCompositeOperation='source-over';
+}
+function lifeCycle(evening){
+  // yaşlanma + nazik veda + doğum — hepsi kurallı, determinist tohumlu
+  for(const p of [...people]){ if(p.moving)continue;
+    p.ageT++;
+    if(p.stage===0 && p.ageT>p.spanA){p.stage=1;p.ageT=0;p.wantsHome=true;
+      logEvent('🌿 '+p.name+' büyüdü, kendine yuva arıyor');}
+    else if(p.stage===1 && p.ageT>p.spanB){p.stage=2;p.ageT=0;
+      logEvent('🕰 '+p.name+' artık kasabanın bilgesi');}
+    else if(p.stage===2 && p.ageT>p.spanC){ passAway(p); }
+  }
+  // KUŞAK KURALI: büyüyen çocuk boş bir eve taşınır → yeni hane
+  if(tick%40===0){
+    const seeker=people.find(p=>p.wantsHome&&!p.moving&&p.stage===1);
+    if(seeker){const eh=emptyHouses();
+      if(eh.length){const nb=eh[0];
+        if(seeker.home)seeker.home.members=seeker.home.members.filter(m=>m!==seeker);
+        seeker.home=nb;nb.members.push(seeker);
+        seeker.tx=nb.gx;seeker.ty=nb.gy;seeker.moving=true;seeker.steps=0;movers.push(seeker);
+        seeker.wantsHome=false;
+        logEvent('🏡 '+seeker.name+' kendi yuvasına taşındı');}}
+  }
+  // GÖÇ KURALI: boş ev + gevşek nüfus → yeni aile gelir (kasaba asla ölmez)
+  const migEvery = housingPressure()<0.45 ? 400 : 800;   // boş kasaba göçmeni hızlı çeker
+  if(tick%migEvery===0 && housingPressure()<0.75){
+    const eh=emptyHouses();
+    if(eh.length && hf(tick*13)<0.5){const nb=eh[0];
+      for(let k=0;k<2;k++){const p=addPerson(0,Math.floor(GH*0.5),nb,1);
+        p.ageT=h(p.seed*11)%3000;  // yaş ofseti — herkes aynı anda yaşlanmasın
+        p.tx=nb.gx;p.ty=nb.gy;p.moving=true;p.steps=k*2;nb.members.push(p);movers.push(p);}
+      logEvent('🧳 uzaktan yeni bir aile geldi');}
+  }
+  // DOĞUM KURALI (Banished): 2+ yetişkinli ve yeri olan evde, yavaş şans
+  if(tick%40===0){
+    for(const b of buildings){ if(!b.built||b.type!=='house')continue;
+      const adults=b.members.filter(m=>m.stage===1).length;
+      if(adults>=2 && b.members.length<b.cap && hf(b.seed+tick)<0.10){
+        const c=addPerson(b.gx,b.gy,b,0); b.members.push(c);
+        pops.push({x:(b.gx+.5)*CW,y:b.gy*CH,t:1,kind:'light'});
+        spawn((b.gx+.5)*CW,b.gy*CH,'petal',7,{sp:0.4,decay:0.012});
+        sfx('birth');logEvent('🌱 '+c.name+' dünyaya geldi');
+        break; // tek doğum / kontrol
+      }
+    }
+  }
+}
+function emptyHouses(){return buildings.filter(b=>b.built&&b.type==='house'&&b.members.length===0);}
+function passAway(p){
+  // nazik veda: yıldıza karışır, çayıra anı ağacı, evde yer boşalır
+  people=people.filter(q=>q!==p);
+  movers=movers.filter(m=>m!==p);
+  if(p.home){p.home.members=p.home.members.filter(m=>m!==p);
+    if(p.home.members.length===0){p.home.awake=false;p.home.litFrac=0;  // ev kararır — veda
+      logEvent('🌒 '+'bir evin ışıkları söndü');}}
+  // anı ağacı: çayırda boş bir nokta
+  for(let t2=0;t2<40;t2++){const gx=frontier+2+h(p.seed+t2)%(GW-frontier-4), gy=2+h(p.seed*3+t2)%(GH-4);
+    if(!roadSet.has(key(gx,gy))){memTrees.push({gx,gy,name:p.name,age:0});if(memTrees.length>40)memTrees.shift();break;}}
+  pops.push({x:p.x*CW+CW/2,y:p.y*CH,t:1,kind:'star'});
+  logEvent('✦ '+p.name+' yıldızlara karıştı — çayıra bir anı ağacı dikildi');
+  sfx('farewell');
+  pushLetter(p.name,'Bu kasabada güzel bir ömür geçirdim. Penceremden hep senin ışıklarını izledim. Çayırdaki ağacıma ara sıra uğra, olur mu?','veda');
+  recount();
+}
+function movePeople(){
+  const walk=(x,y)=>x>=0&&y>=0&&x<GW&&y<GH&&roadSet.has(key(x,y));
+  for(const P of people){ if(P.moving)continue;   // movers handled separately
+    if(hf(P.seed+tick)<0.4){ const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>walk(P.x+dx,P.y+dy));
+      if(opts.length){const o=opts[h(P.seed+tick)%opts.length];P.x+=o[0];P.y+=o[1];}}
+    P.x=Math.max(0,Math.min(frontier,P.x));P.y=Math.max(0,Math.min(GH-1,P.y));
+  }
+}
+
+// ================= RENDER =================
+function render(){
+  const S=SEASONS[season], evening=nightAmount();
+  // sky base gradient (day warm → night deep)
+  // sky: day (bright) → dusk (golden) → night (deep). two-stage mix
+  const dusk=Math.min(1,evening*2), night=Math.max(0,evening*2-1);
+  const skyTop=mixA(mixA([150,170,200],[210,120,90],dusk),[38,28,60],night);
+  const skyMid=mixA(mixA([190,180,180],[190,110,100],dusk),[52,38,66],night);
+  const skyBot=mixA(mixA([200,170,150],[150,95,110],dusk),[44,32,58],night);
+  const g=ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0,cssRGB(skyTop));g.addColorStop(.55,cssRGB(skyMid));g.addColorStop(1,cssRGB(skyBot));
+  ctx.fillStyle=g;ctx.fillRect(0,0,VW,VH);
+
+  // sky strip: clouds + stars
+  if(evening>0.35){ctx.fillStyle='rgba(255,240,210,'+(evening-0.35)*0.7+')';
+    for(let s=0;s<28;s++){const sx=(s*151)%VW,sy=(s*57)%(VH*0.16);if((s*7+((tick*0.05)|0))%13<2)continue;ctx.fillRect(sx,sy,1.5,1.5);}}
+  for(const cl of clouds){ctx.fillStyle='rgba(210,160,170,'+(0.16*(1-evening*0.6))+')';
+    ctx.beginPath();ctx.ellipse(cl.x,cl.y,cl.w/2,cl.w/6,0,0,7);ctx.ellipse(cl.x+cl.w*0.3,cl.y-3,cl.w/3,cl.w/7,0,0,7);ctx.fill();}
+
+  // GROUND: town side (warm) + forest side (seasonal meadow), continuous
+  for(let gy=0;gy<GH;gy++)for(let gx=0;gx<GW;gx++){
+    const X=gx*CW,Y=gy*CH;
+    if(gx<frontier){ // town ground: bright by day, deep by night
+      const base=mixA([132,108,104],[46,34,52],evening*0.85);
+      ctx.fillStyle=cssRGB(base);ctx.fillRect(X,Y,CW+1,CH+1);
+    } else { // seasonal meadow, blends outward
+      const f=(gx-frontier)/(GW-frontier);
+      const c=mixA(S.grass,[S.grass[0]*0.6,S.grass[1]*0.6,S.grass[2]*0.7],evening*0.5);
+      ctx.fillStyle='rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+(0.4+f*0.5)+')';
+      ctx.fillRect(X,Y,CW+1,CH+1);
+    }
+  }
+
+  // RIVER
+  for(const [gx,gy] of river){const X=gx*CW,Y=gy*CH,rp=Math.sin(gx*.5+tick*.04)*Math.sin(gy*.7-tick*.03);
+    const wc=mixA([90,120,160],[40,58,92],evening);
+    ctx.fillStyle=cssRGB(wc);ctx.fillRect(X,Y,CW+1,CH+1);
+    ctx.fillStyle='rgba(220,235,255,'+(0.05+0.04*rp+evening*0.05)+')';ctx.fillRect(X,Y+rp*2,CW+1,1.5);}
+
+  // ROADS — real connected network, seasonal + night-shaded (fixes #1,#3)
+  const rc=mixA(S.road,[S.road[0]*0.32,S.road[1]*0.3,S.road[2]*0.38],evening*0.9);
+  for(const [gx,gy] of roadList){const X=gx*CW,Y=gy*CH;
+    ctx.fillStyle=cssRGB(rc);ctx.fillRect(X-1,Y-1,CW+2,CH+2);
+    // faint cobble texture
+    if(h(gx*7+gy)%3===0){ctx.fillStyle='rgba(0,0,0,.08)';ctx.fillRect(X+CW*0.3,Y+CH*0.3,2,2);}}
+
+  // meadow detail (flowers/bushes) + forest trees, seasonal
+  for(let gy=1;gy<GH-1;gy++)for(let gx=frontier;gx<GW;gx++){const n=h(gx*7+gy*13)%100;
+    const X=gx*CW,Y=gy*CH;
+    if(roadSet.has(key(gx,gy)))continue;
+    if(n<9){ctx.fillStyle='rgb('+S.tree[0]+','+S.tree[1]+','+S.tree[2]+')';ctx.beginPath();ctx.arc(X+CW/2,Y+CH/2,CW*.22,0,7);ctx.fill();}
+    else if(n<15){ctx.fillStyle=S.flowers[h(gx+gy)%3];ctx.fillRect(X+CW/2-1,Y+CH/2-1,2,2);}}
+
+  // PLAZA floor around landmark (readable civic center)
+  for(const [px,py] of plazaCells){const X=px*CW,Y=py*CH;
+    ctx.fillStyle=cssRGB(mixA([150,130,120],[80,66,72],evening*0.5));ctx.fillRect(X,Y,CW+1,CH+1);}
+
+  // FOUNTAINS (dileklerle gelir)
+  for(const f of fountains){const X=f.gx*CW+CW/2,Y=f.gy*CH+CH/2;
+    ctx.fillStyle='#6a5a60';ctx.beginPath();ctx.arc(X,Y,CW*.42,0,7);ctx.fill();
+    ctx.fillStyle='#7a9ab8';ctx.beginPath();ctx.arc(X,Y,CW*.27,0,7);ctx.fill();
+    ctx.fillStyle='rgba(220,240,255,'+(0.4+0.3*Math.sin(tick*0.2))+')';
+    ctx.beginPath();ctx.arc(X,Y-1,1.4,0,7);ctx.fill();}
+  // TREES in town (seasonal)
+  for(const t of trees){const X=t.gx*CW+CW/2,Y=t.gy*CH+CH/2,s=0.8+t.s*0.15,sw=Math.sin(tick*0.03+t.sway*6)*1.2;
+    ctx.fillStyle='rgba(30,40,30,.4)';ctx.beginPath();ctx.ellipse(X,Y+3,CW*.5*s,CH*.3,0,0,7);ctx.fill();
+    ctx.fillStyle='#5a7a52';ctx.fillRect(X-1,Y-1,2,CH*0.4);
+    ctx.fillStyle='rgb('+S.tree[0]+','+S.tree[1]+','+S.tree[2]+')';ctx.beginPath();ctx.arc(X+sw,Y-2,CW*.32*s,0,7);ctx.fill();}
+
+  // BUILDINGS — sorted back-to-front, with construction rise (fixes #5)
+  buildings.sort((a,b)=>a.gy-b.gy);
+  for(const b of buildings){ if(b.buildProg<=0)continue;
+    drawBuilding(b, evening);
+  }
+  // scaffolding dust for the one rising
+  if(building_now){const X=(building_now.gx+.5)*CW,Y=building_now.gy*CH;
+    for(let k=0;k<4;k++){const a=hf(tick*3+k)*6.28,d=hf(tick+k)*8;
+      ctx.fillStyle='rgba(200,180,160,'+(0.4*(1-building_now.buildProg))+')';
+      ctx.fillRect(X+Math.cos(a)*d,Y+CH-Math.sin(a)*d,2,2);}}
+
+  // LANDMARK clock tower
+  drawLandmark(evening);
+
+  // ANI AĞAÇLARI (çayırda, geçmiş sakinlerin hatırası — kalıcı koleksiyon)
+  for(const mt of memTrees){const X=mt.gx*CW+CW/2,Y=mt.gy*CH+CH/2;
+    mt.age=Math.min(1,(mt.age||0)+0.015); const sc=easeOutBack(mt.age);
+    ctx.save();ctx.translate(X,Y);ctx.scale(sc,sc);ctx.translate(-X,-Y);
+    ctx.fillStyle='rgba(43,30,46,.3)';ctx.beginPath();ctx.ellipse(X,Y+2,CW*.3,CH*.2,0,0,7);ctx.fill();
+    ctx.fillStyle='#8a7a9a';ctx.fillRect(X-0.8,Y-2,1.6,CH*0.4);
+    ctx.fillStyle='#c9b8e0';ctx.beginPath();ctx.arc(X,Y-3,CW*.24,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,240,255,.5)';ctx.beginPath();ctx.arc(X-1,Y-4,1,0,7);ctx.fill();
+    ctx.restore();}
+  // PEOPLE: renkli daireler; yaş evresine göre boy (çocuk küçük, yaşlı soluk). Hale YOK.
+  const pcol=['#ffcf7a','#c25a4a','#6a86a8','#7a9b6a','#c98fb0','#e8dcc8'];
+  for(const P of people){
+    const tx=P.x*CW+CW/2, ty=P.y*CH+CH/2;
+    if(P.px===undefined){P.px=tx;P.py=ty;}
+    P.px+=(tx-P.px)*0.14; P.py+=(ty-P.py)*0.14;         // easing takip
+    const walking=Math.abs(tx-P.px)+Math.abs(ty-P.py)>0.8;
+    const bob=walking?Math.sin(tick*0.5+P.seed)*1.1:0;   // yürürken zıplama
+    const X=P.px, Y=P.py+bob;
+    const r=P.stage===0?2.1:P.stage===2?2.8:3.1;
+    ctx.fillStyle='rgba(43,30,46,.35)';ctx.beginPath();ctx.ellipse(X,Y+3,r+0.4,2,0,0,7);ctx.fill();
+    ctx.globalAlpha=P.stage===2?0.85:1;
+    ctx.fillStyle=pcol[P.col];ctx.beginPath();ctx.arc(X,Y,r,0,7);ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.fillStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(X-1,Y-1,1,0,7);ctx.fill();
+    if(P.scarf){ctx.strokeStyle='rgba(255,207,122,.9)';ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.arc(X,Y,r+1.6,0,7);ctx.stroke();}}
+
+  // GLOW: lamps + lit windows — only when evening>0 (fixes #2 & #4)
+  // lamp posts: always visible as objects; GLOW only when dark (fixes 'always on')
+  for(const L of lamps){const X=L.gx*CW+CW/2,Y=L.gy*CH+CH/2;
+    ctx.fillStyle=cssRGB(mixA([90,76,84],[40,34,46],evening*0.6));
+    ctx.fillRect(X-0.7,Y-CH*0.35,1.4,CH*0.7);
+    ctx.fillStyle= evening>0.15 ? 'rgba(255,230,168,'+Math.min(1,lightCurve*1.5)+')' : 'rgba(120,110,120,.8)';
+    ctx.beginPath();ctx.arc(X,Y-CH*0.35,1.6,0,7);ctx.fill();}
+  ctx.globalCompositeOperation='lighter';
+  if(evening>0.15){
+    const late=(timeOfDay>=0&&timeOfDay<5)||timeOfDay>=23.5;
+    if(lightCurve<0.1)for(const L of lamps)L.on=false;         // sabah sıfırla
+    const spineY=Math.floor(GH*0.5);
+    for(const L of lamps){
+      if(late && Math.abs(L.gy-spineY)>2) continue;            // yan sokak lambaları uyur
+      // KASKAD: her lambanın kişisel eşiği — sırayla tutuşurlar
+      const myThresh=0.15+ (L.ph/6.28)*0.5;
+      if(lightCurve<myThresh) continue;
+      if(!L.on){L.on=true;spawn(L.gx*CW+CW/2,L.gy*CH+CH/2-CH*0.35,'spark',5,{sp:0.9,decay:0.05});sfx('lamp');}
+      const X=L.gx*CW+CW/2,Y=L.gy*CH+CH/2,fl=(.7+.3*Math.sin(tick*.15+L.ph))*lightCurve;
+      const gl=ctx.createRadialGradient(X,Y,0,X,Y,CW*2.2*fl+2);
+      gl.addColorStop(0,'rgba(255,207,122,'+(0.4*lightCurve)+')');gl.addColorStop(1,'rgba(255,207,122,0)');
+      ctx.fillStyle=gl;ctx.beginPath();ctx.arc(X,Y,CW*2.2,0,7);ctx.fill();}
+  }
+  // window bloom for awake buildings (scaled by evening)
+  // bloom bütçesi: kasaba büyüdükçe tek ev parıltısı kısılır (toplam ışık sabit kalır)
+  const bloomBudget=Math.min(1, 14/Math.max(1,litCount()));
+  for(const b of buildings){if(!b.awake||b.buildProg<1||evening<0.15)continue;
+    if(b.litFrac<0.1)continue;                                  // uyuyan ev parlamaz
+    const X=(b.gx+.5)*CW,Y=(b.gy+.2)*CH;
+    const e=evening*bloomBudget;const gl=ctx.createRadialGradient(X,Y,0,X,Y,CW*1.8);
+    gl.addColorStop(0,'rgba(255,190,110,'+(0.22*e)+')');gl.addColorStop(1,'rgba(255,190,110,0)');
+    ctx.fillStyle=gl;ctx.beginPath();ctx.arc(X,Y,CW*1.8,0,7);ctx.fill();}
+  // pops (construction dust ring / move-in light)
+  pops=pops.filter(P=>{P.t-=.03;if(P.t<=0)return false;
+    if(P.kind==='light'){const gl=ctx.createRadialGradient(P.x,P.y,0,P.x,P.y,(1-P.t)*30);
+      gl.addColorStop(0,'rgba(255,225,150,'+P.t*0.5+')');gl.addColorStop(1,'rgba(255,225,150,0)');
+      ctx.fillStyle=gl;ctx.beginPath();ctx.arc(P.x,P.y,(1-P.t)*30,0,7);ctx.fill();}
+    if(P.kind==='star'){ // veda: yukarı süzülen yıldız + iz
+      P.y-=0.8;
+      if(tick%3===0)spawn(P.x,P.y+3,'stardust',1,{sp:0.15,decay:0.03});
+      ctx.fillStyle='rgba(230,220,255,'+P.t+')';
+      ctx.beginPath();ctx.arc(P.x,P.y,2.2,0,7);ctx.fill();
+      ctx.fillStyle='rgba(230,220,255,'+P.t*0.5+')';
+      ctx.fillRect(P.x-4,P.y-0.5,8,1);ctx.fillRect(P.x-0.5,P.y-4,1,8);}
+    ctx.strokeStyle=(P.kind==='light'?'rgba(255,235,168,':'rgba(210,190,170,')+P.t*.7+')';
+    ctx.lineWidth=2;ctx.beginPath();ctx.arc(P.x,P.y,(1-P.t)*24,0,7);ctx.stroke();return true;});
+  // birds
+  for(const bd of birds){const wing=Math.sin(bd.ph)*3;ctx.strokeStyle='rgba(60,45,55,.55)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(bd.x-4,bd.y+wing);ctx.lineTo(bd.x,bd.y);ctx.lineTo(bd.x+4,bd.y+wing);ctx.stroke();}
+  ctx.globalCompositeOperation='source-over';
+
+  // chimney smoke for awake homes
+  for(const b of buildings){if(!b.awake||!b.chimney||b.buildProg<1)continue;const X=(b.gx+.7)*CW,Y=b.gy*CH-CH*0.3;
+    for(let p=0;p<3;p++){const t=(tick*.35+b.seed+p*40)%120/120;
+      ctx.fillStyle='rgba(200,180,190,'+(0.1*(1-t))+')';ctx.beginPath();ctx.arc(X+Math.sin(t*6+b.seed)*4,Y-t*26,1.4+t*5,0,7);ctx.fill();}}
+
+  // snow (winter)
+  if(S.snow){ctx.fillStyle='rgba(255,255,255,.75)';for(const sf of snow){sf.y+=sf.sp;sf.x+=Math.sin(tick*.02+sf.dr)*.5;
+    if(sf.y>VH){sf.y=-4;sf.x=Math.random()*VW;}ctx.fillRect(sf.x,sf.y,1.6,1.6);}}
+
+  updateDrawParts(evening);
+  // gentle sky wash + LIGHT vignette
+  ctx.globalCompositeOperation='soft-light';
+  ctx.fillStyle='rgba(255,170,120,'+(0.12*(1-evening))+')';ctx.fillRect(0,0,VW,VH);
+  ctx.globalCompositeOperation='source-over';
+  if(!vg){vg=ctx.createRadialGradient(VW/2,VH*.5,VH*.55,VW/2,VH/2,VW*.72);
+    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(43,30,46,.24)');}
+  ctx.fillStyle=vg;ctx.fillRect(0,0,VW,VH);
+
+  clock.textContent=String(Math.floor(timeOfDay)).padStart(2,'0')+':'+String(Math.floor(timeOfDay%1*60)).padStart(2,'0');
+  const st= building_now?'yeni bir ev yükseliyor…' : movers.length?'biri taşınıyor…' :
+    (evening>0.7?'kasaba ışıl ışıl':evening>0.3?'akşam çöküyor, ışıklar yanıyor':'huzurlu bir akşam');
+  sub.textContent=S.name+' · '+st;
+}
+let vg;
+function drawBuilding(b,evening){
+  const bp=b.buildProg>=1?1:Math.max(0,easeOutBack(b.buildProg)*b.buildProg); // zıplayan yükseliş
+  const X=b.gx*CW, Yb=b.gy*CH+CH;        // base (bottom)
+  const fullH=CH*1.7;
+  const H=fullH*bp;                      // rises from ground
+  const Y=Yb-H;
+  const W=CW-2;
+  // shadow
+  ctx.fillStyle='rgba(43,30,46,.4)';ctx.fillRect(X+2,Yb-3,W,3);
+  const awake=b.awake;
+  const wall = awake ? mixA([201,168,146],[150,120,120],evening*0.4)
+                     : mixA([120,100,110],[70,58,72],evening*0.5);
+  ctx.fillStyle=cssRGB(wall);ctx.fillRect(X+1,Y,W,H);
+  ctx.fillStyle='rgba(43,30,46,.2)';ctx.fillRect(X+1,Yb-CH*0.3*bp,W,CH*0.3*bp);
+  if(bp<0.99){ // scaffold lines while building
+    ctx.strokeStyle='rgba(150,120,90,.5)';ctx.lineWidth=1;
+    ctx.strokeRect(X+1,Y,W,H);return;
+  }
+  // roof
+  const rc=SEASONS[0]; // roofs are structural, not seasonal
+  const roofCols=[['#c25a4a','#a8483a'],['#c99b46','#a8823a'],['#7a9b6a','#688a58'],['#6a86a8','#586f92'],['#9a6a8c','#835675']];
+  let [rHi,rLo]=roofCols[b.roof];
+  rHi=cssRGB(mixA(hx(rHi),[hx(rHi)[0]*0.6,hx(rHi)[1]*0.6,hx(rHi)[2]*0.6],evening*0.4));
+  rLo=cssRGB(mixA(hx(rLo),[hx(rLo)[0]*0.6,hx(rLo)[1]*0.6,hx(rLo)[2]*0.6],evening*0.4));
+  const yTop=Y-CH*0.55;
+  if(b.roofType===1){ctx.fillStyle=rLo;ctx.beginPath();ctx.moveTo(X,Y);ctx.lineTo(X+W/2+1,yTop);ctx.lineTo(X+W+1,Y);ctx.closePath();ctx.fill();
+    ctx.fillStyle=rHi;ctx.beginPath();ctx.moveTo(X,Y);ctx.lineTo(X+W/2+1,yTop);ctx.lineTo(X+W/2+1,Y);ctx.closePath();ctx.fill();}
+  else if(b.roofType===2){ctx.fillStyle=rLo;ctx.beginPath();ctx.moveTo(X,Y);ctx.lineTo(X+W*0.25,yTop);ctx.lineTo(X+W*0.75,yTop);ctx.lineTo(X+W,Y);ctx.closePath();ctx.fill();
+    ctx.fillStyle=rHi;ctx.fillRect(X+W*0.25,yTop,W*0.5,2);}
+  else {ctx.fillStyle=rHi;ctx.fillRect(X,Y-CH*0.28,W+1,CH*0.32);ctx.fillStyle=rLo;ctx.fillRect(X,Y-CH*0.28,W+1,2.5);}
+  // windows — only SOME lit, scaled by evening (fixes over-lit)
+  for(let r2=0;r2<2;r2++){const wy=Y+CH*0.25+r2*(H-CH*0.7)/2, wx=X+3, ww=W-6, wh=Math.max(3,(H-CH*0.7)/2-3);
+    const isLit = awake && (hf(b.seed+r2*17) < b.litFrac);
+    if(isLit){const fl=.85+.15*Math.sin(tick*.15+b.seed+r2);
+      ctx.fillStyle='rgba(255,207,122,'+fl+')';ctx.fillRect(wx,wy,ww,wh);}
+    else{ctx.fillStyle='rgba(58,46,58,.85)';ctx.fillRect(wx,wy,ww,wh);}}
+  if(b.type==='shop'&&awake){ctx.fillStyle=roofCols[b.roof][0];ctx.fillRect(X+1,Y+CH*0.1,W,3);}
+}
+function drawLandmark(evening){const b=landmark;if(!b)return;const LX=b.gx*CW, LY=b.gy*CH;
+  const tw=CW*1.6, th=CH*4.4;
+  // beacon halo grows at night
+  ctx.globalCompositeOperation='lighter';
+  const halo=ctx.createRadialGradient(LX+tw/2,LY-th*0.5,0,LX+tw/2,LY-th*0.5,tw*3.6);
+  halo.addColorStop(0,'rgba(255,210,140,'+(0.04+0.3*lightCurve)+')');halo.addColorStop(1,'rgba(255,210,140,0)');
+  ctx.fillStyle=halo;ctx.beginPath();ctx.arc(LX+tw/2,LY-th*0.5,tw*3.6,0,7);ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='rgba(43,30,46,.4)';ctx.fillRect(LX-3,LY+CH-3,tw+6,3);
+  ctx.fillStyle=cssRGB(mixA([216,188,160],[150,120,120],evening*0.4));ctx.fillRect(LX,LY-th+CH,tw,th);
+  ctx.fillStyle='rgba(43,30,46,.2)';ctx.fillRect(LX+tw*0.62,LY-th+CH,tw*0.38,th);
+  ctx.fillStyle='rgba(255,240,210,.22)';ctx.fillRect(LX,LY-th+CH,tw*0.18,th);
+  // clock face beacon
+  const cfY=LY-th+CH*1.5, cr=tw*0.42;
+  ctx.globalCompositeOperation='lighter';
+  const pulse=1+ (chimeT>0? Math.sin(chimeT*3.14)*0.5 : 0);
+  const cg=ctx.createRadialGradient(LX+tw/2,cfY,0,LX+tw/2,cfY,cr*2.4*pulse);
+  cg.addColorStop(0,'rgba(255,225,150,'+(0.15+0.55*lightCurve)+')');cg.addColorStop(1,'rgba(255,225,150,0)');
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(LX+tw/2,cfY,cr*2.4,0,7);ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#fff4d6';ctx.beginPath();ctx.arc(LX+tw/2,cfY,cr,0,7);ctx.fill();
+  ctx.strokeStyle='#5a3f52';ctx.lineWidth=1.5;const ang=(timeOfDay/12)*6.28;
+  ctx.beginPath();ctx.moveTo(LX+tw/2,cfY);ctx.lineTo(LX+tw/2+Math.cos(ang-1.57)*cr*0.6,cfY+Math.sin(ang-1.57)*cr*0.6);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(LX+tw/2,cfY);ctx.lineTo(LX+tw/2+Math.cos(ang*12-1.57)*cr*0.4,cfY+Math.sin(ang*12-1.57)*cr*0.4);ctx.stroke();
+  ctx.fillStyle='#a85a48';ctx.beginPath();ctx.moveTo(LX-3,LY-th+CH);ctx.lineTo(LX+tw/2,LY-th-CH*0.8);ctx.lineTo(LX+tw+3,LY-th+CH);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#c25a4a';ctx.beginPath();ctx.moveTo(LX-3,LY-th+CH);ctx.lineTo(LX+tw/2,LY-th-CH*0.8);ctx.lineTo(LX+tw/2,LY-th+CH);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#ffe6a8';ctx.beginPath();ctx.arc(LX+tw/2,LY-th-CH*0.8,2.5,0,7);ctx.fill();
+}
+
+// color helpers
+function hx(s){s=(''+s).replace('#','');return [parseInt(s.slice(0,2),16),parseInt(s.slice(2,4),16),parseInt(s.slice(4,6),16)];}
+function mixA(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+function cssRGB(a){return 'rgb('+(a[0]|0)+','+(a[1]|0)+','+(a[2]|0)+')';}
+function cssA(g){return '#000';} // placeholder (gradient drawn directly)
+
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width*VW,my=(e.clientY-r.top)/r.height*VH;
+  const gx=Math.floor(mx/CW),gy=Math.floor(my/CH);
+  const b=buildings.find(bl=>bl.gx===gx&&Math.abs(bl.gy-gy)<=1&&bl.built&&!bl.awake);
+  if(b){b.awake=true;pops.push({x:(b.gx+.5)*CW,y:b.gy*CH,t:1,kind:'light'});recount();}
+  else growth+=3;});
+
+const lit_=document.getElementById('lit'),res_=document.getElementById('res');
+gen();
+function loop(){stepWorld();render();setTimeout(()=>requestAnimationFrame(loop),70);}loop();
+</script>
+</body>
+</html>

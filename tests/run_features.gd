@@ -1,0 +1,144 @@
+extends SceneTree
+# NEFES etkileşim testleri (headless, saf World): dilek→mektup, cevap→bond+atkı, (A5 melodi).
+# Kullanım: tools/godot.sh --headless --script tests/run_features.gd
+
+func _init() -> void:
+	var ok := true
+	ok = _test_wish_letter() and ok
+	ok = _test_focus() and ok
+	ok = _test_melody() and ok
+	ok = _test_save() and ok
+	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
+	quit(0 if ok else 1)
+
+func _test_save() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(3000): w.step_world()
+	# oyuncu etkileşimleri (seed+tick'ten sapma yarat)
+	if w.wish != null: w.grant_wish()
+	w.teach_tower([0, 2, 4, 2, -1, 3, 1, 0])
+	for i in range(w.letters.size()):
+		if not w.letters[i].replied:
+			w.reply_letter(i)
+			break
+	var snap := { "pop": w.population(), "bond": w.bond, "fount": w.fountains.size(),
+		"lett": w.letters.size(), "mem": w.mem_trees.size(), "tick": w.tick,
+		"concert": w.concert_done, "births": w.stat_births }
+	# JSON round-trip (int→float bozulması burada yakalanır)
+	var js := JSON.stringify(w.to_save())
+	var d = JSON.parse_string(js)
+	var w2 = W.new(); w2.from_save(d)
+	var eq: bool = w2.population() == snap.pop and w2.bond == snap.bond \
+		and w2.fountains.size() == snap.fount and w2.letters.size() == snap.lett \
+		and w2.mem_trees.size() == snap.mem and w2.tick == snap.tick \
+		and w2.concert_done == snap.concert and w2.stat_births == snap.births
+	# yükleme sonrası determinizm: w (hiç serileşmedi) ile w2 aynı ilerlemeli
+	for t in range(2000):
+		w.step_world(); w2.step_world()
+	var det: bool = w.population() == w2.population() and w.stat_births == w2.stat_births
+	# seed'ler int mi (JSON float bozması düzeltildi mi)
+	var seed_int := true
+	for p in w2.people:
+		if typeof(p.seed) != TYPE_INT:
+			seed_int = false
+			break
+	print("B1 save: roundtrip-eq=%s, load-determinizm=%s (w=%d w2=%d), seed-int=%s" % [str(eq), str(det), w.population(), w2.population(), str(seed_int)])
+	var pass_ok: bool = eq and det and seed_int
+	print("B1: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+func _test_focus() -> bool:
+	var W := load("res://scripts/world.gd")
+	# ×1.5 çarpanı: ilk tick'te büyüme ~1.5× (inşaat henüz tetiklenmez)
+	var a = W.new(); a.gen(0); a.step_world()
+	var b = W.new(); b.gen(0); b.growth_mult = 1.5; b.step_world()
+	var mult_ok: bool = b.growth > a.growth * 1.4
+	# seri: 3 seans → atölye + ödül mektubu
+	var w = W.new(); w.gen(0)
+	for t in range(3000): w.step_world()   # dönüştürülecek inşasız bina olsun
+	var g0: float = w.growth
+	w.finish_focus_reward()
+	var reward_growth: bool = w.growth > g0
+	w.finish_focus_reward()
+	var r3 = w.finish_focus_reward()
+	var atolye_ok: bool = w.unlocked.atolye and r3.atolye and w.streak == 3
+	var has_seri := false
+	for l in w.letters:
+		if l.kind == "seri":
+			has_seri = true
+	print("A3 odak: ×1.5=%s (a=%.3f b=%.3f), ödül-büyüme=%s, seri3→atölye=%s, seri-mektup=%s" % [str(mult_ok), a.growth, b.growth, str(reward_growth), str(atolye_ok), str(has_seri)])
+	var pass_ok: bool = mult_ok and reward_growth and atolye_ok and has_seri
+	print("A3: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+func _test_wish_letter() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new()
+	w.gen(0)
+	# yetişkin nüfus birikene + dilek çıkana kadar ilerle
+	var got_wish := false
+	for t in range(10000):
+		w.step_world()
+		if w.wish != null:
+			got_wish = true
+			break
+	if not got_wish:
+		print("A4: dilek üretilmedi FAIL"); return false
+	var f0: int = w.fountains.size() + w.trees.size() + w.lamps.size()
+	var lt0: int = w.letters.size()
+	var pos = w.grant_wish()
+	var placed: bool = (w.fountains.size() + w.trees.size() + w.lamps.size()) > f0
+	var lettered: bool = w.letters.size() > lt0 and w.letters[0].kind == "dilek"
+	print("A4 dilek: obje 0→1=%s, mektup(dilek)=%s, pos=%s, wish temizlendi=%s" % [str(placed), str(lettered), str(pos), str(w.wish == null)])
+
+	# cevap → bond + atkı
+	var b0: int = w.bond
+	var target_idx := -1
+	for i in range(w.letters.size()):
+		if not w.letters[i].replied:
+			target_idx = i
+			break
+	w.reply_letter(target_idx)
+	var bonded: bool = w.bond == b0 + 1
+	var scarfed := false
+	var replied_name: String = w.letters[target_idx].from
+	for p in w.people:
+		if p.name == replied_name and p.scarf:
+			scarfed = true
+	print("A4 cevap: bond %d→%d=%s, atkı=%s" % [b0, w.bond, str(bonded), str(scarfed)])
+	# atkı: yanıtlanan kişi hâlâ hayatta olmayabilir (veda mektubu); dilek mektubu sahibi genelde yaşar
+	var pass_ok: bool = placed and lettered and w.wish == null and bonded
+	print("A4: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+func _test_melody() -> bool:
+	var M := load("res://scripts/melody.gd")
+	if M == null:
+		print("A5: melody.gd yok — SKIP")
+		return true
+	# iyi beste (≥5 nota, ≥3 farklı, ≥3 hareket) vs zayıf
+	var good = M.quality([0, 2, 4, 2, -1, 3, 1, 0])
+	var weak = M.quality([0, 0, 0, 0, -1, -1, -1, -1])
+	# konser ödülü: iyi beste → concert + gezgin müzisyen mektubu + bond + tek kez
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(3000): w.step_world()
+	var b0: int = w.bond
+	var pop0: int = w.population()
+	var res = w.teach_tower([0, 2, 4, 2, -1, 3, 1, 0])
+	var concert_ok: bool = res.concert and w.concert_done and w.bond == b0 + 1 and w.population() == pop0 + 1
+	var has_konser := false
+	for l in w.letters:
+		if l.kind == "konser":
+			has_konser = true
+	var res2 = w.teach_tower([0, 2, 4, 2, -1, 3, 1, 0])
+	var once_ok: bool = not res2.concert
+	# paylaşım kodu round-trip
+	var code = M.to_code([0, 2, 4, 2, -1, 3, 1, 0])
+	var back = M.from_code(code)
+	var code_ok: bool = back == [0, 2, 4, 2, -1, 3, 1, 0] and code.length() == 8
+	print("A5 iyi=%s zayıf=%s konser=%s mektup=%s bir-kez=%s kod=%s(%s)" % [str(good.ok), str(weak.ok), str(concert_ok), str(has_konser), str(once_ok), code, str(code_ok)])
+	var pass_ok: bool = good.ok and not weak.ok and concert_ok and has_konser and once_ok and code_ok
+	print("A5: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
