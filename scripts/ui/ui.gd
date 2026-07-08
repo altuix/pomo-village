@@ -7,11 +7,12 @@ var world: World = null
 var main: Node = null
 var audio = null   # ses motoru (mikser slider'ları için)
 
-const INK := Color("2b1e2e")
-const HONEY := Color("ffe6a8")
-const CREAM := Color("e8dcc8")
-const SAGE := Color("7a9b6a")
-const MUTED := Color("c9a892")
+# tokenlar MERKEZİ paletten (scripts/palette.gd — CLAUDE.md §1)
+const INK := Palette.INK
+const HONEY := Palette.HONEY
+const CREAM := Palette.CREAM
+const SAGE := Palette.SAGE
+const MUTED := Palette.MUTED
 
 var _clock: Label
 var _sub: Label
@@ -88,8 +89,8 @@ func _button(txt: String) -> Button:
 func _panel(title: String) -> PanelContainer:
 	var p := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("1d1424")
-	sb.border_color = Color("5a3f52")
+	sb.bg_color = Palette.PANEL_BG
+	sb.border_color = Palette.PANEL_BORDER
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(8)
 	sb.set_content_margin_all(12)
@@ -159,7 +160,7 @@ func _build() -> void:
 	bar.add_child(menu_btn)
 
 	_wish_btn = _button("")
-	_wish_btn.add_theme_color_override("font_color", Color("c9e0b0"))
+	_wish_btn.add_theme_color_override("font_color", Palette.MINT)
 	_wish_btn.visible = false
 	_wish_btn.pressed.connect(_on_wish)
 	bar.add_child(_wish_btn)
@@ -226,7 +227,7 @@ func _build() -> void:
 	# sakin hover kartı: imleci sakinin üstüne getirince isim+evre (mektup göndereni kasabada bulunur)
 	_person_card = PanelContainer.new()
 	var psb := StyleBoxFlat.new()
-	psb.bg_color = Color("1d1424")
+	psb.bg_color = Palette.PANEL_BG
 	psb.border_color = HONEY
 	psb.set_border_width_all(1)
 	psb.set_corner_radius_all(6)
@@ -286,7 +287,7 @@ func show_offline(s: Dictionary) -> void:
 		return
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("1d1424")
+	sb.bg_color = Palette.PANEL_BG
 	sb.border_color = HONEY
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(10)
@@ -308,7 +309,7 @@ func show_offline(s: Dictionary) -> void:
 	bl.custom_minimum_size = Vector2(344, 0)
 	vb.add_child(bl)
 	var ok := _button("kasabaya dön")
-	ok.add_theme_color_override("font_color", Color("c9e0b0"))
+	ok.add_theme_color_override("font_color", Palette.MINT)
 	ok.pressed.connect(func(): card.queue_free())
 	vb.add_child(ok)
 	get_node(".").add_child(card)   # CanvasLayer'a ekle (root Control mouse_filter IGNORE)
@@ -356,8 +357,8 @@ func _fill_sound() -> void:
 # ---- melodi ızgarası (A5) ----
 func _mel_style(active: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = HONEY if active else Color("2a1f30")
-	sb.border_color = Color("3d2b40")
+	sb.bg_color = HONEY if active else Palette.MEL_CELL
+	sb.border_color = Palette.MEL_BORDER
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(3)
 	return sb
@@ -387,7 +388,7 @@ func _fill_melody() -> void:
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
 	var play := _button("▶ dinle")
-	play.add_theme_color_override("font_color", Color("c9e0b0"))
+	play.add_theme_color_override("font_color", Palette.MINT)
 	play.pressed.connect(_on_mel_play)
 	hb.add_child(play)
 	var teach := _button("🗼 kuleye öğret")
@@ -395,7 +396,7 @@ func _fill_melody() -> void:
 	teach.pressed.connect(_on_mel_teach)
 	hb.add_child(teach)
 	vb.add_child(hb)
-	_mel_note = _label("Kule her saat başı senin melodini çalar. Sütuna dokun: nota koy/kaldır.", 10, Color("7a6a72"))
+	_mel_note = _label("Kule her saat başı senin melodini çalar. Sütuna dokun: nota koy/kaldır.", 10, Palette.FADED)
 	_mel_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mel_note.custom_minimum_size = Vector2(200, 0)
 	vb.add_child(_mel_note)
@@ -434,7 +435,7 @@ func _on_mel_teach() -> void:
 func _letter_card(l: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("241a2a")
+	sb.bg_color = Palette.CARD_BG
 	sb.set_corner_radius_all(4)
 	sb.set_content_margin_all(9)
 	sb.border_color = HONEY
@@ -460,7 +461,7 @@ func _letter_card(l: Dictionary) -> PanelContainer:
 		vb.add_child(r)
 	else:
 		var rb := _button("İçtenlikle yanıtla")
-		rb.add_theme_color_override("font_color", Color("c9e0b0"))
+		rb.add_theme_color_override("font_color", Palette.MINT)
 		var lid := int(l.get("lid", -1))
 		rb.pressed.connect(func(): if main != null and main.has_method("reply_letter"): main.reply_letter(lid))
 		vb.add_child(rb)
@@ -496,7 +497,7 @@ func menu_visible() -> bool:
 func _build_menu() -> void:
 	menu_screen = PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.106, 0.078, 0.129, 0.82)   # ink perdesi — canlı kasaba altta seçilir
+	sb.bg_color = Color(Palette.PANEL_BG, 0.82)   # panel-zemin perdesi — canlı kasaba altta seçilir
 	menu_screen.add_theme_stylebox_override("panel", sb)
 	menu_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_screen.visible = false
@@ -520,7 +521,7 @@ func _build_menu() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_child(row)
 	var bresume := _button("▶ Devam Et")
-	bresume.add_theme_color_override("font_color", Color("c9e0b0"))
+	bresume.add_theme_color_override("font_color", Palette.MINT)
 	bresume.pressed.connect(func(): hide_menu())
 	row.add_child(bresume)
 	var bnew := _button("🌱 Yeni Kasaba")
@@ -613,9 +614,9 @@ func _refresh_album() -> void:
 			line += " · 💛"
 		_album_list.add_child(_label(line, 10, CREAM))
 	_album_list.add_child(_label(" ", 4, CREAM))
-	_album_list.add_child(_label("ANI AĞAÇLARI (%d)" % world.mem_trees.size(), 11, Color("c9b8e0")))
+	_album_list.add_child(_label("ANI AĞAÇLARI (%d)" % world.mem_trees.size(), 11, Palette.LILAC))
 	for mt in world.mem_trees:
-		_album_list.add_child(_label("✦ %s'nin ağacı" % mt.name, 10, Color("c9b8e0")))
+		_album_list.add_child(_label("✦ %s'nin ağacı" % mt.name, 10, Palette.LILAC))
 	_album_list.add_child(_label(" ", 4, CREAM))
 	_album_list.add_child(_label("KASABANIN HİKÂYESİ", 11, HONEY))
 	var w := world

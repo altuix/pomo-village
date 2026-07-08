@@ -378,15 +378,12 @@ func step_world() -> void:
 		fest_done = false
 	var ev := evening()
 
-	# pencere programı: akşam yanar, 23-05 UYKU (ışık bütçesi)
-	var t24 := time_of_day
-	var sleep := 0.0
-	if t24 >= 23.0 or t24 < 5.0:
-		sleep = minf(1.0, ((t24 - 23.0) if t24 >= 23.0 else (t24 + 1.0)) / 2.0)
-	light_curve = ev * (1.0 - sleep * 0.55)
+	# pencere programı: akşam yanar, 23-05 UYKU (ışık bütçesi — formül TEK KAYNAK: _sleep_amount)
+	var sleep := _sleep_amount(time_of_day)
+	light_curve = ev * (1.0 - sleep * SLEEP_DIM)
 	for b in buildings:
 		if b.awake:
-			var t := (0.04 + ev * 0.72) * (1.0 - sleep * 0.85)
+			var t := _lit_target(ev, sleep)
 			b.lit_frac += (t - b.lit_frac) * 0.03
 
 	# yükselen bina; sahipsiz yarım inşaat varsa sahiplen (çoklu ödül dönüşümü / eski save iyileşmesi)
@@ -705,14 +702,11 @@ func from_save(d: Dictionary) -> void:
 func force_time(tod: float) -> void:
 	time_of_day = tod
 	var ev := evening()
-	var t24 := time_of_day
-	var sleep := 0.0
-	if t24 >= 23.0 or t24 < 5.0:
-		sleep = minf(1.0, ((t24 - 23.0) if t24 >= 23.0 else (t24 + 1.0)) / 2.0)
-	light_curve = ev * (1.0 - sleep * 0.55)
+	var sleep := _sleep_amount(time_of_day)
+	light_curve = ev * (1.0 - sleep * SLEEP_DIM)
 	for b in buildings:
 		if b.awake:
-			b.lit_frac = (0.04 + ev * 0.72) * (1.0 - sleep * 0.85)
+			b.lit_frac = _lit_target(ev, sleep)
 
 func evening() -> float:
 	var t := time_of_day
@@ -720,6 +714,25 @@ func evening() -> float:
 	if t >= 17.0 and t < 21.0: return (t - 17.0) / 4.0   # alacakaranlık
 	if t >= 21.0 or t < 5.0: return 1.0                  # gece
 	return 1.0 - (t - 5.0) / 3.0                          # şafak
+
+# ---- IŞIK BÜTÇESİ TEK KAYNAĞI (ANAYASA madde 3) ----
+# Formül 3 yerde birebir kopyaydı (step_world/force_time/is_asleep) — drift riski; QA yakaladı.
+const SLEEP_START := 23.0      # kasaba uykusu başlangıcı
+const SLEEP_END := 5.0         # uyanış
+const SLEEP_RAMP_H := 2.0      # uykuya dalış rampası (saat)
+const SLEEP_DIM := 0.55        # light_curve = evening × (1 − sleep×SLEEP_DIM)
+const LIT_BASE := 0.04         # gündüz yanık pencere oranı
+const LIT_EV := 0.72           # akşam katkısı (gece %76'ya çıkar)
+const SLEEP_LIT_CUT := 0.85    # uykuda pencerelerin sönme oranı
+
+## 23-05 uyku miktarı (0..1, rampalı). SLEEP_END öncesi kolu: t+1 → 24'ü aşan saatin devamı.
+func _sleep_amount(t24: float) -> float:
+	if t24 >= SLEEP_START or t24 < SLEEP_END:
+		return minf(1.0, ((t24 - SLEEP_START) if t24 >= SLEEP_START else (t24 + 1.0)) / SLEEP_RAMP_H)
+	return 0.0
+
+func _lit_target(ev: float, sleep: float) -> float:
+	return (LIT_BASE + ev * LIT_EV) * (1.0 - sleep * SLEEP_LIT_CUT)
 
 ## Hava durumu (Faz D denetim #19): görsel+ses katmanı — SİM'E ETKİMEZ (denge/determinizm korunur).
 ## Saf türetim: ~%28 gün yağmurlu (günlük hash), gün içinde 3-6 saatlik pencere, 30dk rampa.
@@ -737,9 +750,9 @@ func rain_amount() -> float:
 		return 0.0
 	return clampf(minf(dt_in / 0.5, (dur - dt_in) / 0.5), 0.0, 1.0)
 
-## Kasaba uyku penceresi (23-05): kule de susar (ışık bütçesi ruhu; step_world sleep penceresiyle aynı).
+## Kasaba uyku penceresi (23-05): kule de susar (ışık bütçesi ruhu; TEK KAYNAK _sleep_amount).
 func is_asleep() -> bool:
-	return time_of_day >= 23.0 or time_of_day < 5.0
+	return _sleep_amount(time_of_day) > 0.0
 
 func _start_construction() -> void:
 	# 2 deneme: aday yoksa frontier genişletilip TEKRAR denenir — çağıran growth/goal'i çoktan

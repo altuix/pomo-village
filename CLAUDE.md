@@ -219,6 +219,17 @@ Her görevde, commit öncesi:
 7. Pre-commit kapısı kurulu olmalı: `git config core.hooksPath tools/hooks`
    (check+sim otomatik; yalnız-doküman commit'lerinde atlanır).
 
+## Edit güvenliği (iki gerçek kazadan doğan kurallar)
+
+- **Script-tabanlı toplu edit** (python/sed replace) yaparken eşleşme SAYISI doğrulanır;
+  0 eşleşme = FAIL, yazma iptal. (new_town fonksiyonu, çapası tutmayan sessiz no-op replace
+  yüzünden hiç eklenmedi ve buton ölü kaldı.) Tek/az değişiklikte Edit tool tercih edilir.
+- **user:// dosyasına dokunan her test adımı** keep-yakala ile temizle-geri-koy ARASINDA yaşar;
+  temizlik HER ZAMAN son adımdır ve geri koyduğunu okuyarak doğrular. (Sıra hatası kullanıcının
+  gerçek oyun kaydını sildi.)
+- **UI→main sözleşmesi**: ui.gd'den main'e yeni çağrı ekleyince `tests/run_ui.gd` MAIN_CONTRACT
+  listesine de eklenir (has_method sessiz-false ölü butonlarını yakalayan kapı).
+
 ## Atomik commit'ler, Türkçe mesaj
 
 Her commit tek mantıksal iş; kendi başına derlenir, yarım iş bırakmaz, bağımsız revert

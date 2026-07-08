@@ -471,3 +471,18 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   bildirildi). Düzeltme: blok temizlik öncesine + geri-koyma DOĞRULAMASI (restore_ok). KURAL:
   user:// dosyasına dokunan her test adımı keep-yakala ile temizle-geri-koy ARASINDA yaşar;
   temizlik HER ZAMAN son adımdır ve geri koyduğunu okuyarak doğrular.
+
+# Q1+Q2 KALİTE KAPISI — TAZE-GÖZ DENETİM ONARIMLARI + SÜREÇ BORCU (tamamlandı)
+- run_ui.gd (verify.sh ui + pre-commit): UI→main SÖZLEŞME (MAIN_CONTRACT listesi — çağrılan metod
+  yoksa FAIL; ölü-buton sınıfını kalıcı yakalar) + sinyal akışları. İlk koşu 3 kırık gösterdi.
+- new_town/quit_game GERÇEKTEN eklendi (sessiz no-op replace kazası); mektuplar lid kimliği
+  (index kayması yanlış mektuba yanıt veriyordu); pending_special kuyruğu (bina bulunamayan
+  özel dönüşüm vaadi kaybolmuyor); from_save TAMAMEN .get+default; chime kenarı tick döngüsünde;
+  festival >=600; _start_construction genişletme sonrası tekrar dener.
+- BİLİNEN SINIR (Q1.8): acquire_lock oku-yaz arası atomik değil (TOCTOU) — masaüstü tek
+  kullanıcıda kabul edilebilir; eş-zamanlı çift başlatma teorik olarak ikisini de kabul eder.
+- Q2: scripts/palette.gd NİHAYET kuruldu (CLAUDE.md §1'in dayandığı modül hiç yokmuş) —
+  SEASONS/ROOF_COLS/PCOL + UI tokenları (PANEL_BG/MINT/LILAC/... fiilî kullanımın resmileşmesi,
+  genişleme değil); town_view/ui alias'la okur. Işık formülü TEK KAYNAK: _sleep_amount/_lit_target
+  + isimli sabitler (SLEEP_DIM/LIT_BASE/LIT_EV/SLEEP_LIT_CUT); step_world/force_time/is_asleep
+  aynı kaynaktan. Görsel metrikler birebir korundu (118.7/88.9/59.4).
