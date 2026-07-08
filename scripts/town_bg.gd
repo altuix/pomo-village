@@ -69,6 +69,10 @@ func _draw() -> void:
 			col = view._mix(town_base, col, (float(gx - fr) + 0.5) / float(BORDER_COLS))
 		draw_rect(Rect2(gx * CW, 0, CW + 1.0, VH), col)
 
+	# ---- DİKEY KADRAJ ALT DOLGUSU (J14): dünya bandının altı ölü siyah kalmasın —
+	# koyulaşan çayır devamı (yalnız dikeyde görünür; yatayda kamera dışı, bedava)
+	draw_rect(Rect2(0, VH, VW, 800.0), view._mix(meadow_base, sky_bot, 0.2).darkened(0.25))
+
 	# ---- UZAK TEPELER (J2: ölü sağ çayıra derinlik — dev daire yaylarının üstü tepe okur) ----
 	var hill_far: Color = view._dusk(S.grass, ev * 0.5 + 0.25)
 	draw_circle(Vector2(VW - 40.0, VH + 190.0), 250.0, view._mix(hill_far, sky_bot, 0.35))

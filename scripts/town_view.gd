@@ -138,8 +138,10 @@ func _draw() -> void:
 			var sy := float((s * 57) % int(VH * 0.16))
 			if (s * 7 + int(_t * 3.0)) % 13 < 2: continue
 			draw_rect(Rect2(sx, sy, 1.5, 1.5), sc)
+	var dusk_glow := clampf(1.0 - absf(ev - 0.5) * 3.0, 0.0, 1.0)   # yalnız alacakaranlık bandında
 	for cl in clouds:
 		var cc := Color(0.82, 0.63, 0.67, 0.16 * (1.0 - ev * 0.6))
+		cc = cc.lerp(Color(1.0, 0.81, 0.48, cc.a), dusk_glow * 0.5)   # J13: batan güneş bulut altını ısıtır
 		draw_circle(Vector2(cl.x, cl.y), cl.w / 4.0, cc)
 		draw_circle(Vector2(cl.x + cl.w * 0.3, cl.y - 3.0), cl.w / 5.0, cc)
 
@@ -256,9 +258,12 @@ func _draw() -> void:
 		if not b.awake or not b.chimney or b.build_prog < 1.0: continue
 		var X: float = (b.gx + 0.7) * CW
 		var Y: float = b.gy * CH - CH * 0.3
-		for pi in range(3):
-			var tt := fmod(_t * 5.0 + b.seed + pi * 40.0, 120.0) / 120.0
-			draw_circle(Vector2(X + sin(tt * 6.0 + b.seed) * 4.0, Y - tt * 26.0), 1.4 + tt * 5.0, Color(0.78, 0.71, 0.75, 0.1 * (1.0 - tt)))
+		# J13: puf sayısı/hızı/boyu bina seed'inden — her baca kendi karakterinde tütsün
+		var puffs: int = 2 + b.seed % 3
+		var spd: float = 4.0 + float(b.seed % 5) * 0.5
+		for pi in range(puffs):
+			var tt := fmod(_t * spd + b.seed + pi * 40.0, 120.0) / 120.0
+			draw_circle(Vector2(X + sin(tt * 6.0 + b.seed) * 4.0, Y - tt * 26.0), 1.2 + float(b.seed % 3) * 0.3 + tt * 5.0, Color(0.78, 0.71, 0.75, 0.1 * (1.0 - tt)))
 
 	# ---- YAĞMUR (Faz D hava durumu; ses kanalının görsel karşılığı) ----
 	var ra := world.rain_amount()
@@ -369,6 +374,11 @@ func _draw_landmark(ev: float) -> void:
 	# çatı üçgeni
 	draw_colored_polygon([Vector2(LX - 3.0, LY - th + CH), Vector2(LX + tw / 2.0, LY - th - CH * 0.8), Vector2(LX + tw + 3.0, LY - th + CH)], Color8(168,90,72))
 	draw_circle(Vector2(LX + tw / 2.0, LY - th - CH * 0.8), 2.5, Color8(255,230,168))
+	# J13: landmark'ta hareket — rüzgârla dalgalanan flama (c25a4a çatı kızılı)
+	var fb := Vector2(LX + tw / 2.0, LY - th - CH * 0.8 - 2.5)
+	draw_line(fb, fb + Vector2(0, -6.0), Color8(90, 76, 84), 1.0)
+	var wav := sin(_t * 3.0 + _wind * 2.0) * 2.0
+	draw_colored_polygon([fb + Vector2(0.5, -6.0), fb + Vector2(7.0, -5.0 + wav), fb + Vector2(0.5, -3.2)], Color8(194, 90, 74))
 
 func _ease_out_back(t: float) -> float:
 	var c := 1.70158
