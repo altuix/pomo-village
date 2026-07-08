@@ -216,15 +216,29 @@ func _draw() -> void:
 		var pos: Vector2 = _ppos.get(p.seed, Vector2(p.x * CW + CW * 0.5, p.y * CH + CH * 0.5))
 		var walking := pos.distance_to(Vector2(p.x * CW + CW * 0.5, p.y * CH + CH * 0.5)) > 0.8
 		var bob := (sin(_t * 20.0 + p.seed) * 1.1) if walking else 0.0
-		var r := 2.1 if p.stage == 0 else (2.8 if p.stage == 2 else 3.1)
-		draw_circle(Vector2(pos.x + sun_dx * 0.6, pos.y + bob + 3.0), r + 0.4, Color(0.17, 0.12, 0.18, 0.35))
+		# MİNİ-İNSAN (kullanıcı isteği: 3px daire karaktersizdi — kafa/gövde/bacak silüeti,
+		# tüm renkler paletten: kıyafet PCOL, ten CREAM ailesi, baston yol kahvesi)
+		var ps := 0.7 if p.stage == 0 else (0.92 if p.stage == 2 else 1.0)
+		draw_circle(Vector2(pos.x + sun_dx * 0.6, pos.y + bob + 4.0), 2.6 * ps, Color(0.17, 0.12, 0.18, 0.35))
 		var col: Color = PCOL[p.col]
-		if p.stage == 2: col.a = 0.85
-		draw_circle(Vector2(pos.x, pos.y + bob), r, col)
-		if p.scarf:
-			draw_arc(Vector2(pos.x, pos.y + bob), r + 1.6, 0.0, TAU, 16, Color(1.0, 0.81, 0.48, 0.9), 1.2)
+		if p.stage == 2:
+			col = col.darkened(0.18)   # bilge: solgun kıyafet
+		var bp := Vector2(pos.x, pos.y + bob)
+		var leg_col := col.darkened(0.35)
+		if walking:
+			var lw := sin(_t * 14.0 + float(p.seed % 7)) * 1.5
+			draw_line(bp + Vector2(-0.8, 1.4 * ps), bp + Vector2(-0.8 + lw, 4.2 * ps), leg_col, 1.1)
+			draw_line(bp + Vector2(0.8, 1.4 * ps), bp + Vector2(0.8 - lw, 4.2 * ps), leg_col, 1.1)
+		else:
+			draw_rect(Rect2(bp + Vector2(-1.2 * ps, 1.4 * ps), Vector2(2.4 * ps, 2.6 * ps)), leg_col)
+		draw_rect(Rect2(bp + Vector2(-1.7 * ps, -1.8 * ps), Vector2(3.4 * ps, 3.4 * ps)), col)
+		draw_circle(bp + Vector2(0, -2.9 * ps), 1.5 * ps, Color8(232, 220, 200))
+		if p.scarf:   # atkı: boyunda honey şerit (bağın nişanı — arc'tan daha "atkı")
+			draw_rect(Rect2(bp + Vector2(-1.9 * ps, -1.9 * ps), Vector2(3.8 * ps, 1.2)), Color(1.0, 0.81, 0.48))
+		if p.stage == 2:   # bilge bastonu
+			draw_line(bp + Vector2(2.3 * ps, -0.6), bp + Vector2(2.6 * ps, 4.2 * ps), Color8(120, 104, 92), 1.0)
 		if p == hovered:   # hover vurgusu: ince halka (ışık kaynağı değil — bütçe delinmez)
-			draw_arc(Vector2(pos.x, pos.y + bob), r + 3.0, 0.0, TAU, 20, Color(1.0, 0.94, 0.82, 0.55), 1.0)
+			draw_arc(bp + Vector2(0, -0.5), 5.6 * ps, 0.0, TAU, 20, Color(1.0, 0.94, 0.82, 0.55), 1.0)
 
 	# ---- LAMBALAR (temel; kaskad/parıltı A2) ----
 	for L in world.lamps:
