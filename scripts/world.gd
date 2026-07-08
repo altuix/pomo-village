@@ -39,6 +39,7 @@ var trees: Array = []
 var fountains: Array = []
 var people: Array = []            # Array[Dictionary]
 var mem_trees: Array = []
+var decor: Array = []             # dilek objeleri: bank/kuş yuvası/posta kutusu/rüzgâr gülü {gx,gy,kind}
 var movers: Array = []            # people dict ref'leri
 var building_now = null           # yükselen bina (Dictionary) ya da null
 
@@ -81,6 +82,10 @@ const WISH_TYPES := [
 	{ "k": "çeşme", "txt": "meydana küçük bir çeşme" },
 	{ "k": "ağaç",  "txt": "sokağıma bir ağaç" },
 	{ "k": "fener", "txt": "kapımın önüne bir fener" },
+	{ "k": "bank",  "txt": "ağacın altına bir bank" },
+	{ "k": "kuş yuvası", "txt": "bahçeme bir kuş yuvası" },
+	{ "k": "posta kutusu", "txt": "kapıma bir posta kutusu" },
+	{ "k": "rüzgâr gülü", "txt": "çatıma bir rüzgâr gülü" },
 ]
 
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
@@ -147,6 +152,7 @@ func gen(seed_val: int = 0) -> void:
 	fountains = []
 	people = []
 	mem_trees = []
+	decor = []
 	movers = []
 	building_now = null
 	name_idx = 0
@@ -531,6 +537,7 @@ func to_save() -> Dictionary:
 		"buildings": sb, "people": sp,
 		"lamps": lamps.duplicate(true), "trees": trees.duplicate(true),
 		"fountains": fountains.duplicate(true), "mem_trees": mem_trees.duplicate(true),
+		"decor": decor.duplicate(true),
 		"building_now": bn_idx,
 		"wish": wsh,
 		"letters": letters.duplicate(true),
@@ -611,6 +618,11 @@ func from_save(d: Dictionary) -> void:
 		var M: Dictionary = (sd as Dictionary).duplicate(true)
 		M.gx = int(M.gx); M.gy = int(M.gy)
 		mem_trees.append(M)
+	decor = []
+	for sd in d.get("decor", []):
+		var DC: Dictionary = (sd as Dictionary).duplicate(true)
+		DC.gx = int(DC.gx); DC.gy = int(DC.gy)
+		decor.append(DC)
 	letters = []
 	for sd in d.letters:
 		var L2: Dictionary = (sd as Dictionary).duplicate(true)
@@ -1050,6 +1062,7 @@ func grant_wish():
 		"çeşme": fountains.append({ "gx": px, "gy": py })
 		"ağaç": trees.append({ "gx": px, "gy": py, "s": 1, "sway": _hf(px + py) })
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
+		_: decor.append({ "gx": px, "gy": py, "kind": t.k })   # bank/kuş yuvası/posta kutusu/rüzgâr gülü
 	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false,
 		"text": Letters.pick(Letters.DILEK[t.k], _h(tick * 11 + px)) })
 	stat_wishes += 1

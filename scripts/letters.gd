@@ -66,6 +66,30 @@ const DILEK := {
 		"Kedim artık fenerin altında uyuyor. İkimiz de sana minnettarız.",
 		"Geceleri fenerin ışığı camda dans ediyor. Karanlığı değil, artık gölgelerin oyununu izliyorum.",
 	],
+	"bank": [
+		"Bank geldi ve hayatım değişti: artık akşamları oturup kasabayı izliyorum. Sen de gel bir gün.",
+		"İhtiyar dizlerim sana dua ediyor. Bankta oturup gelene geçene selam veriyorum.",
+		"Bugün bankta bir yabancıyla sohbet ettim; komşu olduk. Bir tahta parçası neler yapıyor.",
+		"Bankın üstüne bir yastık koydum. Resmen benim köşem artık. Teşekkürler.",
+	],
+	"kuş yuvası": [
+		"Yuvaya ilk kiracı taşındı: kırmızı gagalı bir serçe. Sabahları beni o uyandırıyor artık.",
+		"Kuş yuvasını her sabah kontrol ediyorum. Bugün üç minik yumurta vardı. Heyecandan uyuyamıyorum.",
+		"Kışın kuşlara ekmek kırıntısı bırakıyorum; yuvan sayesinde bahçem şarkı dolu.",
+		"Torunuma yuvadaki kuşları gösterdim; gözleri kocaman oldu. Bu hediye ikimize.",
+	],
+	"posta kutusu": [
+		"Posta kutuma ilk mektup düştü! Kimden mi? Senden — bu mektup. Döngü tamamlandı.",
+		"Artık mektuplarım yağmurda ıslanmıyor. Kapı önünde kutuyu her görüşümde gülümsüyorum.",
+		"Komşu çocuklar kutuma çizimler bırakıyor. Küçük bir sanat galerim oldu.",
+		"Kutunun üstüne adımı yazdım. Küçük şey ama insana 'buradayım' dedirtiyor.",
+	],
+	"rüzgâr gülü": [
+		"Rüzgâr gülü dönerken izliyorum; rüzgârın yönünü değil, zamanın geçişini gösteriyor sanki.",
+		"Fırtına gelmeden gül hızlanıyor; çamaşırları hep vaktinde topluyorum artık. Ellerine sağlık.",
+		"Çatıdaki gül gıcırdamıyor bile — usta işi. Kuşlar tepesine konup dönmesini bekliyor.",
+		"Rüzgâr gülünü penceremden görüyorum. Döndükçe kasaba yaşıyor diyorum içimden.",
+	],
 }
 
 # ---- TAŞINMA (yeni gelen aile / yuva kuran genç) ----

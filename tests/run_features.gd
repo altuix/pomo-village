@@ -14,8 +14,48 @@ func _init() -> void:
 	ok = _test_endgame_design() and ok
 	ok = _test_weather() and ok
 	ok = _test_festival() and ok
+	ok = _test_wish_variety() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D dilek çeşitliliği: 7 tipin hepsi kurulur; yeni 4'ü decor'e düşer; roundtrip int-güvenli.
+func _test_wish_variety() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(6000): w.step_world()   # yetişkinler
+	var adult = null
+	for p in w.people:
+		if p.stage == 1:
+			adult = p
+			break
+	if adult == null:
+		print("Dw: yetişkin yok FAIL"); return false
+	for ti in range(w.WISH_TYPES.size()):
+		w.wish = { "who": adult, "type": ti }
+		if w.grant_wish() == null:
+			print("Dw: tip %d kurulamadı FAIL" % ti); return false
+	var decor_ok: bool = w.decor.size() == 4 and w.stat_wishes >= 7
+	var kinds := {}
+	for dc in w.decor:
+		kinds[dc.kind] = true
+	var kinds_ok: bool = kinds.size() == 4
+	# her tipin teşekkür metni havuzdan geldi mi (dilek mektupları)
+	var pool_ok := true
+	for l in w.letters:
+		if l.kind == "dilek":
+			var found := false
+			for key in Letters.DILEK.keys():
+				if Letters.DILEK[key].has(l.text):
+					found = true
+			if not found:
+				pool_ok = false
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w2.decor.size() == 4 and typeof(w2.decor[0].gx) == TYPE_INT
+	print("D dilek-çeşit: decor=%s tipler=%s havuz=%s roundtrip=%s" % [str(decor_ok), str(kinds_ok), str(pool_ok), str(rt)])
+	var pass_ok: bool = decor_ok and kinds_ok and pool_ok and rt
+	print("Dw: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D festival: mevsim ortasında bir kez tetiklenir, mevsim dönünce bayrak sıfırlanır.
 func _test_festival() -> bool:

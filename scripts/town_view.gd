@@ -164,6 +164,28 @@ func _draw() -> void:
 		draw_circle(Vector2(X, Y), CW * 0.27, Color8(122,154,184))
 		draw_circle(Vector2(X, Y - 1.0), 1.4, Color(0.86, 0.94, 1.0, 0.4 + 0.3 * sin(_t * 4.0)))
 
+	# ---- DİLEK OBJELERİ (bank/kuş yuvası/posta kutusu/rüzgâr gülü — az sayıda, dinamik) ----
+	for dc in world.decor:
+		var X: float = dc.gx * CW + CW / 2.0
+		var Y: float = dc.gy * CH + CH / 2.0
+		match dc.kind:
+			"bank":   # palet: yol kahvesi (ilkbahar road tonu — ahşap)
+				draw_rect(Rect2(X - 3.5, Y - 1.0, 7.0, 2.0), Color8(120, 104, 92))
+				draw_rect(Rect2(X - 3.5, Y - 3.2, 7.0, 1.2), Color8(120, 104, 92))
+			"kuş yuvası":   # palet: lamba direği grisi + c99b46 çatı koyusu
+				draw_rect(Rect2(X - 0.6, Y - 4.0, 1.2, 5.0), Color8(90, 76, 84))
+				draw_rect(Rect2(X - 2.0, Y - 6.5, 4.0, 3.0), Color8(168, 130, 58))
+				if sin(_t * 0.7 + dc.gx) > 0.6:   # ara sıra konuk kuş
+					draw_circle(Vector2(X, Y - 7.5), 1.1, Color(0.24, 0.18, 0.22))
+			"posta kutusu":
+				draw_rect(Rect2(X - 0.5, Y - 2.5, 1.0, 3.0), Color8(90, 76, 84))
+				draw_rect(Rect2(X - 1.8, Y - 5.0, 3.6, 2.6), Color8(194, 90, 74))
+			"rüzgâr gülü":
+				draw_rect(Rect2(X - 0.5, Y - 6.0, 1.0, 6.0), Color8(90, 76, 84))
+				var wa := _t * (1.5 + _wind * 2.0)
+				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) + Vector2(cos(wa), sin(wa)) * 3.0, Color8(232, 220, 200), 1.0)
+				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) - Vector2(cos(wa), sin(wa)) * 3.0, Color8(201, 155, 70), 1.0)
+
 	# ---- KASABA AĞAÇLARI (sway animasyonlu → dinamik katmanda) ----
 	var tree_col := _dusk(S.tree, ev * 0.45)
 	for tr in world.trees:
