@@ -270,9 +270,9 @@ bitti"). Mevcut içerik ~1-2 haftalık yenilik sunuyor; hedef 4-6 hafta.
 - [ ] **Dilek çeşitliliği** — çeşme/ağaç/fener'e 4-6 yeni obje.
 - [x] **Kasaba yıldönümü / uzun-vade anları** — 30. gün, 100. komşu, 50. anı ağacı:
       tek seferlik kutlama mektubu + olay (milestones save'de).
-- [ ] **Hafif hava durumu** (denetim #19) — yağmur ses kanalının görsel karşılığı: yağmur
-      çizgileri + ıslak zemin tonu + gökyüzü grileşmesi; deterministik hash'ten (`Rng.hf`)
-      seyrek yağmurlu günler. Kar zaten var; yağmur eksik.
+- [x] **Hafif hava durumu** (denetim #19) — world.rain_amount() saf türetim (~%28 gün,
+      3-6 saat, rampa; kışın kapalı); yağmur çizgileri + ıslak zemin + kurşuni gök (sıcaklık
+      korunur); rain ses kanalı yağmurda hafif kendiliğinden; geçiş olayları.
 - [ ] **Seri ödül zinciri uzatması** (denetim #12 ile birlikte) — atölye(3)→kütüphane(5)
       sonrası milestone zincirine bağlanır; her yeni özel bina bir seri/odak hedefine oturur.
 - [x] **End-game tasarımı** (denetim #29) — "Kasaba bütünlendi" tek seferlik kutlama +

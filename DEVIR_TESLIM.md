@@ -416,3 +416,15 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
 - İLK ÖLÇÜM: %27.2 CPU / 487MB (30fps cap + statik katman + ses atlaması sonrası; bütçe %35
   dev-mac). Windows release hedefi (<%3-5 idle, <200MB) Faz E sağlamlaştırmasında.
 - Görsel eşdeğerlik: pixelcheck 118.7/88.9/59.4 (±0.5 — ev kuantizasyonu) + akşam karesi gözle.
+
+# FAZ D — HAVA DURUMU (yağmur, tamamlandı)
+- world.rain_amount(): SAF türetim — günlük hash %28, gün içinde 3-6 saat pencere, 30dk rampa,
+  kışın 0 (kar zaten var). SİM DURUMUNA ETKİMEZ (saflık testi: çağrı determinizmi saptırmaz).
+  rain_was yalnız geçiş olayı için (save'e girmez; yüklemede tek sahte geçiş zararsız).
+- Render: 80 çapraz çizgi (seedli kozmetik, town_view dinamik); bg imzasına int(rain×8) —
+  gök MOR TABANLI griye çalar (Color8(104-118,...) — R−B>0 sıcaklık metriği korunur),
+  zemin ıslak/koyu. Görsel metrikler PASS (gün-0 fazları yağmursuz denk geliyor).
+- Ses: audio.weather_rain (main._process besler); etkin kazanç maxf(slider, weather×0.35) —
+  cırcır×evening deseninin yağmur karşılığı. Sessizlik atlaması rain_gain'i hesaba katar.
+- KALAN FAZ D: mevsimsel festivaller, milestone bina zinciri (rasathane/sera/hamam),
+  dilek çeşitliliği (4-6 yeni obje), oyun saati↔gerçek saat kararı (Açık Karar #6).
