@@ -380,6 +380,26 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
 - KALAN FAZ C: dikey mod re-layout, ana menü/başlangıç ekranı, font/ikon/uygulama ikonu
   (asset işi — dev-pipeline), native ışıklar (perf bütçesine bağlı).
 
+# FAZ D — MEKTUP DERİNLİĞİ + UZUN-VADE ANLARI + END-GAME (tamamlandı)
+- letters.gd: ~70 parametrik şablon (i18n Faz E hazır). Kaynaklar: veda 12 + VEDA_ATKI 3
+  (atkı sahibine kişisel), odak 12, dilek 3×5, taşınma 8 (%35 — aile/kuşak/göç, _maybe_move_letter
+  tek kaynak), doğum 8 (%30 ebeveynden), an 4, bond-eki 4 (bond≥5, %40). Seçim Letters.pick +
+  world._h → DETERMİNİST (test: aynı tohum = aynı mektup dizisi).
+- Kilometre taşları (milestones dict, save'de): gun30 / sakin100 (name_idx) / veda50 — eşik
+  aşımında tek seferlik _milestone (mektup + olay).
+- END-GAME (denetim #29 tasarım karşılığı):
+  · BÜTÜNLENME: _start_construction'da aday yok + frontier ≥ GW-8 → town_complete + "butunlendi"
+    milestone (eski sessiz no-op görünür kutlamaya döndü). Sonrası her goal → _beautify (goal ×1.10).
+  · PLATO TAŞMASI: goal > FLOWER_OVERFLOW(7200) iken growth eşiği aşarsa SABİT FLOWER_COST(2400
+    ≈ 3 oyun-günü) düşülüp bir ev çiçeklenir (bloom) — goal BÜYÜMEZ. Hepsi çiçekliyse nazik şenlik.
+  · DENGE DERSLERİ (iki başarısız deneme belgelendi): goal ×1.10 → harita doluyor AMA nüfus
+    kapasiteyi takip edip 94-104 (bant 20-90 KIRILIR; nüfus kapasite-güdümlü — harita doldurma
+    her yolda nüfusu şişirir). 3×goal taşma eşiği → goal üstel şişince 365 günde hiç tetiklenmez.
+    Sabit-maliyet tasarımı bandı korur: 365-gün goal 7.631'de DENGEDE, bant 27-65, çiçekler akar.
+  · Render: bloom → pencere altı mevsim-çiçek şeridi (_draw_building); save'de bloom bool taşınır.
+- Testler: D mektup (çeşitlilik/milestone/determinizm) + De endgame (bütünlenme/tek-sefer/
+  çiçek/roundtrip/taşma) + sim bandı + 365-gün endgame HEPSİ PASS. bloom karesi gözle doğrulandı.
+
 # PERF BÜTÇESİ (ilk geçiş, tamamlandı)
 - town_bg.gd STATİK KATMAN (z=-1, TownView çocuğu): gökyüzü/zemin/nehir-tabanı/yol/çayır-detay/
   plaza/anı-ağaçları. İmza: [season, frontier, int(evening×32), yol, anı, çeşme sayısı] —

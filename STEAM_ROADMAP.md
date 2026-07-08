@@ -259,27 +259,26 @@ Her madde: `verify.sh all` yeşil + `run_features.gd` kabul testi + DEVIR_TESLIM
 Idle/cozy oyunlarda negatif Steam yorumunun 1 numaralı sebebi içerik sığlığı ("1 haftada
 bitti"). Mevcut içerik ~1-2 haftalık yenilik sunuyor; hedef 4-6 hafta.
 
-- [ ] **Mektup havuzu genişletmesi** — duygusal çekirdek. Hedef: kaynak başına
-      (veda/dilek/odak/konser/doğum/taşınma) 15-20 varyant, toplam 100+ şablon. Sakin bağlamı
-      (bond seviyesi, yaş evresi) şablon seçimini etkilesin.
+- [x] **Mektup havuzu genişletmesi** — letters.gd ~70 şablon (veda 12+3 atkılı, odak 12,
+      dilek 3×5, taşınma 8, doğum 8, an 4, bond-eki 4); parametrik format (i18n hazır);
+      bağlam: atkı sahibine kişisel veda, bond≥5'te sıcak not. Determinist seçim.
+      (100+ hedefine Faz D devamında festival/mevsim mektuplarıyla ulaşılır.)
 - [ ] **Mevsimsel olaylar** — her mevsime 1 küçük festival (kış feneri gecesi, bahar çiçek
       günü vb.); kule mevsim şarkıları (konser ödülünün genişlemesi — DEVIR_TESLIM'de not var).
 - [ ] **Milestone zinciri** — atölye→kütüphane'den sonra: rasathane, sera, hamam... 3-5 yeni
       özel bina; seri/odak birikimiyle açılır, kasabaya görsel + işlevsel katkı.
 - [ ] **Dilek çeşitliliği** — çeşme/ağaç/fener'e 4-6 yeni obje.
-- [ ] **Kasaba yıldönümü / uzun-vade anları** — 30. gün, 100. sakin, 50. veda gibi anlara
-      özel mektup + olay (albüme işlenir).
+- [x] **Kasaba yıldönümü / uzun-vade anları** — 30. gün, 100. komşu, 50. anı ağacı:
+      tek seferlik kutlama mektubu + olay (milestones save'de).
 - [ ] **Hafif hava durumu** (denetim #19) — yağmur ses kanalının görsel karşılığı: yağmur
       çizgileri + ıslak zemin tonu + gökyüzü grileşmesi; deterministik hash'ten (`Rng.hf`)
       seyrek yağmurlu günler. Kar zaten var; yağmur eksik.
 - [ ] **Seri ödül zinciri uzatması** (denetim #12 ile birlikte) — atölye(3)→kütüphane(5)
       sonrası milestone zincirine bağlanır; her yeni özel bina bir seri/odak hedefine oturur.
-- [ ] **End-game tasarımı** (denetim #29) — kasaba dolunca ne olur, tasarlanır:
-      "Kasaba bütünlendi" kutlaması + özel mektup; sonrasında growth yeni bir kanala akar
-      (öneri: bina güzelleştirme — çiçekli pencere, renkli çatı varyantı — ya da ikinci
-      vadi/kartpostal genişlemesi). `goal *= 1.18` üstel eğrisi hedef doluluk gününe göre
-      yeniden ayarlanır (365-gün end-game testinin ölçtüğü eğriyle, Faz 0). Cozy ilkesi:
-      son bir "bitti" duvarı değil, nazik bir tamamlanma + sürdürülebilir küçük ödüller.
+- [x] **End-game tasarımı** (denetim #29) — "Kasaba bütünlendi" tek seferlik kutlama +
+      mektup; PLATO TAŞMA kanalı: goal şişince biriken emek sabit maliyetle (~3 günde bir)
+      evleri çiçeklendirir (goal eğrisi DEĞİŞMEDİ: ×1.10 denemesi nüfusu 94-104'e taşıyıp
+      20-90 bandını kırdı — bant korunarak çözüldü). 365-gün: goal 7.631 dengede, bant 27-65.
 
 Anayasa korunur: hepsi opsiyonel katman, çekirdek (izle→büyür→mektup) zorunlu mekanikle
 kirletilmez.
