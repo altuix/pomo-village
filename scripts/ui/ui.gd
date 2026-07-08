@@ -37,6 +37,13 @@ var _mel_note: Label
 func _ready() -> void:
 	_build()
 
+## main._wire çağırır: kayıtlı/aktif melodiyi ızgaraya yansıt (açılışta default değil oyuncunun bestesi).
+func sync_from_world() -> void:
+	if world != null and world.melody.size() == Melody.STEPS:
+		_melody = world.melody.duplicate()
+		if not _mel_cells.is_empty():
+			_refresh_melody()
+
 func _label(txt: String, size: int, col: Color) -> Label:
 	var l := Label.new()
 	l.text = txt

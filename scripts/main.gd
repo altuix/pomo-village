@@ -18,6 +18,7 @@ var _focus_timer: Timer = null
 var _save_accum := 0.0
 var _pending_offline := {}
 var _is_capture := false   # capture modunda kayıt yükleme/yazma yok
+var _prev_chime := 0.0     # saat başı kule melodisi için yükselen-kenar takibi (town_view'daki desen)
 
 @onready var town_view: Node2D = $TownView
 @onready var ui: CanvasLayer = $UI
@@ -90,6 +91,10 @@ func _wire() -> void:
 		ui.world = world
 		ui.main = self
 		ui.audio = audio
+		if ui.has_method("sync_from_world"):
+			ui.sync_from_world()   # kayıtlı melodi ızgaraya yüklensin (default'u gösterme)
+	if world != null:
+		_prev_chime = world.chime_t   # boot'ta hayalet çan çalmasın
 
 func _daily_seed() -> int:
 	var d := Time.get_date_dict_from_system()
@@ -104,6 +109,11 @@ func _process(delta: float) -> void:
 	while _accum >= TICK_DT:
 		world.step_world()
 		_accum -= TICK_DT
+	# saat başı: kule ÖĞRETİLMİŞ melodini çalar (uykuda 23-05 susar — ışık bütçesi ruhu)
+	if world.chime_t > 0.9 and _prev_chime <= 0.9 and world.melody_saved and not world.is_asleep():
+		if is_instance_valid(audio):
+			audio.play_melody(world.melody)
+	_prev_chime = world.chime_t
 	_save_accum += delta
 	if _save_accum >= 60.0:   # periyodik otomatik kayıt
 		_save_accum = 0.0
