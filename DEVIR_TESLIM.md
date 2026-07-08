@@ -367,6 +367,15 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   · status_text: öğlen "huzurlu bir akşam" (HTML kalıntısı) → gün/akşamüstü ayrımı.
   · Metrikler: gündüz 118.2 / akşam 88.5 / gece 59.1 (bant 58-88 alt sınıra yakın — gece
     ağaç karartması eklerken ölçmeden dokunma!), R−B>0, value>60. Üç kare gözle incelendi.
+# FAZ C — MÜZİK DERİNLİĞİ (tamamlandı)
+- Pad generative oldu (Eno modeli): 4 ses × ortak-katsız döngü (19.7/26.3/33.1/43.7s), her döngüde
+  Rng.h ile pentatonik alt-oktav nota (C-D-E-G-A) — katmanlar hizalanmaz, tekrarsız. sin(π·t)
+  döngü zarfı sınırda 0 → nota değişimi TIKSIZ. Frekans yalnız döngü sınırında hesaplanır (CPU).
+- Vertical layering: odak seansında 5. üst-oktav katman (53.9s) — main start/cancel/timeout/restore
+  noktaları audio.focus_active'i sürer. Akşam pad dolgunlaşır: ×(0.8+0.3·evening).
+- Kule arası serpinti: CHIME_PERIOD 27.7s, %55 şans, pad kanalı açıkken kısık tek nota (0.03).
+- SESSİZLİK ATLAMASI: audible değilken buffer sıfırla dolar, _t akmaya devam (döngü tutarlılığı);
+  sinüs/LFO/noise hesaplanmaz. Perf: nişin 1 no'lu şikâyeti CPU'ya ilk somut önlem.
+- Smoke (.verify_out/sndsmoke.gd): 60sn'de nota değişimi ✓ serpinti ✓ odak katmanı ✓ sessiz çökme yok ✓.
 - KALAN FAZ C: dikey mod re-layout, ana menü/başlangıç ekranı, font/ikon/uygulama ikonu
-  (asset işi — dev-pipeline), native ışıklar (perf bütçesine bağlı). MÜZİK DERİNLİĞİ
-  (incommensurable pad loops + adaptif katman + generative chime) sıradaki iş.
+  (asset işi — dev-pipeline), native ışıklar (perf bütçesine bağlı).
