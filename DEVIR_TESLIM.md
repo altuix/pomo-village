@@ -450,3 +450,24 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
      durumu TAM 0.0. DERS: azalan-sayaç alanları save'e giriyorsa sıfıra clamp'le.
 - Doğrulama: features 12 test grubu + sim bandı + endgame 365 + görsel kareler (özel binalar,
   çiçekler, yağmur) + gerçek oyun 10sn açık-kalma kontrolü. HEPSİ PASS.
+
+# FAZ C KAPANIŞI + SAĞLAMLAŞTIRMA — ANA MENÜ · DİKEY MOD · KİLİT/INPUT/SÜRÜM/OFFLINE (tamamlandı)
+- ANA MENÜ: canlı sim perde altında (ui.menu_screen, fade); Devam / Yeni Kasaba (iki aşamalı
+  nazik onay; SaveGame.backup_current → .bak) / Krediler (Godot MIT bildirimi ZORUNLU — burada) /
+  Kaydet-Çık. Hızlı başlat: Settings flags (get_flag/set_flag). Esc = menü aç/kapa (doğrudan çıkış
+  kalktı; pencere kapatma yine kaydeder). new_town sonrası ui.refresh_mail (eski dünya mektupları).
+- DİKEY MOD (C19 gerçek re-layout): VERT_SIZE 380×700; kamera zoom 380/480, position (240, Hvis/2)
+  → dünya üstte bant, altı panel alanı. ui.set_vertical: mod seçici gizli, ☰/✉/dilek kısa, olay 340px.
+  Kamera pulse _cam_base_zoom üzerinden (Vector2.ONE hardcode dikeyde kırılıyordu).
+- KİLİT (#23): nefes.lock unix damgası; _save 60sn'de tazeler; 150sn bayatlama. OS.alert KULLANMA
+  (bloklayıcı modal — otomasyon asılı kalır) → push_warning + kapanış. verify.sh perf bayat kilidi siler.
+- INPUT (#24): nefes_menu (Esc) / nefes_vertical (V) aksiyonları project.godot [input].
+- SÜRÜM (#25): config/version 0.4.0; SaveGame.save d["app"] damgası; v>1 migrasyon iskeleti;
+  _read_state ŞEMA KONTROLÜ (seed/tick/people/buildings yoksa bozuk → yedek/taze yol; yarım JSON
+  from_save'i çökertiyordu — gerçek çökme launch logunda görüldü).
+- OFFLINE (#26): cap 28800 (12 oyun günü ≈ 6 saat birebir); boot senkron ~2.6s (M4).
+- ⚠ POSTMORTEM — TEST VERİ KAYBI: atomic testin Yeni-Kasaba bloğu yanlışlıkla temizle-geri-koy
+  adımından SONRAYA eklendi → dummy dosya GERÇEK oyun kaydını ezdi (kullanıcı kasabası kaybedildi,
+  bildirildi). Düzeltme: blok temizlik öncesine + geri-koyma DOĞRULAMASI (restore_ok). KURAL:
+  user:// dosyasına dokunan her test adımı keep-yakala ile temizle-geri-koy ARASINDA yaşar;
+  temizlik HER ZAMAN son adımdır ve geri koyduğunu okuyarak doğrular.

@@ -100,14 +100,10 @@ her şeyden önce yapılır.
     `user://settings.cfg` (ConfigFile) + makul default'lar gerek.
 22. **Atomic save yok.** `FileAccess.WRITE` doğrudan truncate ediyor; yazım ortasında
     crash/elektrik kesintisi = save tamamen gider. tmp dosyaya yaz + rename + `.bak` tut.
-23. **Multi-instance koruması yok.** İki kopya açılırsa aynı save.json'a yazarlar.
-24. **Input map yok.** Esc/V hardcoded keycode (main.gd:71); Godot InputMap'e taşınmalı
-    (ileride remap + farklı klavye düzenleri).
-25. **Sürüm numarası yok.** `application/config/version` tanımsız; save formatı `"v": 1`
-    var ama migrasyon iskeleti yok.
-26. **Offline cap 4 gerçek saat** (20000 tick) — bir gece uyuyan kullanıcı bile hep
-    "capped" görür. Cap'i gün-bazlı özete çevir ya da yükselt; boot'ta 20k senkron
-    step_world süresi de ölçülmeli (yaşlı CPU'da açılış donması riski).
+23. ~~Multi-instance koruması yok~~ ✔ (nefes.lock + canlılık damgası; bayat kilit devralınır).
+24. ~~Input map yok~~ ✔ (nefes_menu/nefes_vertical aksiyonları).
+25. ~~Sürüm numarası yok~~ ✔ (0.4.0 + save 'app' damgası + v>1 migrasyon iskeleti + şema kontrolü).
+26. ~~Offline cap 4 saat~~ ✔ (28800 tick = 6 saat/12 oyun günü; boot senkron ~2.6s M4 ölçümü).
 27. **Mektup listesi sınırsız büyüyor.** `letters` hiç kırpılmıyor — uzun save'lerde şişer;
     albüm/arşiv tasarımıyla birlikte çözülür (aktif kutu + arşiv).
 28. **Sistem tepsisi entegrasyonu yok.** Always-on companion için tepsiye küçültme /
@@ -227,9 +223,11 @@ JUICE_YAPILACAKLAR.md'deki ⏳ maddeler, öncelik sırasıyla:
       tüm butonlarda bal-tonu hover ısınması.
 - [x] **Kartpostal modu (20)** — 📷: UI'sız kare + ink çerçeve + tohum/gün/saat dosya adı →
       Resimler klasörü; deklanşör sesi. Tohum paylaşımı = arkadaş aynı kasabayı kurar.
-- [ ] **Gerçek dikey mod (19)** — re-layout; ikinci monitör kenarı kullanımı.
-- [ ] **Ana menü / başlangıç ekranı** — şu an oyun doğrudan şeride açılıyor; Steam oyuncusu
-      bir karşılama bekler. Kapsam:
+- [x] **Gerçek dikey mod (19)** — 380×700; kamera kasaba çekirdeğini genişliğe sığdırır,
+      üstte ~285px bant + altta panel alanı; sıkışık bar; kamera pulse zoom-tabanlı.
+- [x] **Ana menü / başlangıç ekranı** — canlı sim arka planlı perde; Devam/Yeni Kasaba
+      (iki aşamalı nazik onay + .bak yedeği)/Krediler (Godot MIT)/Kaydet-Çık; hızlı-başlat
+      toggle; Esc reworku (menü aç/kapa); fade. Orijinal kapsam notları:
       - Title screen: oyun adı + animasyonlu arka plan (dev-pipeline B akışı: konsept kare →
         image-to-video → `.ogv` loop, `VideoStreamPlayer`). Alternatif ucuz yol: canlı sim'in
         kendisi arka plan olur (kasabanın gece görünümü) — AI beyanı derdi de olmaz.
