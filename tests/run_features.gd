@@ -11,8 +11,64 @@ func _init() -> void:
 	ok = _test_pomodoro_stats() and ok
 	ok = _test_atomic_save() and ok
 	ok = _test_letters_depth() and ok
+	ok = _test_endgame_design() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D end-game: harita dolunca BÜTÜNLENDİ (bir kez) + growth güzelleştirmeye akar.
+func _test_endgame_design() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	# doluluk koşullarını kur: frontier maks + tüm binalar inşa edilmiş
+	w.frontier = W.GW - 6
+	for b in w.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+	w._start_construction()   # aday yok + frontier maks → bütünlenme
+	var complete: bool = w.town_complete and w.milestones.get("butunlendi", false)
+	var has_letter := false
+	for l in w.letters:
+		if l.kind == "an" and "bütünlendi" in l.text.to_lower():
+			has_letter = true
+	# ikinci çağrı ikinci mektup üretmemeli (tek seferlik)
+	w._start_construction()
+	var an_n := 0
+	for l in w.letters:
+		if l.kind == "an":
+			an_n += 1
+	var once: bool = an_n == 1
+	# güzelleştirme: goal dolunca bir ev çiçeklenir; hepsi çiçekliyse şenlik (çökme yok)
+	var g0: float = w.goal
+	w.growth = w.goal
+	w.step_world()
+	var bloomed := 0
+	for b in w.buildings:
+		if b.get("bloom", false):
+			bloomed += 1
+	var beautified: bool = bloomed == 1 and w.goal > g0
+	for b in w.buildings:
+		b.bloom = true
+	w.growth = w.goal
+	w.step_world()   # hepsi çiçekli → şenlik olayı (patlamadan geçmeli)
+	# bloom save round-trip
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w2.town_complete and w2.buildings[0].get("bloom", false)
+	# PLATO TAŞMASI: goal şişmiş + growth eşiği aşmış → çiçek (sabit maliyet), goal SABİT
+	var w3 = W.new(); w3.gen(0)
+	w3.goal = 8000.0              # plato koşulu: goal > FLOWER_OVERFLOW
+	var g3: float = w3.goal
+	w3.growth = 7500.0
+	w3.step_world()
+	var overflow_bloom := 0
+	for b in w3.buildings:
+		if b.get("bloom", false):
+			overflow_bloom += 1
+	var overflow_ok: bool = overflow_bloom == 1 and absf(w3.goal - g3) < 0.001
+	print("D endgame: bütünlendi=%s mektup=%s tek-sefer=%s çiçek=%s roundtrip=%s taşma=%s" % [str(complete), str(has_letter), str(once), str(beautified), str(rt), str(overflow_ok)])
+	var pass_ok: bool = complete and has_letter and once and beautified and rt and overflow_ok
+	print("De: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D: mektup havuzu çeşitliliği + kilometre taşları + determinizm.
 func _test_letters_depth() -> bool:

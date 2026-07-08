@@ -74,7 +74,8 @@ var concert_done := false
 # --- dilek + bond (A4) ---
 var wish = null                        # {"who": person, "type": idx} ya da null
 var bond := 0
-var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50 — tek seferlik)
+var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50/butunlendi — tek seferlik)
+var town_complete := false             # harita doldu: growth artık güzelleştirmeye akar (end-game, Faz D)
 # teşekkür metinleri Letters.DILEK havuzunda (tek kaynak; Faz D çeşitlilik)
 const WISH_TYPES := [
 	{ "k": "çeşme", "txt": "meydana küçük bir çeşme" },
@@ -83,6 +84,8 @@ const WISH_TYPES := [
 ]
 
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
+const FLOWER_COST := 2400.0       # bir çiçeğin emeği (~3 oyun-günü growth; plato ödül temposu)
+const FLOWER_OVERFLOW := 7200.0   # taşma kanalı yalnız goal bunu aşınca (plato) açılır
 
 func population() -> int:
 	return people.size()
@@ -147,6 +150,7 @@ func gen(seed_val: int = 0) -> void:
 	wish = null
 	bond = 0
 	milestones = {}
+	town_complete = false
 	streak = 0
 	sessions = 0
 	unlocked = { "atolye": false, "kutuphane": false }
@@ -290,7 +294,7 @@ func _add_building(gx: int, gy: int, shop: bool) -> void:
 		"seed": _h(gx * 99 + gy),
 		"type": "shop" if shop else "house",
 		"chimney": _h(gx * 7 + gy) % 3 == 0,
-		"awake": false, "built": 0, "build_prog": 0.0, "lit_frac": 0.0,
+		"awake": false, "built": 0, "build_prog": 0.0, "lit_frac": 0.0, "bloom": false,
 		"cap": 2 + (_h(gx * 13 + gy * 7) % 3),   # HANE kapasitesi 2-4
 		"members": [],
 	})
@@ -376,11 +380,27 @@ func step_world() -> void:
 		if p.wants_home and not p.moving:
 			homeless = true
 			break
-	# KURAL: inşaat yalnız konut sıkışıklığında (Banished dersi)
-	if growth >= goal and building_now == null and (housing_pressure() >= 0.75 or (homeless and empty_houses().is_empty())):
-		growth -= goal
-		goal *= 1.18
-		_start_construction()
+	# KURAL: inşaat yalnız konut sıkışıklığında (Banished dersi). goal ×1.18 KORUNUR:
+	# yumuşak eğri (×1.10) denendi — harita doluyor ama nüfus kapasiteyi takip edip 94-104'e
+	# taşıyor (20-90 bandı kırılıyor). Çözüm bant dengesine dokunmaz: platoda biriken fazla
+	# emek ÇİÇEĞE akar (aşağıda taşma kanalı) — "growth boşa akar" şikâyeti görünür ödüle döner.
+	# PLATO TAŞMASI: goal üstel şişmişken (aktif büyüme bitti) biriken emek çiçeğe akar —
+	# sabit maliyet (goal'e bağlı değil; 3×goal eşiği denendi: 365 günde hiç tetiklenmiyordu).
+	# Plato ~gün 100'de başlar → ~3 günde bir çiçek; aktif büyüme fazı etkilenmez (goal küçükken kapalı).
+	if goal > FLOWER_OVERFLOW and growth >= FLOWER_OVERFLOW and not town_complete:
+		growth -= FLOWER_COST
+		_beautify()
+	if growth >= goal:
+		if town_complete:
+			# END-GAME (Faz D): kasaba bütünlendi — emek güzelleştirmeye akar (cozy: bitiş duvarı yok)
+			growth -= goal
+			goal *= 1.10
+			_beautify()
+		elif building_now == null and (housing_pressure() >= 0.75 or (homeless and empty_houses().is_empty())):
+			growth -= goal
+			goal *= 1.18
+			_start_construction()
+
 
 	_move_people()
 	_life_cycle()
@@ -481,6 +501,7 @@ func to_save() -> Dictionary:
 		"wish": wsh,
 		"letters": letters.duplicate(true),
 		"milestones": milestones.duplicate(),
+		"town_complete": town_complete,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -521,6 +542,7 @@ func from_save(d: Dictionary) -> void:
 	stat_arrivals = int(d.stat_arrivals)
 	stat_wishes = int(d.get("stat_wishes", 0))
 	milestones = (d.get("milestones", {}) as Dictionary).duplicate()
+	town_complete = bool(d.get("town_complete", false))
 	landmark = Vector2i(int(d.landmark[0]), int(d.landmark[1]))
 	road_list = _to_vec_list(d.road_list)
 	road_set = {}
@@ -630,6 +652,10 @@ func _start_construction() -> void:
 		building_now.build_prog = 0.01
 	elif frontier < GW - 8:
 		_expand_frontier()
+	elif not town_complete:
+		# harita doldu + inşasız bina yok → KASABA BÜTÜNLENDİ (bir kez; growth güzelleştirmeye döner)
+		town_complete = true
+		_milestone("butunlendi", "🎊 KASABA BÜTÜNLENDİ — son ev de yuvasını buldu")
 
 func _dist(b: Dictionary) -> int:
 	return abs(b.gx - landmark.x) + abs(b.gy - landmark.y)
@@ -761,6 +787,16 @@ func _milestone(key: String, ev_text: String) -> void:
 	milestones[key] = true
 	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "an", "replied": false, "text": Letters.AN[key] })
 	_push_event(ev_text)
+
+## End-game güzelleştirme (Faz D): her goal bir evi çiçeklendirir; hepsi çiçekliyse nazik şenlik.
+## Cozy ilke: "bitti" duvarı yok — kasaba tamamlandıktan sonra emek görünür küçük ödüllere akar.
+func _beautify() -> void:
+	for b in buildings:
+		if b.built == 1 and not b.get("bloom", false):
+			b.bloom = true
+			_push_event("🌸 bir evin pencereleri çiçeklendi")
+			return
+	_push_event("🎪 meydanda küçük bir şenlik kuruldu")
 
 func _life_cycle() -> void:
 	# yaşlanma + nazik veda (determinist tohumlu)

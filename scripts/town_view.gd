@@ -280,6 +280,10 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 			draw_rect(Rect2(wx, wy, ww, wh), Color(0.23, 0.18, 0.23, 0.85))
 	if b.type == "shop" and awake:
 		draw_rect(Rect2(X + 1.0, Y + CH * 0.1, W, 3.0), ROOF_COLS[b.roof][0])
+	# end-game güzelleştirmesi (Faz D): çiçekli pencere kutuları (mevsim çiçek paleti)
+	if b.get("bloom", false):
+		var fcol: Color = SEASONS[world.season].flowers[b.seed % 3]
+		draw_rect(Rect2(X + 3.0, Y + CH * 0.25 + maxf(3.0, (H - CH * 0.7) / 2.0 - 3.0), W - 6.0, 1.8), fcol)
 
 func _draw_landmark(ev: float) -> void:
 	var b := world.landmark
