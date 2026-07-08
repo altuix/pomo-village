@@ -24,6 +24,10 @@ var _focus_btn: Button
 var _mode_opt: OptionButton
 var stats_box: PanelContainer
 var _stats_body: Label
+var _person_card: PanelContainer
+var _person_body: Label
+
+const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
 
 # paneller (A3-A6 doldurur) — sağ/sol alt çekmeceler
 var sound_box: PanelContainer
@@ -39,12 +43,16 @@ var _mel_note: Label
 func _ready() -> void:
 	_build()
 
-## main._wire çağırır: kayıtlı/aktif melodiyi ızgaraya yansıt (açılışta default değil oyuncunun bestesi).
+## main._wire çağırır: kayıtlı melodiyi ızgaraya + ses slider'larını ayarlardan yansıt.
 func sync_from_world() -> void:
 	if world != null and world.melody.size() == Melody.STEPS:
 		_melody = world.melody.duplicate()
 		if not _mel_cells.is_empty():
 			_refresh_melody()
+	if audio != null:
+		for ch in _sound_sliders.keys():
+			if audio.gains.has(ch):
+				_sound_sliders[ch].set_value_no_signal(audio.gains[ch])
 
 func _label(txt: String, size: int, col: Color) -> Label:
 	var l := Label.new()
@@ -168,6 +176,21 @@ func _build() -> void:
 	_stats_body = _label("", 11, CREAM)
 	stats_box.get_node("VB").add_child(_stats_body)
 
+	# sakin hover kartı: imleci sakinin üstüne getirince isim+evre (mektup göndereni kasabada bulunur)
+	_person_card = PanelContainer.new()
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = Color("1d1424")
+	psb.border_color = HONEY
+	psb.set_border_width_all(1)
+	psb.set_corner_radius_all(6)
+	psb.set_content_margin_all(8)
+	_person_card.add_theme_stylebox_override("panel", psb)
+	_person_card.visible = false
+	_person_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_person_body = _label("", 11, CREAM)
+	_person_card.add_child(_person_body)
+	root.add_child(_person_card)
+
 	mail_box = _panel("MEKTUPLAR")
 	mail_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	mail_box.position = Vector2(-360, -320)
@@ -252,12 +275,14 @@ func refresh_mail() -> void:
 	for i in range(world.letters.size()):
 		mail_list.add_child(_letter_card(world.letters[i], i))
 
-# ---- ses mikseri (A6) ----
+# ---- ses mikseri (A6; B+ kalıcı ayarlar) ----
+var _sound_sliders := {}   # kanal -> HSlider (sync_from_world ayarlardan doldurur)
+
 func _fill_sound() -> void:
 	var vb := sound_box.get_node("VB")
 	var rows := [
-		["🌧 yağmur", "rain", 0.0], ["💧 dere", "stream", 0.0],
-		["🎹 lo-fi pad", "pad", 0.0], ["🦗 gece", "cricket", 0.0], ["🔊 ana", "master", 0.7],
+		["🌧 yağmur", "rain"], ["💧 dere", "stream"],
+		["🎹 lo-fi pad", "pad"], ["🦗 gece", "cricket"], ["🔊 ana", "master"],
 	]
 	for row in rows:
 		var hb := HBoxContainer.new()
@@ -269,11 +294,12 @@ func _fill_sound() -> void:
 		sl.min_value = 0.0
 		sl.max_value = 1.0
 		sl.step = 0.01
-		sl.value = row[2]
+		sl.value = Settings.AUDIO_DEFAULTS[row[1]]
 		sl.custom_minimum_size = Vector2(120, 0)
 		var ch: String = row[1]
 		sl.value_changed.connect(func(v): if audio != null: audio.set_gain(ch, v))
 		hb.add_child(sl)
+		_sound_sliders[ch] = sl
 		vb.add_child(hb)
 
 # ---- melodi ızgarası (A5) ----
@@ -395,6 +421,7 @@ func _process(_d: float) -> void:
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
 	_streak_btn.text = "seri %d" % world.streak
 	_refresh_focus_button()
+	_refresh_person_card()
 	if stats_box != null and stats_box.visible:
 		_refresh_stats()
 	if not world.event_log.is_empty():
@@ -406,6 +433,25 @@ func _process(_d: float) -> void:
 		_wish_btn.visible = true
 	else:
 		_wish_btn.visible = false
+
+## İmleç altındaki sakinin mini kartı (main.hovered_person → render tespiti). Kart imleci izler.
+func _refresh_person_card() -> void:
+	if main == null or not main.has_method("hovered_person"):
+		return
+	var hp: Dictionary = main.hovered_person()
+	if hp.has("person"):
+		var p = hp.person
+		var line: String = STAGE_NAMES[clampi(int(p.stage), 0, 2)]
+		if p.scarf:
+			line += " · 💛 atkılı"
+		if p.get("wants_home", false):
+			line += " · 🌿 yuva arıyor"
+		_person_body.text = "%s\n%s" % [p.name, line]
+		var px: Vector2 = hp.px
+		_person_card.position = Vector2(clampf(px.x + 10.0, 4.0, VW() - 170.0), clampf(px.y - 46.0, 4.0, 310.0))
+		_person_card.visible = true
+	else:
+		_person_card.visible = false
 
 ## Geri sayım + faz metni tek kaynaktan (main.focus_state). Mod seçici seans sırasında kilitli.
 func _refresh_focus_button() -> void:

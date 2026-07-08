@@ -42,6 +42,10 @@ func _ready() -> void:
 	add_child(_focus_timer)
 	_focus_timer.timeout.connect(_on_focus_timeout)
 	_restore_focus_session()
+	if not _is_capture and is_instance_valid(audio):
+		var gains := Settings.load_audio()
+		for k in gains.keys():
+			audio.set_gain(k, gains[k])
 	_wire()
 	if not _pending_offline.is_empty() and is_instance_valid(ui) and ui.has_method("show_offline"):
 		ui.show_offline(_pending_offline)
@@ -88,6 +92,8 @@ func _save() -> void:
 		world.focus_mode = _focus_mode
 		world.focus_until = (Time.get_unix_time_from_system() + _focus_timer.time_left) if _focus_phase != "" else 0.0
 		SaveGame.save(world)
+		if is_instance_valid(audio):
+			Settings.save_audio(audio.gains)
 
 ## Açılışta kaydedilmiş seansı değerlendir: süresi varsa kaldığı yerden sürer,
 ## kullanıcı yokken bittiyse ödül yine verilir (cozy: emek asla yanmaz).
@@ -119,7 +125,7 @@ func _wire() -> void:
 		ui.main = self
 		ui.audio = audio
 		if ui.has_method("sync_from_world"):
-			ui.sync_from_world()   # kayıtlı melodi ızgaraya yüklensin (default'u gösterme)
+			ui.sync_from_world()   # kayıtlı melodi ızgaraya + ses slider'ları ayarlardan
 	if world != null:
 		_prev_chime = world.chime_t   # boot'ta hayalet çan çalmasın
 
@@ -181,6 +187,12 @@ func cancel_focus() -> void:
 ## UI okur: {phase, remaining(sn), mode}. Tek kaynak — buton metni/sayaç buradan türetilir.
 func focus_state() -> Dictionary:
 	return { "phase": _focus_phase, "remaining": _focus_timer.time_left, "mode": _focus_mode }
+
+## UI okur: imleç altındaki sakin (render tespit eder — piksel easing konumları orada).
+func hovered_person() -> Dictionary:
+	if is_instance_valid(town_view) and town_view.hovered != null:
+		return { "person": town_view.hovered, "px": town_view.hovered_px }
+	return {}
 
 func _on_focus_timeout() -> void:
 	if _focus_phase == "work":

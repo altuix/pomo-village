@@ -35,6 +35,8 @@ var birds: Array = []
 var clouds: Array = []
 var snow: Array = []
 var _ppos := {}   # kişi seed -> Vector2 (piksel easing hedefi)
+var hovered = null            # imlecin işaret ettiği sakin (Dictionary) ya da null — main.hovered_person okur
+var hovered_px := Vector2.ZERO
 
 # --- partikül sistemi (A2; native GPUParticles2D = B2) ---
 var parts: Array = []            # {pos, vel, life, decay, type, size, seed}
@@ -84,6 +86,17 @@ func _process(delta: float) -> void:
 			_ppos[p.seed] = target
 		else:
 			_ppos[p.seed] = _ppos[p.seed].lerp(target, f)
+	# sakin hover (B+): imleç ~10px içindeki en yakın sakin (isimli sakinler görünür kimlik kazansın)
+	hovered = null
+	var mp := get_global_mouse_position()
+	var best := 100.0
+	for p in world.people:
+		var pos: Vector2 = _ppos.get(p.seed, Vector2(p.x * CW + CW * 0.5, p.y * CH + CH * 0.5))
+		var d2 := mp.distance_squared_to(pos)
+		if d2 < best:
+			best = d2
+			hovered = p
+			hovered_px = pos
 	_emit_events(delta)
 	_update_parts(delta)
 	queue_redraw()
@@ -217,6 +230,8 @@ func _draw() -> void:
 		draw_circle(Vector2(pos.x, pos.y + bob), r, col)
 		if p.scarf:
 			draw_arc(Vector2(pos.x, pos.y + bob), r + 1.6, 0.0, TAU, 16, Color(1.0, 0.81, 0.48, 0.9), 1.2)
+		if p == hovered:   # hover vurgusu: ince halka (ışık kaynağı değil — bütçe delinmez)
+			draw_arc(Vector2(pos.x, pos.y + bob), r + 3.0, 0.0, TAU, 20, Color(1.0, 0.94, 0.82, 0.55), 1.0)
 
 	# ---- LAMBALAR (temel; kaskad/parıltı A2) ----
 	for L in world.lamps:
