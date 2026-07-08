@@ -141,6 +141,7 @@ func _process(delta: float) -> void:
 		return
 	if is_instance_valid(audio):
 		audio.evening = world.evening()   # cırcır kanalı geceyle nefes alır
+		audio.weather_rain = world.rain_amount()   # yağmurda rain kanalı hafif kendiliğinden
 	_accum += delta
 	while _accum >= TICK_DT:
 		world.step_world()

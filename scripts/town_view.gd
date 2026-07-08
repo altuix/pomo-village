@@ -34,6 +34,7 @@ var _wind := 0.5
 var birds: Array = []
 var clouds: Array = []
 var snow: Array = []
+var rain: Array = []
 var _ppos := {}   # kişi seed -> Vector2 (piksel easing hedefi)
 var hovered = null            # imlecin işaret ettiği sakin (Dictionary) ya da null — main.hovered_person okur
 var hovered_px := Vector2.ZERO
@@ -66,6 +67,8 @@ func _ready() -> void:
 		clouds.append({"x": Rng.hf(i * 29) * VW, "y": 6.0 + Rng.hf(i * 11) * 36.0, "w": 60.0 + float(Rng.h(i) % 80), "sp": 0.04 + Rng.hf(i) * 0.05})
 	for i in range(70):
 		snow.append({"x": Rng.hf(i * 5) * VW, "y": Rng.hf(i * 13) * VH, "sp": 0.3 + Rng.hf(i * 3) * 0.6, "dr": Rng.hf(i * 7) * 2.0})
+	for i in range(80):
+		rain.append({"x": Rng.hf(i * 11) * VW, "y": Rng.hf(i * 19) * VH, "sp": 4.0 + Rng.hf(i * 3) * 3.0})
 
 func _process(delta: float) -> void:
 	if world == null:
@@ -81,6 +84,13 @@ func _process(delta: float) -> void:
 	for cl in clouds:
 		cl.x += cl.sp * step
 		if cl.x > VW + cl.w: cl.x = -cl.w
+	if world.rain_amount() > 0.0:
+		for rd in rain:
+			rd.y += rd.sp * step
+			rd.x -= rd.sp * 0.25 * step
+			if rd.y > VH:
+				rd.y = -6.0
+				rd.x = Rng.hf(int(rd.x * 7.0) + int(_t)) * VW
 	if SEASONS[world.season].snow:
 		for sf in snow:
 			sf.y += sf.sp * step
@@ -225,6 +235,13 @@ func _draw() -> void:
 		for pi in range(3):
 			var tt := fmod(_t * 5.0 + b.seed + pi * 40.0, 120.0) / 120.0
 			draw_circle(Vector2(X + sin(tt * 6.0 + b.seed) * 4.0, Y - tt * 26.0), 1.4 + tt * 5.0, Color(0.78, 0.71, 0.75, 0.1 * (1.0 - tt)))
+
+	# ---- YAĞMUR (Faz D hava durumu; ses kanalının görsel karşılığı) ----
+	var ra := world.rain_amount()
+	if ra > 0.0:
+		var rcol := Color(0.72, 0.78, 0.9, 0.30 * ra)
+		for rd in rain:
+			draw_line(Vector2(rd.x, rd.y), Vector2(rd.x - 1.6, rd.y + 6.5), rcol, 1.0)
 
 	# ---- KAR ----
 	if S.snow:

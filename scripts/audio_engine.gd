@@ -12,6 +12,7 @@ const CHIME_PERIOD := 27.7                                # kule arası serpinti
 
 var gains := { "rain": 0.0, "stream": 0.0, "pad": 0.0, "cricket": 0.0, "master": 0.7 }
 var evening := 0.0                              # cırcır × evening (geceyle nefes alır)
+var weather_rain := 0.0                         # dünya yağmuru: rain kanalını hafif kendiliğinden açar
 var focus_active := false                       # odak seansında 5. pad katmanı (üst oktav) açılır
 
 var _player: AudioStreamPlayer
@@ -53,7 +54,9 @@ func _process(_d: float) -> void:
 	var dt := 1.0 / RATE
 	# SESSİZLİK ATLAMASI (perf: always-on uygulamada boşa sinüs hesaplama — nişin 1 no'lu şikâyeti CPU):
 	# hiçbir kanal duyulmuyorken buffer sıfırla doldurulur; _t akmaya devam eder (döngüler tutarlı).
-	var audible: bool = gains.master > 0.001 and (gains.rain > 0.001 or gains.stream > 0.001 \
+	# yağmur etkin kazancı: kullanıcı slider'ı ile dünya yağmurunun (hafif) birleşimi — cırcır×evening deseni
+	var rain_gain: float = maxf(gains.rain, weather_rain * 0.35)
+	var audible: bool = gains.master > 0.001 and (rain_gain > 0.001 or gains.stream > 0.001 \
 		or gains.pad > 0.001 or gains.cricket * evening > 0.001 or not _voices.is_empty())
 	if not audible:
 		for i in range(n):
@@ -71,7 +74,7 @@ func _process(_d: float) -> void:
 		var nz := _noise()
 		# 🌧 yağmur: alçak-geçiren gürültü
 		_lp += (nz - _lp) * 0.08
-		s += _lp * gains.rain * 0.5
+		s += _lp * rain_gain * 0.5
 		# 💧 dere: bantgeçiren (fark) + yavaş LFO fokurtu
 		_lp2 += (nz - _lp2) * 0.02
 		var lfo := 0.5 + 0.5 * sin(_t * 0.3 * TAU)

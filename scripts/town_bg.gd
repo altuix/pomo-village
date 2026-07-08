@@ -17,7 +17,8 @@ func _process(_d: float) -> void:
 		return
 	world = view.world
 	var sig := [world.season, world.frontier, int(world.evening() * EV_QUANT),
-		world.road_list.size(), world.mem_trees.size(), world.fountains.size()]
+		world.road_list.size(), world.mem_trees.size(), world.fountains.size(),
+		int(world.rain_amount() * 8.0)]   # yağmurda gök/zemin grileşir (8 kademe)
 	if sig != _sig:
 		_sig = sig
 		queue_redraw()
@@ -27,6 +28,7 @@ func _draw() -> void:
 		return
 	var S: Dictionary = view.SEASONS[world.season]
 	var ev: float = float(_sig[2]) / float(EV_QUANT)   # imzadaki kuantize değerle çiz (tutarlılık)
+	var rain: float = float(_sig[6]) / 8.0             # yağmur grisi (ıslak dünya tonu)
 	var fr: int = world.frontier
 	var CW: float = view.CW
 	var CH: float = view.CH
@@ -39,6 +41,10 @@ func _draw() -> void:
 	var sky_top: Color = view._mix(view._mix(Color8(150,170,200), Color8(210,120,90), dusk), Color8(38,28,60), night)
 	var sky_mid: Color = view._mix(view._mix(Color8(190,180,180), Color8(190,110,100), dusk), Color8(52,38,66), night)
 	var sky_bot: Color = view._mix(view._mix(Color8(200,170,150), Color8(150,95,110), dusk), Color8(44,32,58), night)
+	# yağmur: gök kurşuniye çalar, zemin ıslak/koyu (sıcaklık R−B>0 korunur — gri MOR tabanlı)
+	sky_top = view._mix(sky_top, Color8(104,98,116), rain * 0.5)
+	sky_mid = view._mix(sky_mid, Color8(112,104,120), rain * 0.5)
+	sky_bot = view._mix(sky_bot, Color8(118,108,122), rain * 0.5)
 	var bands := 36
 	for i in range(bands):
 		var t0 := float(i) / float(bands)
@@ -51,6 +57,7 @@ func _draw() -> void:
 
 	# ---- ZEMİN (opak kolon şeritleri — grid çizgisi yok; sanat cilası kararı) ----
 	var town_base: Color = view._mix(Color8(132,108,104), Color8(46,34,52), ev * 0.85)
+	town_base = view._mix(town_base, town_base.darkened(0.22), rain)   # ıslak zemin
 	draw_rect(Rect2(0, 0, fr * CW, VH), town_base)
 	var meadow_base: Color = view._dusk(S.grass, ev * 0.5)
 	const BORDER_COLS := 4

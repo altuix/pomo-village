@@ -12,8 +12,42 @@ func _init() -> void:
 	ok = _test_atomic_save() and ok
 	ok = _test_letters_depth() and ok
 	ok = _test_endgame_design() and ok
+	ok = _test_weather() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D hava durumu: yağmur türetilmiş+determinist, kışın kapalı, SİM'İ ETKİLEMEZ (saflık).
+func _test_weather() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	var found := false
+	for d in range(60):
+		w.tick = d * 2400
+		for hh in range(24):
+			w.time_of_day = float(hh) + 0.5
+			if w.rain_amount() > 0.9:
+				found = true
+	var winter_dry := true
+	w.season = 3
+	for d in range(60):
+		w.tick = d * 2400
+		for hh in range(24):
+			w.time_of_day = float(hh) + 0.5
+			if w.rain_amount() > 0.0:
+				winter_dry = false
+	# saflık: rain_amount çağırmak sim'i saptırmaz (determinizm korunur)
+	var w2 = W.new(); w2.gen(0)
+	var w3 = W.new(); w3.gen(0)
+	for t in range(3000):
+		w2.step_world()
+		w3.rain_amount()
+		w3.step_world()
+		w3.rain_amount()
+	var pure: bool = w2.population() == w3.population() and w2.stat_births == w3.stat_births
+	print("D hava: yağmur-var=%s kış-kuru=%s saflık=%s" % [str(found), str(winter_dry), str(pure)])
+	var pass_ok: bool = found and winter_dry and pure
+	print("Dh: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D end-game: harita dolunca BÜTÜNLENDİ (bir kez) + growth güzelleştirmeye akar.
 func _test_endgame_design() -> bool:

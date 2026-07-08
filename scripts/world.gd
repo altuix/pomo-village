@@ -86,6 +86,7 @@ const WISH_TYPES := [
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
 const FLOWER_COST := 2400.0       # bir çiçeğin emeği (~3 oyun-günü growth; plato ödül temposu)
 const FLOWER_OVERFLOW := 7200.0   # taşma kanalı yalnız goal bunu aşınca (plato) açılır
+var rain_was := false             # yağmur geçiş olayı için (save'e girmez; tek sahte geçiş zararsız)
 
 func population() -> int:
 	return people.size()
@@ -168,6 +169,7 @@ func gen(seed_val: int = 0) -> void:
 	stat_farewells = 0
 	stat_arrivals = 0
 	stat_wishes = 0
+	rain_was = false
 
 	frontier = int(floor(GW * 0.30))
 
@@ -416,6 +418,14 @@ func step_world() -> void:
 			wish = { "who": who, "type": _h(tick * 7) % WISH_TYPES.size() }
 			_push_event("💭 %s bir dilek tuttu" % who.name)
 
+	# yağmur geçişleri (görsel/ses katmanının olay bildirimi; sim durumuna etkimez)
+	var raining := rain_amount() > 0.1
+	if raining and not rain_was:
+		_push_event("🌧 kasabaya yağmur geldi")
+	elif rain_was and not raining:
+		_push_event("🌦 yağmur dindi — toprak kokusu")
+	rain_was = raining
+
 	# uzun-vade anları (Faz D): tek seferlik kutlamalar
 	if tick >= 30 * TICKS_PER_DAY and not milestones.get("gun30", false):
 		_milestone("gun30", "🕯 kasabanın 30. günü — meydanda mum ışığı")
@@ -636,6 +646,22 @@ func evening() -> float:
 	if t >= 17.0 and t < 21.0: return (t - 17.0) / 4.0   # alacakaranlık
 	if t >= 21.0 or t < 5.0: return 1.0                  # gece
 	return 1.0 - (t - 5.0) / 3.0                          # şafak
+
+## Hava durumu (Faz D denetim #19): görsel+ses katmanı — SİM'E ETKİMEZ (denge/determinizm korunur).
+## Saf türetim: ~%28 gün yağmurlu (günlük hash), gün içinde 3-6 saatlik pencere, 30dk rampa.
+## Kışın yağmur yok (kar zaten yağıyor).
+func rain_amount() -> float:
+	if season == 3:
+		return 0.0
+	var day := tick / TICKS_PER_DAY
+	if _hf(day * 67 + 5) > 0.28:
+		return 0.0
+	var h0 := 6.0 + float(_h(day * 13) % 12)
+	var dur := 3.0 + float(_h(day * 29) % 4)
+	var dt_in := time_of_day - h0
+	if dt_in < 0.0 or dt_in > dur:
+		return 0.0
+	return clampf(minf(dt_in / 0.5, (dur - dt_in) / 0.5), 0.0, 1.0)
 
 ## Kasaba uyku penceresi (23-05): kule de susar (ışık bütçesi ruhu; step_world sleep penceresiyle aynı).
 func is_asleep() -> bool:
