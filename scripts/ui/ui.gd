@@ -31,6 +31,8 @@ var _album_list: VBoxContainer
 var menu_box: PanelContainer
 var _t := 0.0            # juice zamanı (zarf sallanması)
 var _last_event := ""    # olay satırı kayma tetiği
+var _compact := false    # dikey mod: dar bar (mod seçici gizli, kısa etiketler)
+var _menu_btn: Button
 
 const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
 
@@ -152,6 +154,7 @@ func _build() -> void:
 
 	# tek sakin menü (#18): paneller ☰ altında toplanır; çekirdek etkileşimler barda kalır (kural 5)
 	var menu_btn := _button("☰ Kasaba")
+	_menu_btn = menu_btn
 	menu_btn.pressed.connect(func(): _toggle(menu_box))
 	bar.add_child(menu_btn)
 
@@ -574,16 +577,26 @@ func _process(delta: float) -> void:
 			tw.tween_property(_events, "modulate:a", 1.0, 0.35)
 		_events.text = "   ·   ".join(world.event_log)
 	var unreplied := world.unreplied_letters()
-	_mail_btn.text = "✉ Mektuplar %d" % unreplied
+	_mail_btn.text = ("✉ %d" if _compact else "✉ Mektuplar %d") % unreplied
 	# zarf sallanması: yanıtsız mektup bekliyorken nazik hatırlatma (bildirim spam'i DEĞİL — sessiz salınım)
 	_mail_btn.pivot_offset = _mail_btn.size / 2.0
 	_mail_btn.rotation = (sin(_t * 2.4) * 0.045) if unreplied > 0 else 0.0
 	var wt := world.wish_text()
 	if wt != "":
-		_wish_btn.text = wt
+		_wish_btn.text = wt if not _compact else "💭 dilek"
 		_wish_btn.visible = true
 	else:
 		_wish_btn.visible = false
+
+## Dikey mod (C19): dar pencerede bar sığsın — mod seçici gizlenir, etiketler kısalır.
+func set_vertical(v: bool) -> void:
+	_compact = v
+	if _mode_opt != null:
+		_mode_opt.visible = not v
+	if _events != null:
+		_events.size.x = (340.0 if v else VW() - 28.0)
+	if _menu_btn != null:
+		_menu_btn.text = "☰" if v else "☰ Kasaba"
 
 ## Albüm içeriği: yaşayan sakinler + anı ağaçları + hikâye sayaçları. Açılışta tazelenir (her karede değil).
 func _refresh_album() -> void:

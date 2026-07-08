@@ -59,12 +59,35 @@ func _notification(what: int) -> void:
 		_save()
 		get_tree().quit()
 
-# ---- pencere modları (B3): ekran-altı borderless şerit + dikey kadraj ----
+# ---- pencere modları (B3+C19): yatay ekran-altı şerit / GERÇEK dikey kadraj ----
+const STRIP_SIZE := Vector2i(960, 360)
+const VERT_SIZE := Vector2i(380, 700)   # ikinci monitör kenarı / dar yan şerit
 var _vertical := false
+var _cam_base_zoom := Vector2.ONE       # dikeyde kamera kasaba çekirdeğine yaklaşır; pulse buna göre
 
 func _setup_window() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, true)
+	_apply_layout()
+
+## Dikey (C19): pencere 380×700; kamera kasaba çekirdeğini (0..480 dünya-px) genişliğe sığdırır,
+## dünya üstte ~285px bant olur, altı UI alanı (koyu). Yatay: birebir eski şerit.
+func _apply_layout() -> void:
+	if _vertical:
+		DisplayServer.window_set_size(VERT_SIZE)
+		var z := float(VERT_SIZE.x) / 480.0
+		_cam_base_zoom = Vector2(z, z)
+		if is_instance_valid(camera):
+			camera.zoom = _cam_base_zoom
+			camera.position = Vector2(240.0, float(VERT_SIZE.y) / z / 2.0)   # dünya y=0 pencere üstünde
+	else:
+		DisplayServer.window_set_size(STRIP_SIZE)
+		_cam_base_zoom = Vector2.ONE
+		if is_instance_valid(camera):
+			camera.zoom = Vector2.ONE
+			camera.position = Vector2(480, 180)
+	if is_instance_valid(ui) and ui.has_method("set_vertical"):
+		ui.set_vertical(_vertical)
 	_place_strip()
 
 func _place_strip() -> void:
@@ -88,9 +111,9 @@ func _input(e: InputEvent) -> void:
 						ui.hide_menu()
 					else:
 						ui.show_menu()
-			KEY_V:   # dikey/yatay kadraj arası geçiş (konumlandırma)
+			KEY_V:   # dikey/yatay kadraj geçişi (C19: gerçek re-layout)
 				_vertical = not _vertical
-				_place_strip()
+				_apply_layout()
 
 func _save() -> void:
 	if world != null and not _frozen and not _is_capture:
@@ -307,8 +330,8 @@ func _camera_pulse() -> void:
 	if not is_instance_valid(camera):
 		return
 	var tw := create_tween()
-	tw.tween_property(camera, "zoom", Vector2(1.012, 1.012), 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_property(camera, "zoom", Vector2.ONE, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(camera, "zoom", _cam_base_zoom * 1.012, 0.25).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(camera, "zoom", _cam_base_zoom, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 # ---- ses kancaları ----
 func play_tone(note: int) -> void:
