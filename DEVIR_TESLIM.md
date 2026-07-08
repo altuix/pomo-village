@@ -269,3 +269,28 @@ set_auto_accept_quit(false)), OfflineKart. capture'da _is_capture ile kayıt yok
 - B2 ERTELENEN (opsiyonel, working build'i riske atmamak için): native PointLight2D havuzu +
   WorldEnvironment glow — _draw radial-alpha juice zaten cozy etkiyi veriyor + sanat metriklerini geçiyor.
   B4 ERTELENEN: albüm/kartpostal/tek-menü (ekstra UI). Gerçek dikey render re-layout (şimdilik konumlandırma).
+
+# FAZ B+ — ÇEKİRDEK TAMİR: BUGLAR & KIRIK VAATLER (STEAM_ROADMAP denetimi, bug 1-7 tamamlandı)
+STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi (verify check/sim/features PASS):
+- Bug 1 (kırık imza vaadi): kule saat başı ÖĞRETİLMİŞ melodiyi çalmıyordu. main._process chime_t
+  yükselen-kenarını (town_view desenini yansıtarak) yakalar → `audio.play_melody(world.melody)`;
+  yalnız `melody_saved` ve `not world.is_asleep()` (23-05 uyku penceresi — ışık bütçesi ruhu). Boot'ta
+  `_prev_chime = world.chime_t` ile hayalet çan engellenir.
+- Bug 2: `ui._melody` açılışta default'tu → `ui.sync_from_world()` (main._wire çağırır) kayıtlı
+  `world.melody`'yi ızgaraya yükler.
+- Bug 3 (save sızıntısı): odak sırasında kapanış → `growth_mult:1.5` save'e yazılıp yüklemede kalıcı
+  ×1.5 oluyordu. `from_save` artık `growth_mult = 1.0` zorlar (seans restore B+ Pomodoro'da gelecek).
+- Bug 4 (save crash riski): vefat eden dilek sahibi → `_pass_away` `wish.who == p` ise `wish = null`
+  (yoksa to_save silinmiş kişiye `_sid` erişip patlıyordu).
+- Bug 5: kütüphane hiç inşa edilmiyordu (sadece söz + mektup). Artık atölye gibi inşasız bir binayı
+  `type="library"` yapıp inşaatı başlatır. AYIRT EDİCİ GÖRSEL Faz C sanat işine bırakıldı (şimdilik
+  jenerik bina çizilir; render "shop" dışını house gibi çizer — regresyon yok).
+- Bug 6: mektup→kişi eşleşmesi İSİMLE yapılıyordu (Names.POOL 20 döngüsel isim → yanlış kişiye atkı).
+  Mektuplara kalıcı `who: person.seed` eklendi (şehir-geneli odak/seri/konser mektuplarında who:-1 ya da
+  yerleşen müzisyenin seed'i); `reply_letter` `int(l.get("who",-1))` ile seed eşleştirir (JSON int→float'a
+  karşı int()). Eski save'ler who'suz → .get default -1 güvenli.
+- Bug 7: `_step_mover` fallback adayları nehri kontrol etmiyordu → sakin nehir üstünden geçebiliyordu.
+  Aday toplarken `river_set` elenir (90-adım emniyeti korunur). Pop-band 33-60 korundu (regresyon yok).
+- KURAL: sim saf kaldı (world event yaymaz); main chime'ı GÖZLEMLEYEREK ses tetikler — render↔sim ayrımı korunur.
+- KALAN B+ (sıradaki): Pomodoro çekirdeği (geri sayım + mola + cezasız iptal + seans kalıcılığı),
+  streak tanımı + istatistik paneli, sakin hover/tık kartı, atomic save + settings.cfg.

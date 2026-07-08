@@ -125,15 +125,14 @@ her şeyden önce yapılır.
 
 Denetimdeki maddelerin kritik kısmı. Sıra: önce buglar, sonra Pomodoro çekirdeği.
 
-- [ ] Bug 1: saat başı kule melodisi gerçekten çalsın (`chime` → `audio.play_melody(world.melody)`,
+- [x] Bug 1: saat başı kule melodisi gerçekten çalsın (`chime` → `audio.play_melody(world.melody)`,
       yalnız `melody_saved` ise; gece 23-05 uykuda kule de sussun — ışık bütçesi ruhu).
-- [ ] Bug 2: `ui._melody` açılışta `world.melody`'den yüklensin.
-- [ ] Bug 3: yüklemede `growth_mult = 1.0` zorla (seans restore edilene kadar).
-- [ ] Bug 4: `_pass_away` dilek sahibini temizlesin (`wish.who == p` ise `wish = null`).
-- [ ] Bug 5: kütüphane binası gerçekten kurulsun (landmark yakınına özel bina; atölyeye de
-      ayırt edici görsel).
-- [ ] Bug 6: mektuplara kalıcı kişi id'si (`person.seed` uygun aday) — isimle eşleşme kalksın.
-- [ ] Bug 7: `_step_mover` nehir hücrelerini adaylardan elesin.
+- [x] Bug 2: `ui._melody` açılışta `world.melody`'den yüklensin.
+- [x] Bug 3: yüklemede `growth_mult = 1.0` zorla (seans restore edilene kadar).
+- [x] Bug 4: `_pass_away` dilek sahibini temizlesin (`wish.who == p` ise `wish = null`).
+- [x] Bug 5: kütüphane binası gerçekten kurulsun (`type="library"` inşaatı; ayırt edici görsel Faz C sanat).
+- [x] Bug 6: mektuplara kalıcı kişi id'si (`person.seed`) — isimle eşleşme kalktı.
+- [x] Bug 7: `_step_mover` nehir hücrelerini adaylardan elesin.
 - [ ] Pomodoro çekirdeği: geri sayım göstergesi + mola akışı (25/5, 50/10) + cezasız iptal
       butonu + seans kalıcılığı (kapanışta bitiş zamanı save'e).
 - [ ] Streak tanımı netleşsin (öneri: aynı gün içinde art arda; gün değişince nazikçe sıfır,
