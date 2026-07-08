@@ -70,25 +70,47 @@ func _notification(what: int) -> void:
 const STRIP_SIZE := Vector2i(960, 360)
 const VERT_SIZE := Vector2i(380, 700)   # ikinci monitör kenarı / dar yan şerit
 var _vertical := false
+var _scale := 1                          # pencere ölçeği 1×/2×/3× (kullanıcı: "960×360 minicik")
 var _cam_base_zoom := Vector2.ONE       # dikeyde kamera kasaba çekirdeğine yaklaşır; pulse buna göre
 
 func _setup_window() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, true)
+	# ölçek: kayıtlı tercih; yoksa ekrandan otomatik tahmin (yüksek çözünürlükte 1× minicik kalıyordu)
+	var auto := 2 if DisplayServer.screen_get_size().y >= 1300 else 1
+	_scale = clampi(Settings.get_int("scale", auto), 1, 3)
+	_apply_layout()
+
+## Menüden ölçek seçimi (canvas_items stretch → pixel-art tam sayı katda bulanıksız büyür).
+func set_window_scale(n: int) -> void:
+	_scale = clampi(n, 1, 3)
+	Settings.set_int("scale", _scale)
+	if not _is_capture:
+		_apply_layout()
+
+func toggle_vertical() -> void:
+	_vertical = not _vertical
 	_apply_layout()
 
 ## Dikey (C19): pencere 380×700; kamera kasaba çekirdeğini (0..480 dünya-px) genişliğe sığdırır,
 ## dünya üstte ~285px bant olur, altı UI alanı (koyu). Yatay: birebir eski şerit.
 func _apply_layout() -> void:
+	# içerik ölçeği YALNIZ gerçek oyunda, çalışma zamanında (project-genel stretch capture
+	# viewport dokusunu boşaltıp görsel pipeline'ı kırdı — ölçüm yakaladı)
+	var win := get_window()
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
 	if _vertical:
-		DisplayServer.window_set_size(VERT_SIZE)
+		win.content_scale_size = VERT_SIZE
+		DisplayServer.window_set_size(VERT_SIZE * _scale)
 		var z := float(VERT_SIZE.x) / 480.0
 		_cam_base_zoom = Vector2(z, z)
 		if is_instance_valid(camera):
 			camera.zoom = _cam_base_zoom
 			camera.position = Vector2(240.0, float(VERT_SIZE.y) / z / 2.0)   # dünya y=0 pencere üstünde
 	else:
-		DisplayServer.window_set_size(STRIP_SIZE)
+		win.content_scale_size = STRIP_SIZE
+		DisplayServer.window_set_size(STRIP_SIZE * _scale)
 		_cam_base_zoom = Vector2.ONE
 		if is_instance_valid(camera):
 			camera.zoom = Vector2.ONE
@@ -118,8 +140,7 @@ func _input(e: InputEvent) -> void:
 			else:
 				ui.show_menu()
 	elif e.is_action_pressed("nefes_vertical"):
-		_vertical = not _vertical
-		_apply_layout()
+		toggle_vertical()
 
 func _save() -> void:
 	if world != null and not _frozen and not _is_capture:

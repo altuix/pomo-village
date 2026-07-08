@@ -569,6 +569,21 @@ func _build_menu() -> void:
 	var bquit := _button("✕ Kaydet ve Çık")
 	bquit.pressed.connect(func(): if main != null: main.quit_game())
 	row.add_child(bquit)
+	# AYARLAR satırı (kullanıcı: "960×360 minicik açılıyor" + "ayar yapabileceğimiz bir şey yok")
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 8)
+	srow.alignment = BoxContainer.ALIGNMENT_CENTER
+	srow.add_child(_label("pencere ölçeği:", 11, MUTED))
+	for n in [1, 2, 3]:
+		var sbtn := _button("%d×" % n)
+		var nn: int = n
+		sbtn.pressed.connect(func(): if main != null and main.has_method("set_window_scale"): main.set_window_scale(nn))
+		srow.add_child(sbtn)
+	var vbtn := _button("↕ dikey/yatay")
+	vbtn.pressed.connect(func(): if main != null and main.has_method("toggle_vertical"): main.toggle_vertical())
+	srow.add_child(vbtn)
+	vb.add_child(srow)
+
 	_quick_cb = CheckBox.new()
 	_quick_cb.text = "açılışta menüyü atla, doğrudan kasabaya gel"
 	_quick_cb.add_theme_font_size_override("font_size", 10)

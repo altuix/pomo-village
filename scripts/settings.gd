@@ -23,6 +23,19 @@ static func save_audio(gains: Dictionary) -> void:
 	if cfg.save(PATH) != OK:
 		push_warning("[settings] settings.cfg yazılamadı")
 
+static func get_int(key: String, def: int = 0) -> int:
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		return def
+	return int(cfg.get_value("display", key, def))
+
+static func set_int(key: String, val: int) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)
+	cfg.set_value("display", key, val)
+	if cfg.save(PATH) != OK:
+		push_warning("[settings] settings.cfg yazılamadı")
+
 # genel bayraklar (hızlı başlat vb. — ana menü, Faz C)
 static func get_flag(key: String, def: bool = false) -> bool:
 	var cfg := ConfigFile.new()
