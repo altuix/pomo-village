@@ -76,6 +76,8 @@ cmd_visual() {
 cmd_perf() {
 	local budget="${1:-35}"   # dev build macOS eşiği (%, tek çekirdek); Windows release hedefi Faz E'de ayrı
 	echo "== perf (gerçek oyun, %CPU örneklemesi, bütçe %$budget) =="
+	# önceki kill'lenmiş koşudan kalan bayat kilidi temizle (yoksa oyun kendini kapatır)
+	rm -f "$HOME/Library/Application Support/Godot/app_userdata/NEFES/nefes.lock" 2>/dev/null
 	"$GODOT" --path "$ROOT" >/dev/null 2>&1 &
 	local pid=$!
 	perl -e 'select(undef,undef,undef,8)'   # açılış + offline ileri-sarma bitsin

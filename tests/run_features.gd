@@ -286,16 +286,10 @@ func _test_atomic_save() -> bool:
 	St.save_audio({ "rain": 0.33, "master": 0.5 })
 	var g: Dictionary = St.load_audio()
 	var set_ok: bool = absf(g.rain - 0.33) < 0.001 and absf(g.master - 0.5) < 0.001 and absf(g.pad - 0.25) < 0.001
-	# temizle + gerçek kayıtları geri koy
-	var dir := DirAccess.open("user://")
-	for pth in ["user://save.json", "user://save.json.bak", "user://settings.cfg", "user://save.json.tmp"]:
-		if FileAccess.file_exists(pth):
-			dir.remove(String(pth).get_file())
-	for pth in keep.keys():
-		var fr := FileAccess.open(pth, FileAccess.WRITE)
-		fr.store_string(keep[pth])
-		fr.close()
 	# ana menü altyapısı (Faz C): Yeni Kasaba yedeği + hızlı-başlat bayrağı
+	# !!! Bu blok TEMİZLİKTEN ÖNCE olmalı — bir kez sonrasına kondu ve dummy dosya
+	# gerçek oyun kaydını ezdi (kullanıcı kasabası kaybedildi). Dosyaya dokunan HER
+	# test adımı keep-yakala ile temizle-geri-koy ARASINDA yaşar.
 	var fnb := FileAccess.open("user://save.json", FileAccess.WRITE)
 	fnb.store_string("{\"v\":1}")
 	fnb.close()
@@ -303,8 +297,45 @@ func _test_atomic_save() -> bool:
 	var backup_ok: bool = not FileAccess.file_exists("user://save.json") and FileAccess.file_exists("user://save.json.bak")
 	St.set_flag("quick_start", true)
 	var flag_ok: bool = St.get_flag("quick_start") and not St.get_flag("olmayan_bayrak")
-	print("B+ atomic: bak=%s yedekten-dönüş=%s (tick=%d) settings=%s yeni-kasaba-yedek=%s bayrak=%s" % [str(bak_ok), str(fallback_ok), w2.tick, str(set_ok), str(backup_ok), str(flag_ok)])
-	var pass_ok: bool = bak_ok and fallback_ok and set_ok and backup_ok and flag_ok
+	# multi-instance kilidi (denetim #23): taze kilit reddeder, bayat kilit devralınır
+	var lock_keep := ""
+	if FileAccess.file_exists("user://nefes.lock"):
+		var lf := FileAccess.open("user://nefes.lock", FileAccess.READ)
+		lock_keep = lf.get_as_text()
+		lf.close()
+	S.release_lock()
+	var l1: bool = S.acquire_lock()          # boşta alınır
+	var l2: bool = not S.acquire_lock()      # tazeyken ikinci kopya reddedilir
+	var lf2 := FileAccess.open("user://nefes.lock", FileAccess.WRITE)
+	lf2.store_string(str(Time.get_unix_time_from_system() - 999.0))   # bayat damga
+	lf2.close()
+	var l3: bool = S.acquire_lock()          # bayat kilit devralınır
+	S.release_lock()
+	if lock_keep != "":
+		var lf3 := FileAccess.open("user://nefes.lock", FileAccess.WRITE)
+		lf3.store_string(lock_keep)
+		lf3.close()
+	var lock_ok: bool = l1 and l2 and l3
+	# TEMİZLİK — her zaman SON adım: test artıkları silinir, gerçek kayıtlar geri konur,
+	# geri-koyma DOĞRULANIR (sessiz kayıp bir daha yaşanmasın)
+	var dir := DirAccess.open("user://")
+	for pth in ["user://save.json", "user://save.json.bak", "user://settings.cfg", "user://save.json.tmp"]:
+		if FileAccess.file_exists(pth):
+			dir.remove(String(pth).get_file())
+	var restore_ok := true
+	for pth in keep.keys():
+		var fr := FileAccess.open(pth, FileAccess.WRITE)
+		fr.store_string(keep[pth])
+		fr.close()
+		var fv := FileAccess.open(pth, FileAccess.READ)
+		if fv == null or fv.get_as_text() != keep[pth]:
+			restore_ok = false
+			push_warning("[test] GERİ KOYMA BAŞARISIZ: " + String(pth))
+		if fv != null:
+			fv.close()
+	print("B+ atomic: bak=%s yedekten-dönüş=%s (tick=%d) settings=%s yeni-kasaba-yedek=%s bayrak=%s kilit=%s geri-koyma=%s" % [str(bak_ok), str(fallback_ok), w2.tick, str(set_ok), str(backup_ok), str(flag_ok), str(lock_ok), str(restore_ok)])
+	bak_ok = bak_ok and restore_ok
+	var pass_ok: bool = bak_ok and fallback_ok and set_ok and backup_ok and flag_ok and lock_ok
 	print("B+a: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 

@@ -28,6 +28,12 @@ var _prev_chime := 0.0     # saat başı kule melodisi için yükselen-kenar tak
 
 func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)   # kapanışta kaydet
+	if not _is_capture and not SaveGame.acquire_lock():
+		# ikinci kopya aynı save.json'a yazar (denetim #23) — nazikçe geri çekil.
+		# OS.alert BLOKLAYICI modal (otomasyon/testte asılı kalır) → log + sessiz kapanış.
+		push_warning("[nefes] zaten açık bir kopya var (nefes.lock taze) — bu kopya kapanıyor")
+		get_tree().quit()
+		return
 	if not _is_capture:
 		_setup_window()
 		Engine.max_fps = 30   # always-on şerit: 30fps cozy'ye yeter, CPU/pil yarıya (perf bütçesi)
@@ -57,6 +63,7 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_save()
+		SaveGame.release_lock()
 		get_tree().quit()
 
 # ---- pencere modları (B3+C19): yatay ekran-altı şerit / GERÇEK dikey kadraj ----
@@ -103,20 +110,20 @@ func _place_strip() -> void:
 		DisplayServer.window_set_position(origin + Vector2i((sz.x - w.x) / 2, sz.y - w.y - 48))
 
 func _input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo:
-		match e.keycode:
-			KEY_ESCAPE:   # Esc = menü (çıkış artık menüdeki "Kaydet ve Çık"; B3'teki doğrudan-çıkış kalktı)
-				if is_instance_valid(ui):
-					if ui.menu_visible():
-						ui.hide_menu()
-					else:
-						ui.show_menu()
-			KEY_V:   # dikey/yatay kadraj geçişi (C19: gerçek re-layout)
-				_vertical = not _vertical
-				_apply_layout()
+	# InputMap aksiyonları (denetim #24: hardcoded keycode kalktı — ileride remap edilebilir)
+	if e.is_action_pressed("nefes_menu"):
+		if is_instance_valid(ui):
+			if ui.menu_visible():
+				ui.hide_menu()
+			else:
+				ui.show_menu()
+	elif e.is_action_pressed("nefes_vertical"):
+		_vertical = not _vertical
+		_apply_layout()
 
 func _save() -> void:
 	if world != null and not _frozen and not _is_capture:
+		SaveGame.touch_lock()   # canlılık damgası (60sn'de bir — çökme sonrası kilit bayatlar)
 		# aktif seans kapanışta yanmasın: bitiş zamanı save'e (açılışta _restore_focus_session yorumlar)
 		world.focus_phase = _focus_phase
 		world.focus_mode = _focus_mode
