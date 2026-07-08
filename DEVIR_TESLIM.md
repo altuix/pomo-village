@@ -379,3 +379,20 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
 - Smoke (.verify_out/sndsmoke.gd): 60sn'de nota değişimi ✓ serpinti ✓ odak katmanı ✓ sessiz çökme yok ✓.
 - KALAN FAZ C: dikey mod re-layout, ana menü/başlangıç ekranı, font/ikon/uygulama ikonu
   (asset işi — dev-pipeline), native ışıklar (perf bütçesine bağlı).
+
+# PERF BÜTÇESİ (ilk geçiş, tamamlandı)
+- town_bg.gd STATİK KATMAN (z=-1, TownView çocuğu): gökyüzü/zemin/nehir-tabanı/yol/çayır-detay/
+  plaza/anı-ağaçları. İmza: [season, frontier, int(evening×32), yol, anı, çeşme sayısı] —
+  değişmedikçe redraw YOK (gündüz/gece 0, alacakaranlık ≤32). Çizimde imzadaki KUANTİZE ev
+  kullanılır (tutarlılık). Palet/_mix/_dusk TownView'dan okunur (tek kaynak). NEHİR ışıltı
+  çizgisi + kasaba ağaçları (sway) + çeşme (su animasyonu) dinamikte KALIR.
+- Bina gy-sıralaması önbelleklendi (buildings.size() değişince) — önceden HER KAREDE
+  duplicate+sort vardı. Kişi/lamba/bloom dinamik (ışık eğrisi sürekli).
+- main: Engine.max_fps=30 (capture hariç). Ses tarafında sessizlik atlaması zaten var (C3).
+- ÖLÇÜM DERSİ: pencereli kare-zamanı (TIME_PROCESS) macOS'ta ARKA PLAN PENCERE KISITLAMASI
+  yüzünden güvenilmez (bileşenler kapalıyken bile ~30-45ms saçmalıyor). Kullanıcıya görünen
+  metrik ps %CPU'dur → verify.sh perf gerçek oyunu başlatıp 6 örnek alır. tools/perf.gd
+  (off=view,ui,audio,bg,sim bileşen-kapatma) elle draw-call/profil aracı olarak kalır.
+- İLK ÖLÇÜM: %27.2 CPU / 487MB (30fps cap + statik katman + ses atlaması sonrası; bütçe %35
+  dev-mac). Windows release hedefi (<%3-5 idle, <200MB) Faz E sağlamlaştırmasında.
+- Görsel eşdeğerlik: pixelcheck 118.7/88.9/59.4 (±0.5 — ev kuantizasyonu) + akşam karesi gözle.

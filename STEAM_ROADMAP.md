@@ -331,10 +331,10 @@ Steam yorumlarında "ekranımda minicik görünüyor" şikayetini baştan öldü
       borderless + ekran-altı konumlandırma + çoklu monitör + DPI scaling + taskbar
       etkileşimi Windows'ta doğrulanır. Bu katman OS'e en bağımlı kısım ve şu ana kadar
       sadece macOS'ta test edildi.
-- [ ] **Performans bütçesi** — always-on uygulama için kritik kabul kriteri: idle CPU < %3-5,
-      RAM < ~200MB, 8 saatlik soak testinde sızıntı yok. Araçlar: FPS cap (30), değişiklik
-      yokken redraw azaltma, pil dostu mod. `verify.sh`'a `perf` hedefi eklenir
-      (ölçmeden "hafif" deme — anayasa ruhu).
+- [~] **Performans bütçesi** — İLK GEÇİŞ TAMAM: FPS cap 30, statik bg katmanı (redraw yalnız
+      imza değişince), bina sort önbelleği, ses sessizlik atlaması, `verify.sh perf` (%CPU
+      örnekleme; ilk ölçüm %27.2/487MB dev-mac). KALAN (Faz E): Windows release hedefi
+      idle <%3-5 / RAM <200MB, 8 saat soak, pil dostu mod, dinamik katman optimizasyonu.
 - [ ] **Settings menüsü**: ses slider'ları (var) + dil + FPS/güç modu + şerit konumu/monitör
       seçimi + başlangıçta otomatik başlat (opsiyonel).
 - [ ] **İlk açılış onboarding'i**: 3-4 adımlık nazik tanıtım (kasaba → odak seansı →
