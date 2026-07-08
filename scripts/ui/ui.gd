@@ -28,6 +28,9 @@ var _person_card: PanelContainer
 var _person_body: Label
 var album_box: PanelContainer
 var _album_list: VBoxContainer
+var menu_box: PanelContainer
+var _t := 0.0            # juice zamanı (zarf sallanması)
+var _last_event := ""    # olay satırı kayma tetiği
 
 const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
 
@@ -71,6 +74,13 @@ func _button(txt: String) -> Button:
 	b.add_theme_font_size_override("font_size", 12)
 	b.add_theme_color_override("font_color", CREAM)
 	b.focus_mode = Control.FOCUS_NONE
+	# hover ısınması (juice #8): imleç gelince bal tonuna yumuşak geçiş
+	b.mouse_entered.connect(func():
+		var tw := b.create_tween()
+		tw.tween_property(b, "modulate", Color(1.12, 1.05, 0.9), 0.12))
+	b.mouse_exited.connect(func():
+		var tw := b.create_tween()
+		tw.tween_property(b, "modulate", Color.WHITE, 0.2))
 	return b
 
 func _panel(title: String) -> PanelContainer:
@@ -140,21 +150,10 @@ func _build() -> void:
 	_streak_btn.pressed.connect(func(): _toggle(stats_box); _refresh_stats())
 	bar.add_child(_streak_btn)
 
-	var snd := _button("🔊")
-	snd.pressed.connect(func(): _toggle(sound_box))
-	bar.add_child(snd)
-
-	var mel := _button("🎼 Kule melodisi")
-	mel.pressed.connect(func(): _toggle(melody_box))
-	bar.add_child(mel)
-
-	var alb := _button("📖")
-	alb.pressed.connect(func(): _toggle(album_box); _refresh_album())
-	bar.add_child(alb)
-
-	var cam := _button("📷")
-	cam.pressed.connect(func(): if main != null and main.has_method("take_postcard"): main.take_postcard())
-	bar.add_child(cam)
+	# tek sakin menü (#18): paneller ☰ altında toplanır; çekirdek etkileşimler barda kalır (kural 5)
+	var menu_btn := _button("☰ Kasaba")
+	menu_btn.pressed.connect(func(): _toggle(menu_box))
+	bar.add_child(menu_btn)
 
 	_wish_btn = _button("")
 	_wish_btn.add_theme_color_override("font_color", Color("c9e0b0"))
@@ -185,6 +184,27 @@ func _build() -> void:
 	root.add_child(stats_box)
 	_stats_body = _label("", 11, CREAM)
 	stats_box.get_node("VB").add_child(_stats_body)
+
+	# tek sakin menü kutusu: Ses / Melodi / Albüm / Kartpostal (her biri menüyü kapatıp hedefi açar)
+	menu_box = _panel("KASABA")
+	menu_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	menu_box.position = Vector2(150, -186)
+	var mvb: VBoxContainer = menu_box.get_node("VB")
+	var entries := [
+		["🔊 Ses atmosferi", func(): _open_from_menu(sound_box)],
+		["🎼 Kule melodisi", func(): _open_from_menu(melody_box)],
+		["📖 Albüm", func(): _open_from_menu(album_box); _refresh_album()],
+		["📷 Kartpostal", func():
+			menu_box.visible = false
+			if main != null and main.has_method("take_postcard"):
+				main.take_postcard()],
+	]
+	for e in entries:
+		var mb := _button(e[0])
+		mb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		mb.pressed.connect(e[1])
+		mvb.add_child(mb)
+	root.add_child(menu_box)
 
 	# albüm (Faz C #17): sakin koleksiyonu + anı ağaçları + kasabanın hikâyesi (retention çekirdeği)
 	album_box = _panel("ALBÜM")
@@ -234,6 +254,10 @@ func VW() -> float:
 func _toggle(p: Control) -> void:
 	if p != null:
 		p.visible = not p.visible
+
+func _open_from_menu(p: Control) -> void:
+	menu_box.visible = false
+	_toggle(p)
 
 ## Buton üç durumda üç iş yapar: boşta başlat, çalışırken CEZASIZ bırak, molada molayı atla + yeni seans.
 func _on_focus() -> void:
@@ -437,9 +461,10 @@ func _letter_card(l: Dictionary, idx: int) -> PanelContainer:
 		vb.add_child(rb)
 	return card
 
-func _process(_d: float) -> void:
+func _process(delta: float) -> void:
 	if world == null:
 		return
+	_t += delta
 	_clock.text = world.clock_string()
 	_sub.text = "%s · %s" % [World.SEASON_NAMES[world.season], world.status_text()]
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
@@ -448,9 +473,22 @@ func _process(_d: float) -> void:
 	_refresh_person_card()
 	if stats_box != null and stats_box.visible:
 		_refresh_stats()
+	# olay satırı: yeni olay soldan kayarak süzülür (juice #8)
 	if not world.event_log.is_empty():
+		var latest: String = world.event_log.back()
+		if latest != _last_event:
+			_last_event = latest
+			_events.position.x = 14.0 + 22.0
+			_events.modulate.a = 0.0
+			var tw := create_tween().set_parallel(true)
+			tw.tween_property(_events, "position:x", 14.0, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.tween_property(_events, "modulate:a", 1.0, 0.35)
 		_events.text = "   ·   ".join(world.event_log)
-	_mail_btn.text = "✉ Mektuplar %d" % world.unreplied_letters()
+	var unreplied := world.unreplied_letters()
+	_mail_btn.text = "✉ Mektuplar %d" % unreplied
+	# zarf sallanması: yanıtsız mektup bekliyorken nazik hatırlatma (bildirim spam'i DEĞİL — sessiz salınım)
+	_mail_btn.pivot_offset = _mail_btn.size / 2.0
+	_mail_btn.rotation = (sin(_t * 2.4) * 0.045) if unreplied > 0 else 0.0
 	var wt := world.wish_text()
 	if wt != "":
 		_wish_btn.text = wt
