@@ -455,7 +455,8 @@ func from_save(d: Dictionary) -> void:
 	frontier = int(d.frontier)
 	growth = float(d.growth)
 	goal = float(d.goal)
-	growth_mult = float(d.growth_mult)
+	# Odak seansı yüklemede restore edilmiyor → kaydedilen ×1.5 hayalet kalmasın (bug: growth_mult sızıntısı).
+	growth_mult = 1.0
 	light_curve = float(d.light_curve)
 	last_hour = int(d.last_hour)
 	chime_t = float(d.chime_t)
@@ -544,6 +545,10 @@ func evening() -> float:
 	if t >= 21.0 or t < 5.0: return 1.0                  # gece
 	return 1.0 - (t - 5.0) / 3.0                          # şafak
 
+## Kasaba uyku penceresi (23-05): kule de susar (ışık bütçesi ruhu; step_world sleep penceresiyle aynı).
+func is_asleep() -> bool:
+	return time_of_day >= 23.0 or time_of_day < 5.0
+
 func _start_construction() -> void:
 	var cand := []
 	for b in buildings:
@@ -611,12 +616,12 @@ func _step_mover(p: Dictionary) -> void:
 			p.home.awake = true
 		movers.erase(p)
 		return
-	# mesafeyi azaltan yol hücrelerini tercih et
+	# mesafeyi azaltan yol hücrelerini tercih et (nehir geçilmez — 90 adım emniyeti yine de var)
 	var cand := []
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var nx: int = int(p.x) + d.x
 		var ny: int = int(p.y) + d.y
-		if nx >= 0 and ny >= 0 and nx < GW and ny < GH:
+		if nx >= 0 and ny >= 0 and nx < GW and ny < GH and not river_set.has(Vector2i(nx, ny)):
 			cand.append(Vector2i(nx, ny))
 	var better := []
 	for c in cand:
@@ -737,6 +742,9 @@ func _pass_away(p: Dictionary) -> void:
 	# nazik veda: yıldıza karışır, çayıra anı ağacı, evde yer boşalır
 	people.erase(p)
 	movers.erase(p)
+	# dilek sahibi vefat ettiyse dileği sessizce kapat (yoksa to_save silinmiş kişiye erişip patlar)
+	if wish != null and wish.who == p:
+		wish = null
 	stat_farewells += 1
 	if p.home != null:
 		p.home.members.erase(p)
@@ -748,7 +756,7 @@ func _pass_away(p: Dictionary) -> void:
 	_push_event("✦ %s yıldızlara karıştı — çayıra bir anı ağacı dikildi" % p.name)
 	# veda mektubu (duygusal çekirdek; dilek/odak mektupları + UI = A4)
 	letters.push_front({
-		"from": p.name, "kind": "veda", "replied": false,
+		"from": p.name, "who": p.seed, "kind": "veda", "replied": false,
 		"text": "Bu kasabada güzel bir ömür geçirdim. Penceremden hep senin ışıklarını izledim. Çayırdaki ağacıma ara sıra uğra, olur mu?",
 	})
 
@@ -776,7 +784,7 @@ func teach_tower(mel: Array) -> Dictionary:
 		muz.name = "Gezgin Müzisyen"
 		if home != null:
 			home.members.append(muz)
-		letters.push_front({ "from": "Gezgin Müzisyen", "kind": "konser", "replied": false,
+		letters.push_front({ "from": "Gezgin Müzisyen", "who": muz.seed, "kind": "konser", "replied": false,
 			"text": "Melodini kulenin tepesinden dinledim. Yıllardır yol alırım, böylesine yürekten bir ezgi az duydum. Bu akşam meydanda herkes senin şarkınla dans etti. Ben de artık burada kalıyorum." })
 		_push_event("🎻 MEYDAN KONSERİ! Gezgin Müzisyen kasabaya yerleşti")
 		return { "concert": true, "quality": q }
@@ -800,16 +808,23 @@ func finish_focus_reward() -> Dictionary:
 				building_now = b
 				b.build_prog = 0.01
 				break
-		letters.push_front({ "from": "Kasaba halkı", "kind": "seri", "replied": false,
+		letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
 			"text": "Üç seanslık emeğinin şerefine bir ATÖLYE kuruyoruz. Ellerine sağlık." })
 		_push_event("🔨 seri ödülü: Atölye kuruluyor")
 	if streak >= 5 and not unlocked.kutuphane:
 		unlocked.kutuphane = true
 		res.kutuphane = true
-		letters.push_front({ "from": "Kasaba halkı", "kind": "seri", "replied": false,
-			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükselecek. Kasaba seninle akıllanıyor." })
-		_push_event("📚 seri ödülü: Kütüphane sözü verildi")
-	letters.push_front({ "from": "Kasaba halkı", "kind": "odak", "replied": false,
+		# kütüphane gerçekten yükselsin (atölye gibi): inşasız bir binayı "library" tipine çevir + inşaatı başlat
+		for b in buildings:
+			if b.built == 0:
+				b.type = "library"
+				building_now = b
+				b.build_prog = 0.01
+				break
+		letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
+			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükseliyor. Kasaba seninle akıllanıyor." })
+		_push_event("📚 seri ödülü: Kütüphane yükseliyor")
+	letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
 		"text": "Bugün masanda çalışırken hepimiz hissettik: birlikte üretiyoruz. Meydanda senin için bir kutlama yaptık." })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
 	return res
@@ -830,7 +845,7 @@ func grant_wish():
 		"çeşme": fountains.append({ "gx": px, "gy": py })
 		"ağaç": trees.append({ "gx": px, "gy": py, "s": 1, "sway": _hf(px + py) })
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
-	letters.push_front({ "from": who.name, "kind": "dilek", "replied": false, "text": t.thank })
+	letters.push_front({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false, "text": t.thank })
 	_push_event("🌟 %s'nın dileği gerçek oldu" % who.name)
 	wish = null
 	return Vector2i(px, py)
@@ -849,10 +864,13 @@ func reply_letter(idx: int) -> void:
 		return
 	l.replied = true
 	bond += 1
-	for p in people:
-		if p.name == l.from:
-			p.scarf = true
-			break
+	# atkıyı isimle değil kalıcı seed'le ver (aynı isimde iki sakin olabilir; JSON int→float'a karşı int())
+	var who_seed := int(l.get("who", -1))
+	if who_seed >= 0:
+		for p in people:
+			if p.seed == who_seed:
+				p.scarf = true
+				break
 	_push_event("💛 %s yanıtını aldı" % l.from)
 
 func _plant_memory_tree(p: Dictionary) -> void:
