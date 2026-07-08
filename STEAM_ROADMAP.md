@@ -137,10 +137,10 @@ Denetimdeki maddelerin kritik kısmı. Sıra: önce buglar, sonra Pomodoro çeki
       butonu + seans kalıcılığı (kapanışta bitiş zamanı save'e; yokken biten seansın ödülü açılışta verilir).
 - [x] Streak tanımı netleşti (aynı gün içinde art arda; gün değişince nazikçe sıfır,
       kazanılanlar kalır — cozy) + istatistik paneli "EMEĞİN" (bugün/toplam odak dk, en uzun seri, seans).
-- [ ] Sakin etkileşimi: hover/tıklama → isim + evre + atkı/bond mini kartı.
-- [ ] Atomic save (tmp+rename) + `save.json.bak` + settings kalıcılığı (`user://settings.cfg`,
-      ambient default'ları sıfırdan makul değere).
-- [ ] Ambient ses default'ları: ilk açılışta hafif pad + dere açık gelsin (keşfedilebilirlik).
+- [x] Sakin etkileşimi: hover → isim + evre + atkı/yuva-arıyor mini kartı + ince vurgu halkası.
+- [x] Atomic save (tmp+rename) + `save.json.bak` + bozukta yedekten dönüş + settings kalıcılığı
+      (`user://settings.cfg`).
+- [x] Ambient ses default'ları: ilk açılışta hafif pad (0.25) + dere (0.20) + cırcır (0.20) açık.
 
 ## Faz 0 — Geliştirme altyapısı (fable5 hafif adaptasyonu) — ~2-3 gün
 

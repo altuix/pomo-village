@@ -310,4 +310,16 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   yokken bittiyse ödül açılışta verilir (cozy: emek asla yanmaz). Yüklemede growth_mult=1.0 kuralı korunur.
 - Görsel doğrulama: .verify_out/pomo_work/stats/idle.png — geri sayım butonu, EMEĞİN paneli,
   iptal sonrası growth_mult=1.0 doğrulandı. Testler: B+ pomodoro (gün-değişimi/roundtrip/uyku) PASS.
-- KALAN B+ (sıradaki): sakin hover/tık kartı, atomic save + settings.cfg + ambient default'ları.
+# FAZ B+ — SAKİN KARTI + ATOMIC SAVE + AYARLAR (tamamlandı — B+ KAPANDI)
+- Sakin hover kartı: tespit RENDER'da (town_view._process, _ppos piksel konumları; ~10px en yakın),
+  köprü main.hovered_person(), kart UI'da (imleci izler, viewport'a clamp). Hover halkası ince arc —
+  ışık kaynağı DEĞİL (bütçe delinmez). Kart: isim + evre (🌱çocuk/yetişkin/🕰bilge) + 💛atkı + 🌿yuva.
+- Atomic save (denetim #22): tmp'ye yaz → eski kayıt .bak'a → rename. Bozuk asıl kayıt →
+  push_warning + .bak'tan dönüş (kural 9: sessiz yutma yok). has_save .bak'ı da sayar.
+- Ayarlar (denetim #21): scripts/settings.gd (user://settings.cfg, ConfigFile) — ses slider'ları
+  kalıcı; save.json'dan AYRI (cihaz tercihi ≠ kasaba durumu). İlk açılış default'ları keşfedilebilir:
+  pad 0.25 / dere 0.20 / cırcır 0.20 / master 0.7 (sıfır-sessiz açılış kalktı). main kapanışta +
+  60sn otokayıtta Settings.save_audio; ui.sync_from_world slider'ları set_value_no_signal ile doldurur.
+- TEST DERSİ: headless user:// GERÇEK oyunla paylaşımlı — dosyaya dokunan test önce mevcut
+  save/settings'i yedekler, sonunda geri koyar (run_features._test_atomic_save deseni).
+- Görsel: .verify_out/hover.png (Kemal · bilge kartı + halka). Testler: B+a atomic PASS.
