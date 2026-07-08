@@ -30,6 +30,7 @@ func _ready() -> void:
 	get_tree().set_auto_accept_quit(false)   # kapanışta kaydet
 	if not _is_capture:
 		_setup_window()
+		Engine.max_fps = 30   # always-on şerit: 30fps cozy'ye yeter, CPU/pil yarıya (perf bütçesi)
 	if world == null and not _is_capture:
 		world = World.new()
 		if SaveGame.has_save():

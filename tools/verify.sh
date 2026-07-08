@@ -70,6 +70,34 @@ cmd_visual() {
 	done
 }
 
+# Gerçek oyunun süreç CPU'su (ps) — nişin 1 no'lu şikâyet metriği ("oyun %70 CPU yiyor").
+# NOT: kare-zamanı ölçümü macOS arka plan pencere kısıtlamasıyla güvenilmez çıktı (tools/perf.gd
+# draw-call/bileşen profili için elle kullanılır); kullanıcıya görünen metrik budur.
+cmd_perf() {
+	local budget="${1:-35}"   # dev build macOS eşiği (%, tek çekirdek); Windows release hedefi Faz E'de ayrı
+	echo "== perf (gerçek oyun, %CPU örneklemesi, bütçe %$budget) =="
+	"$GODOT" --path "$ROOT" >/dev/null 2>&1 &
+	local pid=$!
+	perl -e 'select(undef,undef,undef,8)'   # açılış + offline ileri-sarma bitsin
+	local sum=0 cnt=0 c
+	for i in 1 2 3 4 5 6; do
+		c=$(ps -o %cpu= -p "$pid" 2>/dev/null | tr -d ' ')
+		if [[ -n "$c" ]]; then sum=$(echo "$sum + $c" | bc); cnt=$((cnt + 1)); fi
+		perl -e 'select(undef,undef,undef,2)'
+	done
+	local rss=$(ps -o rss= -p "$pid" 2>/dev/null | tr -d ' ')
+	kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+	if [[ "$cnt" == 0 ]]; then echo "  FAIL: süreç örneklenemedi"; FAIL=1; return; fi
+	local avg=$(echo "scale=1; $sum / $cnt" | bc)
+	local mb=$(( ${rss:-0} / 1024 ))
+	echo "  ort. CPU = %$avg (bütçe %$budget)  ·  RAM ≈ ${mb}MB"
+	if (( $(echo "$avg > $budget" | bc) )); then
+		echo "  RESULT: FAIL"; FAIL=1
+	else
+		echo "  RESULT: PASS"
+	fi
+}
+
 cmd_endgame() {
 	echo "== endgame (365 gün) =="
 	if "$GODOT" --headless --script "$ROOT/tests/run_endgame.gd" -- "$@"; then
@@ -102,6 +130,7 @@ case "${1:-all}" in
 	sim)    shift; cmd_sim "$@" ;;
 	visual) cmd_visual ;;
 	endgame) shift; cmd_endgame "$@" ;;
+	perf) shift; cmd_perf "$@" ;;
 	timelapse) cmd_timelapse ;;
 	all)    cmd_check; cmd_sim; cmd_visual ;;
 	*) echo "kullanım: verify.sh {check|sim|visual|endgame|timelapse|all}"; exit 2 ;;

@@ -49,7 +49,15 @@ var _prev_last_memtree = null     # veda tespiti (son anı ağacı ref)
 var _prev_chime := 0.0            # saat başı kuş ürkmesi
 var _season_t := 0.0
 
+var _bg: Node2D = null            # statik katman (perf: yalnız imza değişince redraw)
+var _sorted_b: Array = []         # gy-sıralı bina önbelleği (her karede sort ETME)
+var _sorted_count := -1
+
 func _ready() -> void:
+	_bg = load("res://scripts/town_bg.gd").new()
+	_bg.view = self
+	_bg.z_index = -1
+	add_child(_bg)
 	# seedli kozmetik başlangıç (randf YOK — hf ile)
 	for i in range(4):
 		var bsp := 0.35 + Rng.hf(i) * 0.4
@@ -117,22 +125,7 @@ func _draw() -> void:
 	var S: Dictionary = SEASONS[world.season]
 	var ev := world.evening()
 	var fr := world.frontier
-
-	# ---- GÖKYÜZÜ (3-faz, bantlı gradient) ----
-	var dusk := minf(1.0, ev * 2.0)
-	var night := maxf(0.0, ev * 2.0 - 1.0)
-	var sky_top := _mix(_mix(Color8(150,170,200), Color8(210,120,90), dusk), Color8(38,28,60), night)
-	var sky_mid := _mix(_mix(Color8(190,180,180), Color8(190,110,100), dusk), Color8(52,38,66), night)
-	var sky_bot := _mix(_mix(Color8(200,170,150), Color8(150,95,110), dusk), Color8(44,32,58), night)
-	var bands := 36
-	for i in range(bands):
-		var t0 := float(i) / float(bands)
-		var col: Color
-		if t0 < 0.55:
-			col = sky_top.lerp(sky_mid, t0 / 0.55)
-		else:
-			col = sky_mid.lerp(sky_bot, (t0 - 0.55) / 0.45)
-		draw_rect(Rect2(0, t0 * VH, VW, VH / float(bands) + 1.0), col)
+	# GÖKYÜZÜ/ZEMİN/NEHİR-TABANI/YOL/ÇAYIR-DETAY/PLAZA/ANI-AĞAÇLARI → _bg (town_bg.gd, statik katman)
 
 	# yıldızlar + bulutlar
 	if ev > 0.35:
@@ -147,51 +140,10 @@ func _draw() -> void:
 		draw_circle(Vector2(cl.x, cl.y), cl.w / 4.0, cc)
 		draw_circle(Vector2(cl.x + cl.w * 0.3, cl.y - 3.0), cl.w / 5.0, cc)
 
-	# ---- ZEMİN (kasaba sıcak / çayır mevsimsel) ----
-	# OPAK kolon şeritleri: eski yarı saydam hücre bindirmesi (CW+1 üst üste) görünür grid
-	# çizgisi üretiyordu; ayrıca 1664 hücre → ~50 draw (perf). Çayır ufka karışır (HTML alpha
-	# eğrisinin opak eşdeğeri: yakın uçta gökyüzü ağırlıklı, uzakta çayır koyulaşır).
-	var town_base := _mix(Color8(132,108,104), Color8(46,34,52), ev * 0.85)
-	draw_rect(Rect2(0, 0, fr * CW, VH), town_base)
-	var meadow_base := _dusk(S.grass, ev * 0.5)
-	const BORDER_COLS := 4   # kasaba→çayır yumuşak geçiş bandı (sert dikey sınır kalksın)
-	for gx in range(fr, World.GW):
-		var fmix := float(gx - fr) / float(World.GW - fr)
-		var col := _mix(sky_bot, meadow_base, 0.4 + fmix * 0.5)
-		if gx - fr < BORDER_COLS:
-			col = _mix(town_base, col, (float(gx - fr) + 0.5) / float(BORDER_COLS))
-		draw_rect(Rect2(gx * CW, 0, CW + 1.0, VH), col)
-
-	# ---- NEHİR ----
+	# ---- NEHİR IŞILTISI (taban _bg'de; canlı su çizgisi burada) ----
 	for rc in world.river:
-		var X: float = rc.x * CW
-		var Y: float = rc.y * CH
 		var rp := sin(rc.x * 0.5 + _t * 2.4) * sin(rc.y * 0.7 - _t * 1.8)
-		draw_rect(Rect2(X, Y, CW + 1.0, CH + 1.0), _mix(Color8(90,120,160), Color8(40,58,92), ev))
-		draw_rect(Rect2(X, Y + rp * 2.0, CW + 1.0, 1.5), Color(0.86, 0.92, 1.0, 0.05 + 0.04 * rp + ev * 0.05))
-
-	# ---- YOLLAR ----
-	var rc_col: Color = _dusk(S.road, ev * 1.3)
-	for r in world.road_list:
-		draw_rect(Rect2(r.x * CW - 1.0, r.y * CH - 1.0, CW + 2.0, CH + 2.0), rc_col)
-
-	# ---- ÇAYIR DETAY (çiçek/ağaç) ----
-	var tree_col := _dusk(S.tree, ev * 0.45)   # ağaçlar da geceyle kararır (gündüz parlaklığı gece sırıtıyordu)
-	for gy in range(1, World.GH - 1):
-		for gx in range(fr, World.GW):
-			var c := Vector2i(gx, gy)
-			if world.road_set.has(c): continue
-			var n := Rng.h(gx * 7 + gy * 13) % 100
-			var X: float = gx * CW
-			var Y: float = gy * CH
-			if n < 9:
-				draw_circle(Vector2(X + CW / 2.0, Y + CH / 2.0), CW * 0.22, tree_col)
-			elif n < 15:
-				draw_rect(Rect2(X + CW / 2.0 - 1.0, Y + CH / 2.0 - 1.0, 2.0, 2.0), S.flowers[Rng.h(gx + gy) % 3])
-
-	# ---- PLAZA ----
-	for pc in world.plaza_cells:
-		draw_rect(Rect2(pc.x * CW, pc.y * CH, CW + 1.0, CH + 1.0), _mix(Color8(150,130,120), Color8(80,66,72), ev * 0.5))
+		draw_rect(Rect2(rc.x * CW, rc.y * CH + rp * 2.0, CW + 1.0, 1.5), Color(0.86, 0.92, 1.0, 0.05 + 0.04 * rp + ev * 0.05))
 
 	# ---- ÇEŞMELER ----
 	for f in world.fountains:
@@ -201,7 +153,8 @@ func _draw() -> void:
 		draw_circle(Vector2(X, Y), CW * 0.27, Color8(122,154,184))
 		draw_circle(Vector2(X, Y - 1.0), 1.4, Color(0.86, 0.94, 1.0, 0.4 + 0.3 * sin(_t * 4.0)))
 
-	# ---- KASABA AĞAÇLARI ----
+	# ---- KASABA AĞAÇLARI (sway animasyonlu → dinamik katmanda) ----
+	var tree_col := _dusk(S.tree, ev * 0.45)
 	for tr in world.trees:
 		var X: float = tr.gx * CW + CW / 2.0
 		var Y: float = tr.gy * CH + CH / 2.0
@@ -210,22 +163,17 @@ func _draw() -> void:
 		draw_rect(Rect2(X - 1.0, Y - 1.0, 2.0, CH * 0.4), Color8(90,122,82))
 		draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, tree_col)
 
-	# ---- BİNALAR (geri→ön) ----
-	var sorted_b := world.buildings.duplicate()
-	sorted_b.sort_custom(func(a, b): return a.gy < b.gy)
-	for b in sorted_b:
+	# ---- BİNALAR (geri→ön; sıralama önbelleği — binalar yer değiştirmez, her karede sort ETME) ----
+	if world.buildings.size() != _sorted_count:
+		_sorted_count = world.buildings.size()
+		_sorted_b = world.buildings.duplicate()
+		_sorted_b.sort_custom(func(a, b): return a.gy < b.gy)
+	for b in _sorted_b:
 		if b.build_prog <= 0.0: continue
 		_draw_building(b, ev)
 
 	# ---- SAAT KULESİ ----
 	_draw_landmark(ev)
-
-	# ---- ANI AĞAÇLARI ----
-	for mt in world.mem_trees:
-		var X: float = mt.gx * CW + CW / 2.0
-		var Y: float = mt.gy * CH + CH / 2.0
-		draw_circle(Vector2(X, Y + 2.0), CW * 0.24, Color8(201,184,224))
-		draw_rect(Rect2(X - 0.8, Y - 2.0, 1.6, CH * 0.4), Color8(138,122,154))
 
 	# ---- KİŞİLER ----
 	for p in world.people:
