@@ -1,0 +1,83 @@
+# NEFES — Asset Üretim Rehberi (kısa)
+
+Amaç: kafandaki tasarımı hızlıca görsele/sprite'a çevirmek. İki ayrı iş var,
+ikisini karıştırma:
+
+- **A) Oyun-içi sprite** → paletine SADIK kalmalı (12 renk kilidi).
+- **B) Menü animasyon arka planı** → serbest, mood önemli, palet zorunlu değil.
+
+---
+
+## A) Oyun-içi sprite (metinden VEYA görselden)
+
+Akış:
+```
+betimleme yaz  (veya referans görsel yükle)
+      ↓
+sprite üret  (palet kilitli)
+      ↓
+12 renge oturt (gerekirse)
+      ↓
+Godot: transparent PNG sprite sheet
+```
+
+Araçlar (öncelik sırasıyla):
+
+| Site | Görselden üretir? | Palet kilidi | Free | Ne zaman |
+|---|---|---|---|---|
+| **Retro Diffusion** | ✅ img2img | ✅ custom palet | 50 kredi | **Ana tercih.** Paletine kilitler, en temizi |
+| **PixelLab** | ✅ konsept + referans | ✅ eşleştirme | Deneme | Yön + walk/idle animasyon lazımsa |
+| **PixelBox / Layer** | ✅ resim→sprite | Kısmi | Free tier | Hızlı tek sprite |
+| **Spritesheets.AI** | ✅ karakter+prompt | ✗ | Free tier | Midjourney/SD çıktısını sheet'e çevirmek |
+
+Not (palet): araç paleti kilitlemezse, üretilen görseli senin
+`ink #2b1e2e → honey #ffe6a8` paletine "quantize" eden küçük script kullan
+(Claude yazacak). Bu adım olmadan sprite oyununa görsel olarak oturmaz.
+
+---
+
+## B) Menü animasyon arka planı (still → oynayan loop)
+
+Akış:
+```
+1) konsept kare üret   (tek görsel)
+2) o kareyi oynat      (image-to-video)
+3) Godot'a koy         (.ogv, gif DEĞİL)
+```
+
+### 1) Konsept kare
+| Site | Free | Ne için |
+|---|---|---|
+| **Recraft** | Free tier | Painterly cozy sahne (menü için ideal) |
+| **Nano Banana / Flux** (Higgsfield içinden) | Günlük kredi | Zengin konsept kare |
+| **Retro Diffusion** | 50 kredi | Pixel-cozy istiyorsan |
+
+Prompt'a sıcak tonlarını yaz: honey/amber ışık, ink-mor gece, cozy kasaba.
+
+### 2) Kareyi oynat (image-to-video)
+| Site | Free durumu | Not |
+|---|---|---|
+| **Higgsfield** | ~10 kredi/gün + kayıt bonusu (watermark) | Hub: Kling/Veo/WAN + kamera preset. YouTube'daki akış bu |
+| **Luma** | Free tier | Yumuşak kamera, arka plan loop'a çok uygun |
+| **Kling** | Günlük kredi | Hareket kalitesi yüksek |
+
+### 3) Godot'a koyma (ÖNEMLİ)
+AI sana mp4/gif verir. **Gif'i Godot'a ham atma.**
+- **Video yolu:** mp4/gif → `.ogv` (Ogg Theora) → `VideoStreamPlayer` ile loop. En temiz.
+- **Sprite yolu:** videoyu 12-16 kareye böl → `AnimatedSprite2D`. Küçük dosya, paletine oturur.
+
+Dönüşüm komutunu (mp4/gif → .ogv veya kareler) Claude yazacak.
+
+---
+
+## Özet karar
+
+- Sprite üretiyorsan → **Retro Diffusion** (img2img + palet kilidi) → Godot PNG.
+- Menü arka planı → **Recraft/Nano** ile kare → **Higgsfield/Luma** ile oynat → `.ogv`.
+- Her AI çıktısı oyununa girmeden önce: sprite'ta palet quantize, videoda .ogv çevir.
+
+## MCP tarafı
+Bunların çoğu web app (elle sürülür). MCP değeri sadece iki yerde:
+- **Godot MCP** → sahneyi/animasyonu Claude çalıştırıp test eder.
+- **PixelLab MCP** → sprite'ı doğrudan Godot pipeline'ına bağlar.
+Gerisi (Retro Diffusion, Higgsfield, Recraft, Luma) web'den sen sürersin.
