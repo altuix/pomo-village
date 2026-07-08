@@ -152,6 +152,10 @@ func _build() -> void:
 	alb.pressed.connect(func(): _toggle(album_box); _refresh_album())
 	bar.add_child(alb)
 
+	var cam := _button("📷")
+	cam.pressed.connect(func(): if main != null and main.has_method("take_postcard"): main.take_postcard())
+	bar.add_child(cam)
+
 	_wish_btn = _button("")
 	_wish_btn.add_theme_color_override("font_color", Color("c9e0b0"))
 	_wish_btn.visible = false

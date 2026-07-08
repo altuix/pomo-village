@@ -130,6 +130,9 @@ func event(kind: String) -> void:
 		"breakEnd":   # mola bitti: nazik iki-nota iniş (davet, alarm değil — cozy)
 			_tone(659.0, 0.5, 0.07, "sine")
 			_tone(523.0, 0.7, 0.06, "sine", 0.18)
+		"camera":   # kartpostal deklanşörü: çift minik tık
+			_tone(1200.0, 0.04, 0.05, "sine")
+			_tone(900.0, 0.05, 0.05, "sine", 0.06)
 		"farewell":
 			_tone(392.0, 1.6, 0.07, "sine")
 			_tone(494.0, 1.6, 0.05, "sine", 0.05)

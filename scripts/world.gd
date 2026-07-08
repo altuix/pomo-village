@@ -85,6 +85,9 @@ const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
 func population() -> int:
 	return people.size()
 
+func town_seed() -> int:
+	return _salt   # kartpostal/paylaşım: aynı tohum = aynı kasaba
+
 func clock_string() -> String:
 	var hh := int(floor(time_of_day))
 	var mm := int(floor(fmod(time_of_day, 1.0) * 60.0))

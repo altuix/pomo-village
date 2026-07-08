@@ -194,6 +194,43 @@ func hovered_person() -> Dictionary:
 		return { "person": town_view.hovered, "px": town_view.hovered_px }
 	return {}
 
+# ---- kartpostal modu (Faz C #20): o anki kadraj + tohum → PNG (paylaşım/pazarlama aracı) ----
+var last_postcard_path := ""
+
+func take_postcard(dir_override: String = "") -> void:
+	if world == null or not is_instance_valid(ui):
+		return
+	var was_visible: bool = ui.visible
+	ui.visible = false
+	await get_tree().process_frame
+	await get_tree().process_frame   # UI'sız temiz kare için render bekle
+	var img := get_viewport().get_texture().get_image()
+	ui.visible = was_visible
+	# ink çerçeve — kartpostal hissi (palet: ink #2b1e2e)
+	var ink := Color("2b1e2e")
+	var wpx := img.get_width()
+	var hpx := img.get_height()
+	img.fill_rect(Rect2i(0, 0, wpx, 6), ink)
+	img.fill_rect(Rect2i(0, hpx - 6, wpx, 6), ink)
+	img.fill_rect(Rect2i(0, 0, 6, hpx), ink)
+	img.fill_rect(Rect2i(wpx - 6, 0, 6, hpx), ink)
+	var dir_path := dir_override
+	if dir_path == "":
+		dir_path = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
+	if dir_path == "" or not DirAccess.dir_exists_absolute(dir_path):
+		dir_path = OS.get_user_data_dir()
+	var day: int = world.tick / World.TICKS_PER_DAY + 1
+	# tohum dosya adında: arkadaşın aynı tohumla aynı kasabayı kurabilir (deterministik paylaşım)
+	last_postcard_path = "%s/NEFES_tohum%d_gun%d_%s.png" % [dir_path, world.town_seed(), day, world.clock_string().replace(":", "")]
+	var e := img.save_png(last_postcard_path)
+	if e == OK:
+		world._push_event("📷 kartpostal kaydedildi (Resimler klasörü)")
+		if is_instance_valid(audio):
+			audio.event("camera")
+	else:
+		world._push_event("📷 kartpostal kaydedilemedi")
+		push_warning("[postcard] save_png err=%d yol=%s" % [e, last_postcard_path])
+
 func _on_focus_timeout() -> void:
 	if _focus_phase == "work":
 		if world != null:
