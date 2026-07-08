@@ -100,6 +100,14 @@ const AN := {
 	"butunlendi": "Kasaba bütünlendi. Son evin bacası bu akşam ilk dumanını tüttürdü. Artık kimse 'keşke bir evimiz olsa' demiyor. Bundan sonrası süsleme, şenlik ve keyif: kasaba senin emeğinle TAMAM. Sağ ol.",
 }
 
+# ---- MEVSİM FESTİVALLERİ (her mevsim ortasında bir; kasaba halkından davet mektubu) ----
+const FESTIVAL := [
+	"Bugün Çiçek Günü! Meydan taçyaprağı içinde; çocuklar birbirinin saçına çiçek takıyor. En güzel taç senin masana bırakıldı.",
+	"Dere Şenliği başladı! Herkes kıyıya indi; kâğıttan kayıklar yarışıyor, ayaklar suda. Senin kayığını da biz yüzdürdük — birinci geldi.",
+	"Hasat Akşamı bu gece. Meydanda uzun bir sofra kurduk; balkabağı çorbası ve taze ekmek. Tabağın hep dolu, yerin hep ayrılmış.",
+	"Fener Gecesi! Bütün kasaba el yapımı fenerlerle sokakta. Kar sessizce yağıyor, ışıklar süzülüyor. En büyük feneri kuleye senin adına astık.",
+]
+
 # ---- BOND EKİ (bağ yüksekken mektup sonuna eklenen not) ----
 const BOND_EK := [
 	"\n\nNot: Kasabada senin adın geçince herkes gülümsüyor, bilesin.",

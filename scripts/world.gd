@@ -87,6 +87,10 @@ const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
 const FLOWER_COST := 2400.0       # bir çiçeğin emeği (~3 oyun-günü growth; plato ödül temposu)
 const FLOWER_OVERFLOW := 7200.0   # taşma kanalı yalnız goal bunu aşınca (plato) açılır
 var rain_was := false             # yağmur geçiş olayı için (save'e girmez; tek sahte geçiş zararsız)
+var festival_t := 0.0             # festival nabzı 1→0 (render gözlemler; chime_t deseni)
+var fest_done := false            # bu mevsim festivali oldu mu (mevsim dönünce sıfırlanır)
+const FEST_EVENTS := ["🌸 Çiçek Günü — meydan taçyaprağı içinde", "💧 Dere Şenliği — kâğıt kayıklar yarışıyor",
+	"🎃 Hasat Akşamı — meydanda uzun sofra kuruldu", "🏮 Fener Gecesi — ışıklar karda süzülüyor"]
 
 func population() -> int:
 	return people.size()
@@ -170,6 +174,8 @@ func gen(seed_val: int = 0) -> void:
 	stat_arrivals = 0
 	stat_wishes = 0
 	rain_was = false
+	festival_t = 0.0
+	fest_done = false
 
 	frontier = int(floor(GW * 0.30))
 
@@ -350,6 +356,7 @@ func step_world() -> void:
 	if season_tick >= 1200:
 		season_tick = 0
 		season = (season + 1) % 4
+		fest_done = false
 	var ev := evening()
 
 	# pencere programı: akşam yanar, 23-05 UYKU (ışık bütçesi)
@@ -417,6 +424,22 @@ func step_world() -> void:
 			var who = cands[_h(tick) % cands.size()]
 			wish = { "who": who, "type": _h(tick * 7) % WISH_TYPES.size() }
 			_push_event("💭 %s bir dilek tuttu" % who.name)
+
+	# MEVSİM FESTİVALİ (Faz D): mevsim ortasında küçük şenlik — sakinler meydana, olay + seyrek mektup.
+	# Mevsimler hızlı döner (1200 tick) → mektup %15 şansla (spam değil, sürpriz kalsın).
+	if season_tick == 600 and not fest_done:
+		fest_done = true
+		festival_t = 1.0
+		_push_event(FEST_EVENTS[season])
+		if _hf(tick * 43) < 0.15:
+			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "festival", "replied": false,
+				"text": Letters.FESTIVAL[season] })
+		for p in people:
+			if not p.moving and _hf(p.seed + tick) < 0.4:
+				p.x = clampf(landmark.x + float(_h(p.seed) % 7) - 3.0, 0.0, float(GW - 1))
+				p.y = clampf(landmark.y + float(_h(p.seed * 3) % 7) - 3.0, 0.0, float(GH - 1))
+	if festival_t > 0.0:
+		festival_t -= 0.005   # ~200 tick şenlik nabzı
 
 	# yağmur geçişleri (görsel/ses katmanının olay bildirimi; sim durumuna etkimez)
 	var raining := rain_amount() > 0.1
@@ -494,6 +517,7 @@ func to_save() -> Dictionary:
 		"season": season, "season_tick": season_tick, "frontier": frontier,
 		"growth": growth, "goal": goal, "growth_mult": growth_mult,
 		"light_curve": light_curve, "last_hour": last_hour, "chime_t": chime_t,
+		"festival_t": festival_t, "fest_done": fest_done,
 		"name_idx": name_idx, "bond": bond, "streak": streak, "sessions": sessions,
 		"best_streak": best_streak, "stat_focus_min": stat_focus_min,
 		"today_focus_min": today_focus_min, "focus_day": focus_day,
@@ -529,6 +553,8 @@ func from_save(d: Dictionary) -> void:
 	light_curve = float(d.light_curve)
 	last_hour = int(d.last_hour)
 	chime_t = float(d.chime_t)
+	festival_t = float(d.get("festival_t", 0.0))
+	fest_done = bool(d.get("fest_done", false))
 	name_idx = int(d.name_idx)
 	bond = int(d.bond)
 	streak = int(d.streak)

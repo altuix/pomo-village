@@ -13,8 +13,31 @@ func _init() -> void:
 	ok = _test_letters_depth() and ok
 	ok = _test_endgame_design() and ok
 	ok = _test_weather() and ok
+	ok = _test_festival() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D festival: mevsim ortasında bir kez tetiklenir, mevsim dönünce bayrak sıfırlanır.
+func _test_festival() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	w.season_tick = 599
+	w.step_world()
+	var fired: bool = w.fest_done and w.festival_t > 0.9
+	var ev_ok: bool = not w.event_log.is_empty() and "🌸" in w.event_log.back()
+	w.step_world()   # ikinci adım yeniden tetiklememeli (festival_t azalır)
+	var once: bool = w.festival_t < 1.0
+	w.season_tick = 1199
+	w.step_world()   # mevsim döner → bayrak sıfırlanır
+	var reset_ok: bool = w.season == 1 and not w.fest_done
+	# save roundtrip yeni alanları taşır
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w2.fest_done == w.fest_done and absf(w2.festival_t - w.festival_t) < 0.001
+	print("D festival: tetik=%s olay=%s tek=%s mevsim-sıfır=%s roundtrip=%s" % [str(fired), str(ev_ok), str(once), str(reset_ok), str(rt)])
+	var pass_ok: bool = fired and ev_ok and once and reset_ok and rt
+	print("Df: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D hava durumu: yağmur türetilmiş+determinist, kışın kapalı, SİM'İ ETKİLEMEZ (saflık).
 func _test_weather() -> bool:

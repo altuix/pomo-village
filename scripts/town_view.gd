@@ -48,6 +48,7 @@ var _lamp_on: Array = []          # lamba başına on-durumu (kaskad kıvılcım
 var _known_seeds := {}            # doğum tespiti
 var _prev_last_memtree = null     # veda tespiti (son anı ağacı ref)
 var _prev_chime := 0.0            # saat başı kuş ürkmesi
+var _prev_fest := 0.0             # festival nabzı tespiti
 var _season_t := 0.0
 
 var _bg: Node2D = null            # statik katman (perf: yalnız imza değişince redraw)
@@ -406,6 +407,20 @@ func _emit_events(delta: float) -> void:
 		for bd in birds:
 			bd.sp += 1.2
 	_prev_chime = world.chime_t
+
+	# FESTİVAL (Faz D): nabız 1'e sıçrayınca meydanda kutlama + şenlik boyunca mevsim serpintisi
+	if world.festival_t > 0.9 and _prev_fest <= 0.9:
+		celebrate(world.landmark.x, world.landmark.y - 1)
+		if audio != null:
+			audio.event("festival")
+	_prev_fest = world.festival_t
+	if world.festival_t > 0.0:
+		_fx_seed += 1
+		if Rng.hf(_fx_seed) < delta * 3.0:
+			# mevsim serpintisi: bahar taçyaprağı / yaz su ışıltısı / güz yaprağı / kış ışık motesi
+			var fkind: String = ["petal", "stardust", "leaf", "mote"][world.season]
+			var fx: float = (world.landmark.x + 0.5) * CW + (Rng.hf(_fx_seed * 7) - 0.5) * CW * 8.0
+			_spawn(Vector2(fx, world.landmark.y * CH - CH * 2.0), fkind, 1, {"decay": 0.01, "sp": 0.3})
 
 	# MEVSİM: sonbahar yaprak / ilkbahar taç yaprağı serpintisi (~1sn'de bir)
 	_season_t += delta
