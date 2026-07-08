@@ -206,7 +206,9 @@ func gen(seed_val: int = 0) -> void:
 			river.append(rc)
 			river_set[rc] = true
 
-	_build_road_network(GW)
+	# yollar KADEMELİ: başlangıçta yalnız kasaba alanı (+2 taşma); çayıra hazır yol serilmez —
+	# kasaba büyüdükçe _expand_frontier yolu da uzatır (kullanıcı: "başta tüm haritada yol garip")
+	_build_road_network(frontier + 2)
 
 	var spine_y := int(floor(GH * 0.5))
 	landmark = Vector2i(int(floor(frontier * 0.6)), spine_y)
@@ -273,15 +275,16 @@ func _build_road_network(max_x: int) -> void:
 	road_set = {}
 	road_list = []
 	var spine_y := int(floor(GH * 0.5))
-	# omurga: tüm harita boyunca hafif meandering, 2 hücre kalın
-	for gx in range(GW):
+	# omurga: verilen sınıra kadar hafif meandering, 2 hücre kalın (formüller gx-mutlak →
+	# sonraki çağrılar aynı hücreleri üretir; _add_road dedupe ile kademeli uzatma güvenli)
+	for gx in range(max_x):
 		var y := spine_y + int(round(sin(gx * 0.18) * 2.0))
 		_add_road(gx, y)
 		_add_road(gx, y + 1)
 	# dikey dal sokakları (yalnız kasaba alanında)
 	var bx := 8
 	while bx < max_x:
-		var length := 4 + _h(bx * 7) % 6
+		var length := 3 + _h(bx * 7) % 5
 		var dir := 1 if (_h(bx) % 2) else -1
 		var x := bx
 		var y := spine_y
@@ -291,7 +294,7 @@ func _build_road_network(max_x: int) -> void:
 				break
 			x += (_h(bx * 13 + s) % 3) - 1
 			_add_road(x, y)
-		bx += 6 + (_h(bx) % 3)
+		bx += 8 + (_h(bx) % 4)   # dallar seyrekleşti (6+%3 idi — yol yoğunluğu şikâyeti)
 	# birkaç yatay ara sokak
 	var by := 4
 	while by < GH - 3:
@@ -303,7 +306,7 @@ func _build_road_network(max_x: int) -> void:
 				yy += (_h(x * by) % 3) - 1
 				yy = clampi(yy, 2, GH - 3)
 				_add_road(x, yy)
-		by += 7
+		by += 9   # ara sokaklar seyrekleşti (7 idi)
 
 func _add_road(x: int, y: int) -> void:
 	if x < 0 or y < 0 or x >= GW or y >= GH:
@@ -782,6 +785,7 @@ func _dist(b: Dictionary) -> int:
 func _expand_frontier() -> void:
 	var old := frontier
 	frontier = mini(GW - 6, frontier + 5)
+	_build_road_network(frontier + 2)   # yol kasabayla birlikte uzar (kademeli büyüme)
 	var occ := {}
 	for b in buildings:
 		occ[Vector2i(b.gx, b.gy)] = true
