@@ -13,3 +13,4 @@ fi
 
 "$ROOT/tools/verify.sh" check || { echo "pre-commit: check FAIL — commit engellendi"; exit 1; }
 "$ROOT/tools/verify.sh" sim || { echo "pre-commit: sim FAIL — commit engellendi"; exit 1; }
+"$ROOT/tools/verify.sh" ui || { echo "pre-commit: ui FAIL — commit engellendi"; exit 1; }

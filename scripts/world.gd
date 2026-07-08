@@ -40,6 +40,7 @@ var fountains: Array = []
 var people: Array = []            # Array[Dictionary]
 var mem_trees: Array = []
 var decor: Array = []             # dilek objeleri: bank/kuş yuvası/posta kutusu/rüzgâr gülü {gx,gy,kind}
+var pending_special: Array = []   # bina bulunamayan özel dönüşümler (vaat kaybolmaz — frontier açılınca kurulur)
 var movers: Array = []            # people dict ref'leri
 var building_now = null           # yükselen bina (Dictionary) ya da null
 
@@ -52,7 +53,8 @@ var stat_wishes := 0   # gerçekleşen dilekler (albüm: kurulan objeler gen obj
 # --- isim / olay / mektup (A1) ---
 var name_idx := 0
 var event_log: Array[String] = []      # son ~5 olay (UI: A7)
-var letters: Array = []                # {from, text, kind, replied} — kaynak veda (A1); dilek/odak + UI = A4
+var letters: Array = []                # {lid, from, who, text, kind, replied} — kaynak veda (A1); dilek/odak + UI = A4
+var letter_seq := 0                    # kalıcı mektup kimliği (lid) — UI index YAKALAMAZ (push_front kaydırır)
 
 # --- odak seansı + seri (A3; B+ istatistik + kalıcılık) ---
 var streak := 0
@@ -167,6 +169,8 @@ func gen(seed_val: int = 0) -> void:
 	name_idx = 0
 	event_log = []
 	letters = []
+	letter_seq = 0
+	pending_special = []
 	wish = null
 	bond = 0
 	milestones = {}
@@ -447,7 +451,7 @@ func step_world() -> void:
 
 	# MEVSİM FESTİVALİ (Faz D): mevsim ortasında küçük şenlik — sakinler meydana, olay + seyrek mektup.
 	# Mevsimler hızlı döner (1200 tick) → mektup %15 şansla (spam değil, sürpriz kalsın).
-	if season_tick == 600 and not fest_done:
+	if season_tick >= 600 and not fest_done:   # >=: yüklenen save 600'ü geçmişse festival kaçmasın
 		fest_done = true
 		festival_t = 1.0
 		_push_event(FEST_EVENTS[season])
@@ -554,31 +558,35 @@ func to_save() -> Dictionary:
 		"building_now": bn_idx,
 		"wish": wsh,
 		"letters": letters.duplicate(true),
+		"letter_seq": letter_seq,
+		"pending_special": pending_special.duplicate(),
 		"milestones": milestones.duplicate(),
 		"town_complete": town_complete,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
+## KURAL: her erişim .get + default (şema kontrolü yalnız 4 kimlik anahtarını garantiler;
+## eksik-anahtarlı/yarı-migrasyon kayıt çökmek yerine güvenli default'a düşmeli — kural 9).
 func from_save(d: Dictionary) -> void:
 	_salt = int(d.seed)
 	tick = int(d.tick)
-	time_of_day = float(d.time_of_day)
-	season = int(d.season)
-	season_tick = int(d.season_tick)
-	frontier = int(d.frontier)
-	growth = float(d.growth)
-	goal = float(d.goal)
+	time_of_day = float(d.get("time_of_day", 17.2))
+	season = int(d.get("season", 0))
+	season_tick = int(d.get("season_tick", 0))
+	frontier = int(d.get("frontier", int(GW * 0.30)))
+	growth = float(d.get("growth", 0.0))
+	goal = float(d.get("goal", 12.0))
 	# Odak seansı yüklemede restore edilmiyor → kaydedilen ×1.5 hayalet kalmasın (bug: growth_mult sızıntısı).
 	growth_mult = 1.0
-	light_curve = float(d.light_curve)
-	last_hour = int(d.last_hour)
-	chime_t = float(d.chime_t)
+	light_curve = float(d.get("light_curve", 0.0))
+	last_hour = int(d.get("last_hour", -1))
+	chime_t = float(d.get("chime_t", 0.0))
 	festival_t = float(d.get("festival_t", 0.0))
 	fest_done = bool(d.get("fest_done", false))
-	name_idx = int(d.name_idx)
-	bond = int(d.bond)
-	streak = int(d.streak)
-	sessions = int(d.sessions)
+	name_idx = int(d.get("name_idx", 0))
+	bond = int(d.get("bond", 0))
+	streak = int(d.get("streak", 0))
+	sessions = int(d.get("sessions", 0))
 	# B+ alanları eski save'lerde yok → .get default (sessiz veri kaybı değil, bilinçli geriye-uyum)
 	best_streak = int(d.get("best_streak", streak))
 	stat_focus_min = int(d.get("stat_focus_min", 0))
@@ -593,45 +601,46 @@ func from_save(d: Dictionary) -> void:
 	for k in unlocked.keys():
 		unlocked[k] = bool(du.get(k, false))
 	melody = []
-	for n in d.melody:
+	for n in d.get("melody", Melody.DEFAULT):
 		melody.append(int(n))
-	melody_saved = bool(d.melody_saved)
-	concert_done = bool(d.concert_done)
-	stat_births = int(d.stat_births)
-	stat_farewells = int(d.stat_farewells)
-	stat_arrivals = int(d.stat_arrivals)
+	melody_saved = bool(d.get("melody_saved", false))
+	concert_done = bool(d.get("concert_done", false))
+	stat_births = int(d.get("stat_births", 0))
+	stat_farewells = int(d.get("stat_farewells", 0))
+	stat_arrivals = int(d.get("stat_arrivals", 0))
 	stat_wishes = int(d.get("stat_wishes", 0))
 	milestones = (d.get("milestones", {}) as Dictionary).duplicate()
 	town_complete = bool(d.get("town_complete", false))
-	landmark = Vector2i(int(d.landmark[0]), int(d.landmark[1]))
-	road_list = _to_vec_list(d.road_list)
+	var lm: Array = d.get("landmark", [11, 13])
+	landmark = Vector2i(int(lm[0]), int(lm[1]))
+	road_list = _to_vec_list(d.get("road_list", []))
 	road_set = {}
 	for c in road_list:
 		road_set[c] = true
-	river = _to_vec_list(d.river)
+	river = _to_vec_list(d.get("river", []))
 	river_set = {}
 	for c in river:
 		river_set[c] = true
-	plaza_cells = _to_vec_list(d.plaza_cells)
+	plaza_cells = _to_vec_list(d.get("plaza_cells", []))
 	# JSON tüm sayıları float yapar (kritik tuzak 2) → int-kritik alanlar burada da zorlanır
 	# (roundtrip eşitliği + dizi indeksi güvenliği; endgame testi yakaladı)
 	lamps = []
-	for sd in d.lamps:
+	for sd in d.get("lamps", []):
 		var L: Dictionary = (sd as Dictionary).duplicate(true)
 		L.gx = int(L.gx); L.gy = int(L.gy)
 		lamps.append(L)
 	trees = []
-	for sd in d.trees:
+	for sd in d.get("trees", []):
 		var T: Dictionary = (sd as Dictionary).duplicate(true)
-		T.gx = int(T.gx); T.gy = int(T.gy); T.s = int(T.s)
+		T.gx = int(T.gx); T.gy = int(T.gy); T.s = int(T.get("s", 1))
 		trees.append(T)
 	fountains = []
-	for sd in d.fountains:
+	for sd in d.get("fountains", []):
 		var F: Dictionary = (sd as Dictionary).duplicate(true)
 		F.gx = int(F.gx); F.gy = int(F.gy)
 		fountains.append(F)
 	mem_trees = []
-	for sd in d.mem_trees:
+	for sd in d.get("mem_trees", []):
 		var M: Dictionary = (sd as Dictionary).duplicate(true)
 		M.gx = int(M.gx); M.gy = int(M.gy)
 		mem_trees.append(M)
@@ -641,28 +650,37 @@ func from_save(d: Dictionary) -> void:
 		DC.gx = int(DC.gx); DC.gy = int(DC.gy)
 		decor.append(DC)
 	letters = []
-	for sd in d.letters:
+	letter_seq = int(d.get("letter_seq", 0))
+	for sd in d.get("letters", []):
 		var L2: Dictionary = (sd as Dictionary).duplicate(true)
 		L2.who = int(L2.get("who", -1))
+		if L2.has("lid"):
+			L2.lid = int(L2.lid)
+		else:
+			L2["lid"] = letter_seq   # eski save migrasyonu: lid'siz mektuba kimlik ata
+			letter_seq += 1
 		letters.append(L2)
-	# binalar (members geçici olarak index)
+	pending_special = []
+	for t in d.get("pending_special", []):
+		pending_special.append(String(t))
+	# binalar (members geçici olarak index) — eksik anahtar çökertmez (.get + default)
 	buildings = []
 	for sd in d.buildings:
 		var b: Dictionary = (sd as Dictionary).duplicate(true)
 		for k in _BLD_INT:
-			b[k] = int(b[k])
+			b[k] = int(b.get(k, 0))
 		buildings.append(b)
 	# sakinler (home geçici olarak index)
 	people = []
 	for sd in d.people:
 		var p: Dictionary = (sd as Dictionary).duplicate(true)
 		for k in _PERSON_INT:
-			p[k] = int(p[k])
+			p[k] = int(p.get(k, 0 if k != "home" else -1))
 		people.append(p)
 	# ref relink
 	for b in buildings:
 		var mem := []
-		for pi in b.members:
+		for pi in b.get("members", []):
 			var ii := int(pi)
 			if ii >= 0 and ii < people.size():
 				mem.append(people[ii])
@@ -670,17 +688,18 @@ func from_save(d: Dictionary) -> void:
 	for p in people:
 		var hi: int = p.home
 		p.home = buildings[hi] if hi >= 0 and hi < buildings.size() else null
-	var bn := int(d.building_now)
+	var bn := int(d.get("building_now", -1))
 	building_now = buildings[bn] if bn >= 0 and bn < buildings.size() else null
 	movers = []
 	for p in people:
-		if p.moving:
+		if p.get("moving", false):
 			movers.append(p)
-	if d.wish == null:
+	var wd = d.get("wish", null)
+	if wd == null:
 		wish = null
 	else:
-		var wi := int(d.wish.who)
-		wish = { "who": people[wi], "type": int(d.wish.type) } if wi >= 0 and wi < people.size() else null
+		var wi := int(wd.get("who", -1))
+		wish = { "who": people[wi], "type": int(wd.get("type", 0)) } if wi >= 0 and wi < people.size() else null
 
 ## Doğrulama/capture: belirli bir saati sabitle + ışığı kararlı hale getir (deterministik).
 func force_time(tod: float) -> void:
@@ -723,20 +742,26 @@ func is_asleep() -> bool:
 	return time_of_day >= 23.0 or time_of_day < 5.0
 
 func _start_construction() -> void:
-	var cand := []
-	for b in buildings:
-		if b.built == 0:
-			cand.append(b)
-	cand.sort_custom(func(a, b): return _dist(a) < _dist(b))
-	if not cand.is_empty():
-		building_now = cand[0]
-		building_now.build_prog = 0.01
-	elif frontier < GW - 8:
-		_expand_frontier()
-	elif not town_complete:
-		# harita doldu + inşasız bina yok → KASABA BÜTÜNLENDİ (bir kez; growth güzelleştirmeye döner)
-		town_complete = true
-		_milestone("butunlendi", "🎊 KASABA BÜTÜNLENDİ — son ev de yuvasını buldu")
+	# 2 deneme: aday yoksa frontier genişletilip TEKRAR denenir — çağıran growth/goal'i çoktan
+	# harcadı; genişletme dalında bina başlatmamak bir döngünün emeğini boşa akıtıyordu
+	for attempt in range(2):
+		var cand := []
+		for b in buildings:
+			if b.built == 0 and b.build_prog <= 0.0:
+				cand.append(b)
+		cand.sort_custom(func(a, b): return _dist(a) < _dist(b))
+		if not cand.is_empty():
+			building_now = cand[0]
+			building_now.build_prog = 0.01
+			return
+		if attempt == 0 and frontier < GW - 8:
+			_expand_frontier()
+			continue
+		if not town_complete:
+			# harita doldu + inşasız bina yok → KASABA BÜTÜNLENDİ (bir kez; growth güzelleştirmeye döner)
+			town_complete = true
+			_milestone("butunlendi", "🎊 KASABA BÜTÜNLENDİ — son ev de yuvasını buldu")
+		return
 
 func _dist(b: Dictionary) -> int:
 	return abs(b.gx - landmark.x) + abs(b.gy - landmark.y)
@@ -763,6 +788,7 @@ func _expand_frontier() -> void:
 	for r in road_list:
 		if r.x >= old and r.x < frontier and _h(r.x * 7 + r.y * 13) % 5 == 0:
 			lamps.append({"gx": r.x, "gy": r.y, "ph": _hf(r.x * r.y) * TAU})
+	_drain_pending_special()   # yeni inşasız binalar açıldı — bekleyen özel binalar kurulsun
 
 func _queue_move_in(b: Dictionary) -> void:
 	# yeni ev: %60 aile taşınır, %40 boş kalır (kuşak/göç bekler)
@@ -846,6 +872,8 @@ func _push_event(t: String) -> void:
 ## en eski YANITLANMIŞ düşer (duygusal çekirdek yanıtsızlar korunur); kalıcı arşiv = albüm (Faz C).
 const LETTER_CAP := 100
 func _push_letter(l: Dictionary) -> void:
+	l["lid"] = letter_seq   # kalıcı kimlik: yanıt/atkı push_front kaymasından etkilenmez
+	letter_seq += 1
 	letters.push_front(l)
 	if letters.size() <= LETTER_CAP:
 		return
@@ -1020,6 +1048,8 @@ func teach_tower(mel: Array) -> Dictionary:
 ## İnşasız bir binayı özel tipe çevirip inşaatı başlatır (atölye/kütüphane/zincir ortak yolu).
 ## El değmemiş (build_prog<=0) bina seçilir ve building_now yalnız boşsa alınır — aynı ödülde
 ## birden çok dönüşüm birbirinin binasını ÇALMASIN (çalınan inşaat 0.01'de sonsuza dek kalıyordu).
+## Uygun bina YOKSA vaat kaybolmaz: pending_special kuyruğuna girer, frontier genişleyince kurulur
+## (önceden unlocked=true + mektup gidiyor ama bina hiç yükselMİYORDU — sessiz kırık vaat).
 func _convert_unbuilt(t: String) -> void:
 	for b in buildings:
 		if b.built == 0 and b.build_prog <= 0.0:
@@ -1028,6 +1058,24 @@ func _convert_unbuilt(t: String) -> void:
 			if building_now == null:
 				building_now = b
 			return
+	pending_special.append(t)
+
+## Bekleyen özel binaları kur (frontier genişlemesi yeni inşasız bina açtığında çağrılır).
+func _drain_pending_special() -> void:
+	while not pending_special.is_empty():
+		var t: String = pending_special[0]
+		var placed := false
+		for b in buildings:
+			if b.built == 0 and b.build_prog <= 0.0:
+				b.type = t
+				b.build_prog = 0.01
+				if building_now == null:
+					building_now = b
+				placed = true
+				break
+		if not placed:
+			return
+		pending_special.pop_front()
 
 # ============================================================ ODAK SEANSI (A3)
 ## Seans bitişi ödülü: anında inşaat + seri + atölye/kütüphane + kutlama mektubu. Cozy: cezasız.
@@ -1102,11 +1150,15 @@ func wish_text() -> String:
 	return "💭 %s: \"keşke %s olsa\" — dokun, gerçekleştir" % [wish.who.name, WISH_TYPES[wish.type].txt]
 
 ## Mektuba içtenlikle yanıt: bond+1, sakin atkı kazanır (bağın görünür nişanı).
-func reply_letter(idx: int) -> void:
-	if idx < 0 or idx >= letters.size():
-		return
-	var l = letters[idx]
-	if l.replied:
+## lid = kalıcı kimlik (index DEĞİL — sim push_front yapınca index kayıyor, yanlış mektup
+## yanıtlanıyordu; run_ui.gd bu senaryoyu test eder).
+func reply_letter(lid: int) -> void:
+	var l = null
+	for cand in letters:
+		if int(cand.get("lid", -1)) == lid:
+			l = cand
+			break
+	if l == null or l.replied:
 		return
 	l.replied = true
 	bond += 1

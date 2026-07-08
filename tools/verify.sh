@@ -100,6 +100,15 @@ cmd_perf() {
 	fi
 }
 
+cmd_ui() {
+	echo "== ui (sözleşme + sinyal akışları, headless) =="
+	if "$GODOT" --headless --script "$ROOT/tests/run_ui.gd"; then
+		echo "  ui PASS"
+	else
+		echo "  ui FAIL"; FAIL=1
+	fi
+}
+
 cmd_endgame() {
 	echo "== endgame (365 gün) =="
 	if "$GODOT" --headless --script "$ROOT/tests/run_endgame.gd" -- "$@"; then
@@ -131,10 +140,11 @@ case "${1:-all}" in
 	check)  cmd_check ;;
 	sim)    shift; cmd_sim "$@" ;;
 	visual) cmd_visual ;;
+	ui)     cmd_ui ;;
 	endgame) shift; cmd_endgame "$@" ;;
 	perf) shift; cmd_perf "$@" ;;
 	timelapse) cmd_timelapse ;;
-	all)    cmd_check; cmd_sim; cmd_visual ;;
+	all)    cmd_check; cmd_sim; cmd_ui; cmd_visual ;;
 	*) echo "kullanım: verify.sh {check|sim|visual|endgame|timelapse|all}"; exit 2 ;;
 esac
 

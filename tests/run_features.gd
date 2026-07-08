@@ -57,8 +57,21 @@ func _test_milestone_buildings() -> bool:
 	var w2 = W.new()
 	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
 	var rt: bool = w2.unlocked.rasathane and w2.unlocked.sera and w2.unlocked.hamam and w2.unlocked.atolye
-	print("D bina-zinciri: çakışma=%s ikisi-bitti=%s zincir=%s tek=%s roundtrip=%s" % [str(collision_ok), str(both_done), str(chain_ok), str(once), str(rt)])
-	var pass_ok: bool = collision_ok and both_done and chain_ok and once and rt
+	# PENDING KUYRUK (Q1.3): uygun bina yokken dönüşüm vaadi kaybolmaz, frontier açılınca kurulur
+	var w3 = W.new(); w3.gen(0)
+	for b in w3.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+	w3._convert_unbuilt("sera")
+	var queued: bool = w3.pending_special == ["sera"]
+	w3._expand_frontier()   # yeni inşasız binalar açılır → kuyruk boşalır
+	var drained: bool = w3.pending_special.is_empty()
+	var placed_sera := false
+	for b in w3.buildings:
+		if b.type == "sera" and b.build_prog > 0.0:
+			placed_sera = true
+	print("D bina-zinciri: çakışma=%s ikisi-bitti=%s zincir=%s tek=%s roundtrip=%s kuyruk=%s/%s/%s" % [str(collision_ok), str(both_done), str(chain_ok), str(once), str(rt), str(queued), str(drained), str(placed_sera)])
+	var pass_ok: bool = collision_ok and both_done and chain_ok and once and rt and queued and drained and placed_sera
 	print("Db: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
@@ -375,9 +388,9 @@ func _test_save() -> bool:
 	# oyuncu etkileşimleri (seed+tick'ten sapma yarat)
 	if w.wish != null: w.grant_wish()
 	w.teach_tower([0, 2, 4, 2, -1, 3, 1, 0])
-	for i in range(w.letters.size()):
-		if not w.letters[i].replied:
-			w.reply_letter(i)
+	for l in w.letters:
+		if not l.replied:
+			w.reply_letter(int(l.lid))   # lid ile (index kayması düzeltmesi)
 			break
 	var snap := { "pop": w.population(), "bond": w.bond, "fount": w.fountains.size(),
 		"lett": w.letters.size(), "mem": w.mem_trees.size(), "tick": w.tick,
@@ -450,17 +463,17 @@ func _test_wish_letter() -> bool:
 	var counted: bool = w.stat_wishes == 1   # albüm sayacı (Faz C)
 	print("A4 dilek: obje 0→1=%s, mektup(dilek)=%s, sayaç=%s, pos=%s, wish temizlendi=%s" % [str(placed), str(lettered), str(counted), str(pos), str(w.wish == null)])
 
-	# cevap → bond + atkı
+	# cevap → bond + atkı (lid ile — index kayması düzeltmesi)
 	var b0: int = w.bond
-	var target_idx := -1
-	for i in range(w.letters.size()):
-		if not w.letters[i].replied:
-			target_idx = i
+	var target = null
+	for l in w.letters:
+		if not l.replied:
+			target = l
 			break
-	w.reply_letter(target_idx)
+	w.reply_letter(int(target.lid))
 	var bonded: bool = w.bond == b0 + 1
 	var scarfed := false
-	var replied_name: String = w.letters[target_idx].from
+	var replied_name: String = target.from
 	for p in w.people:
 		if p.name == replied_name and p.scarf:
 			scarfed = true

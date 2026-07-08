@@ -182,11 +182,12 @@ func _process(delta: float) -> void:
 	while _accum >= TICK_DT:
 		world.step_world()
 		_accum -= TICK_DT
-	# saat başı: kule ÖĞRETİLMİŞ melodini çalar (uykuda 23-05 susar — ışık bütçesi ruhu)
-	if world.chime_t > 0.9 and _prev_chime <= 0.9 and world.melody_saved and not world.is_asleep():
-		if is_instance_valid(audio):
-			audio.play_melody(world.melody)
-	_prev_chime = world.chime_t
+		# saat başı kule melodisi: kenar tespiti TICK DÖNGÜSÜ İÇİNDE — lag/boot'ta tek karede
+		# çok tick işlenirse chime 1.0'a çıkıp 0.9 altına inebiliyor, kare-sonu kontrolü kaçırırdı
+		if world.chime_t > 0.9 and _prev_chime <= 0.9 and world.melody_saved and not world.is_asleep():
+			if is_instance_valid(audio):
+				audio.play_melody(world.melody)   # uykuda 23-05 susar (ışık bütçesi ruhu)
+		_prev_chime = world.chime_t
 	_save_accum += delta
 	if _save_accum >= 60.0:   # periyodik otomatik kayıt
 		_save_accum = 0.0
@@ -309,11 +310,31 @@ func grant_wish() -> void:
 	if is_instance_valid(ui) and ui.has_method("refresh_mail"):
 		ui.refresh_mail()
 
-func reply_letter(idx: int) -> void:
+func reply_letter(lid: int) -> void:
 	if world != null:
-		world.reply_letter(idx)
+		world.reply_letter(lid)
 	if is_instance_valid(ui) and ui.has_method("refresh_mail"):
 		ui.refresh_mail()
+
+## Yeni Kasaba (ana menü): mevcut kayıt .bak'a, bugünün tohumuyla taze dünya.
+## NOT: bu fonksiyon bir kez sessiz no-op edit kazasıyla HİÇ eklenmemişti ve buton ölüydü —
+## tests/run_ui.gd sözleşme testi artık bunu kalıcı yakalar.
+func new_town() -> void:
+	cancel_focus()
+	if not _is_capture:
+		SaveGame.backup_current()   # cozy: yanlışlıkla kayıp yok (capture/testte gerçek kayda dokunma)
+	world = World.new()
+	world.gen(_daily_seed())
+	_pending_offline = {}
+	_wire()
+	if is_instance_valid(ui) and ui.has_method("refresh_mail"):
+		ui.refresh_mail()   # açık panel eski dünyanın mektuplarını göstermesin
+	_save()
+
+func quit_game() -> void:
+	_save()
+	SaveGame.release_lock()
+	get_tree().quit()
 
 func teach_tower(mel: Array) -> Dictionary:
 	if world == null:

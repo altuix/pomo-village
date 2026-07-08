@@ -323,8 +323,8 @@ func refresh_mail() -> void:
 		return
 	for c in mail_list.get_children():
 		c.queue_free()
-	for i in range(world.letters.size()):
-		mail_list.add_child(_letter_card(world.letters[i], i))
+	for l in world.letters:
+		mail_list.add_child(_letter_card(l))
 
 # ---- ses mikseri (A6; B+ kalıcı ayarlar) ----
 var _sound_sliders := {}   # kanal -> HSlider (sync_from_world ayarlardan doldurur)
@@ -430,7 +430,8 @@ func _on_mel_teach() -> void:
 	else:
 		_mel_note.text = "Kule öğrendi. İpucu: en az 5 nota, 3 farklı ses ve iniş-çıkış olursa kasaba coşar…"
 
-func _letter_card(l: Dictionary, idx: int) -> PanelContainer:
+# kart lid yakalar (INDEX DEĞİL — sim push_front yaptıkça index kayıyor, yanlış mektup yanıtlanıyordu)
+func _letter_card(l: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color("241a2a")
@@ -460,7 +461,8 @@ func _letter_card(l: Dictionary, idx: int) -> PanelContainer:
 	else:
 		var rb := _button("İçtenlikle yanıtla")
 		rb.add_theme_color_override("font_color", Color("c9e0b0"))
-		rb.pressed.connect(func(): if main != null and main.has_method("reply_letter"): main.reply_letter(idx))
+		var lid := int(l.get("lid", -1))
+		rb.pressed.connect(func(): if main != null and main.has_method("reply_letter"): main.reply_letter(lid))
 		vb.add_child(rb)
 	return card
 
