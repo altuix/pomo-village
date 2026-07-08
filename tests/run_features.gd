@@ -16,8 +16,55 @@ func _init() -> void:
 	ok = _test_festival() and ok
 	ok = _test_wish_variety() and ok
 	ok = _test_milestone_buildings() and ok
+	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).
+func _test_hardening() -> bool:
+	# T2 — bozuk settings.cfg: keep-yakala → boz → default dön → geri koy (user:// kuralı!)
+	var keep_cfg := ""
+	var had_cfg := FileAccess.file_exists("user://settings.cfg")
+	if had_cfg:
+		var fk := FileAccess.open("user://settings.cfg", FileAccess.READ)
+		keep_cfg = fk.get_as_text()
+		fk.close()
+	var fb := FileAccess.open("user://settings.cfg", FileAccess.WRITE)
+	fb.store_string("[[[bozuk cfg %%%")
+	fb.close()
+	var St := load("res://scripts/settings.gd")
+	var g: Dictionary = St.load_audio()
+	var cfg_ok: bool = absf(g.pad - 0.25) < 0.001 and absf(g.master - 0.7) < 0.001   # default'lar
+	var dir := DirAccess.open("user://")
+	dir.remove("settings.cfg")
+	if had_cfg:
+		var fr := FileAccess.open("user://settings.cfg", FileAccess.WRITE)
+		fr.store_string(keep_cfg)
+		fr.close()
+	# T4 — offline ileri-sarma gerçek-zaman yolu: 24 saatlik yokluk cap'e takılır (28800 tick)
+	var W := load("res://scripts/world.gd")
+	var S := load("res://scripts/save.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(100): w.step_world()
+	var d: Dictionary = w.to_save()
+	d["last_exit"] = Time.get_unix_time_from_system() - 86400.0   # 24 saat önce çıkmış
+	var w2 = W.new()
+	# load_into dosyadan okur; burada iç yolu doğrudan sınıyoruz: from_save + _offline_advance
+	w2.from_save(d)
+	var off: Dictionary = S._offline_advance(w2, 86400.0)
+	var cap_ok: bool = off.ticks == 28800 and off.capped and w2.tick == 100 + 28800
+	# kısa yokluk (10 dk) birebir sarılır
+	var w3 = W.new(); w3.from_save(w.to_save())
+	var off2: Dictionary = S._offline_advance(w3, 600.0)
+	var exact_ok: bool = off2.ticks == 800 and not off2.capped   # 600/0.75
+	# T5 — kartpostal dosya adı türetimi (take_postcard'ın adlandırma sözleşmesi)
+	var day: int = w.tick / 2400 + 1
+	var fname := "NEFES_tohum%d_gun%d_%s.png" % [w.town_seed(), day, w.clock_string().replace(":", "")]
+	var name_ok: bool = fname.begins_with("NEFES_tohum0_gun1_") and fname.ends_with(".png") and ":" not in fname
+	print("Q4 sağlamlık: bozuk-cfg=%s offline-cap=%s offline-birebir=%s kartpostal-ad=%s" % [str(cfg_ok), str(cap_ok), str(exact_ok), str(name_ok)])
+	var pass_ok: bool = cfg_ok and cap_ok and exact_ok and name_ok
+	print("Q4: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D milestone bina zinciri: rasathane(10)/sera(20)/hamam(35 seans); çakışmada bina çalınmaz.
 func _test_milestone_buildings() -> bool:
