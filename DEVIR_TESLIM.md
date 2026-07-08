@@ -486,3 +486,26 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   genişleme değil); town_view/ui alias'la okur. Işık formülü TEK KAYNAK: _sleep_amount/_lit_target
   + isimli sabitler (SLEEP_DIM/LIT_BASE/LIT_EV/SLEEP_LIT_CUT); step_world/force_time/is_asleep
   aynı kaynaktan. Görsel metrikler birebir korundu (118.7/88.9/59.4).
+
+# Q3+Q4 KAPANIŞI — JUICE PAKETİ + KULLANICI GERİ BİLDİRİM TURU (tamamlandı)
+- JUICE Tier1: organik yollar (J1), uzak tepeler + salınan ön-plan çiçekleri (J2), KAĞIT
+  mektuplar (J3 — CREAM+ink+mühür+kademeli beliriş+hışırtı), çekmece panel animasyonu (J4,
+  _toggle tek kaynak), gök 72 bant (J5). Tier2: inşaat anticipation (J6 _spawn_gather),
+  kule sesi senkron (J7 towerChime — melodisizken tek çan), inşaat bitiş sesi (J8),
+  float-text 🌱/+1💛 (J9 _pop_rings "text"), güne bağlı gölge yönü (J10 sun_dx),
+  veda yıldızı tepe tutuşu (J11), pad C2 kök drone (J12). Tier3: baca/bulut çeşitliliği +
+  kule flaması (J13), dikey alt dolgu (J14).
+- KULLANICI TURU: pencere ölçeği 1×/2×/3× (runtime content_scale; menüde AYARLAR satırı +
+  dikey toggle); sakinler Mİ Nİ-İNSAN (kafa/gövde/bacak/atkı şeridi/baston — sprite'sız,
+  palet içi); YOL AĞI KADEMELİ (gen frontier+2; expand'da uzar; yoğunluk seyrek) —
+  başlangıç çayırı temiz. quick_start test kirliliği onarıldı (menü görünmüyordu).
+- İKİ KRİTİK DERS:
+  1) YERLEŞİK METOD GÖLGELEME: set_scale Node2D yerleşiğini ezdi → PARSE hatası main.gd'yi
+     yüklemedi, TÜM capture'lar siyah döndü. check-only BUNU YAKALAMAZ (sahne-bağlam hatası) —
+     görsel ölçüm yakaladı. Yeni fonksiyon adlarında yerleşik çakışması kontrol edilir.
+  2) PROJE-GENEL STRETCH capture viewport dokusunu boşaltıyor → içerik ölçeği yalnız gerçek
+     oyunda çalışma zamanında uygulanır.
+- Q4 testleri: bozuk settings.cfg default'a düşüş, offline gerçek-zaman cap (28800), kartpostal
+  ad sözleşmesi; run_ui MAIN_CONTRACT'a set_window_scale/toggle_vertical eklendi.
+- KALAN (sonraki tur): T3 audiosmoke aracı + verify.sh audio, T6 soak komutu, taze-göz
+  YENİDEN-KRİTİK (juice "ürün" okunuyor mu), Faz E i18n/Windows, Steam fazı.
