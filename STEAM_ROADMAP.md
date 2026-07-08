@@ -218,15 +218,15 @@ Tam plugin kurulumu YAPILMAZ (token vergisi; fable5'in kendi README'si bile fayd
 
 JUICE_YAPILACAKLAR.md'deki ⏳ maddeler, öncelik sırasıyla:
 
-- [ ] **Albüm (madde 17)** — retention + achievement altyapısının temeli: sakin koleksiyonu,
-      anı ağaçları, mektup arşivi, kurulan objeler (çeşme/fener/atölye/kütüphane).
-      Koleksiyon tamamlama = nazik ödül (cozy, ceza yok).
-- [ ] **Tek sakin menü / UI sadeleştirme (18)** — alt bar + panel dağınıklığı tek giriş
-      noktasına toplanır. Settings buraya eklenecek (Faz E'nin ön koşulu).
-- [ ] **UI juice (8)** — mektup zarfı sallanması, olay satırı kayması, buton hover ısınması.
-      Küçük iş, algılanan kaliteyi büyük artırır.
-- [ ] **Kartpostal modu (20)** — pazarlamanın GIF/screenshot üretim aracı; Faz G'den ÖNCE
-      bitmeli (mağaza görselleri buradan çıkar).
+- [x] **Albüm (madde 17)** — 📖 panel: sakin koleksiyonu (evre+atkı), anı ağaçları,
+      hikâye sayaçları + rozetler (stat_wishes sayacı eklendi). Koleksiyon-tamamlama
+      ödülü achievement'larla (Faz F) bağlanacak.
+- [x] **Tek sakin menü / UI sadeleştirme (18)** — bar 9→5 öğe; Ses/Melodi/Albüm/Kartpostal
+      ☰ Kasaba altında. Settings girişi Faz E'de bu menüye eklenecek.
+- [x] **UI juice (8)** — zarf salınımı (yanıtsız mektupta), olay satırı soldan kayma,
+      tüm butonlarda bal-tonu hover ısınması.
+- [x] **Kartpostal modu (20)** — 📷: UI'sız kare + ink çerçeve + tohum/gün/saat dosya adı →
+      Resimler klasörü; deklanşör sesi. Tohum paylaşımı = arkadaş aynı kasabayı kurar.
 - [ ] **Gerçek dikey mod (19)** — re-layout; ikinci monitör kenarı kullanımı.
 - [ ] **Ana menü / başlangıç ekranı** — şu an oyun doğrudan şeride açılıyor; Steam oyuncusu
       bir karşılama bekler. Kapsam:

@@ -344,3 +344,29 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   AMA frontier 29/64'te kalıyor ve goal 55.611'e şişiyor (×1.18 üstel) → büyüme fiilen platoda.
   Gözle: gün 365'te kasaba haritanın ~%35'inde. "Kasaba doldu/bütünlendi" tasarımı + goal eğrisi
   yeniden ayarı Faz D'de bu sayılarla yapılacak.
+
+# FAZ C (ilk blok) — ALBÜM · KARTPOSTAL · TEK MENÜ · UI JUICE · SANAT CİLASI (tamamlandı)
+- ALBÜM (#17): 📖 panel — sakinler (evre+atkı), anı ağaçları (isimli), hikâye sayaçları
+  (doğum/veda/gelen/dilek/bağ/seans/dk) + rozetler (konser/atölye/kütüphane). world.stat_wishes
+  eklendi (dilek objeleri gen objeleriyle aynı listede — sayaç ayırt eder). Açılışta tazelenir.
+- KARTPOSTAL (#20): main.take_postcard(dir_override="") — UI 2 kare gizlenir → ink çerçeve →
+  Resimler'e NEFES_tohum<seed>_gun<N>_<saat>.png; world.town_seed() erişimcisi; "camera" çift-tık
+  sesi. dir_override test kancası (.verify_out'a yazdırılıp gözle doğrulandı).
+- TEK MENÜ (#18): bar 9→5 öğe (mode/🎯/seri/☰ Kasaba/✉); Ses/Melodi/Albüm/Kartpostal ☰ altında.
+  Çekirdek etkileşimler barda (kural 5). Settings girişi Faz E'de buraya eklenecek.
+- UI JUICE (#8): _button helper'da bal-tonu hover tween (tüm butonlar otomatik); yeni olay
+  soldan kayarak süzülür (event değişim tespiti _last_event); yanıtsız mektupta zarf salınımı
+  (pivot_offset + sin — bildirim spam'i değil, sessiz).
+- SANAT CİLASI (Faz C sanat yönü, procedural karar): 
+  · Çayır OPAK kolon şeritleri — eski yarı saydam hücre bindirmesi (CW+1) görünür GRID ÇİZGİSİ
+    üretiyordu; kökü çözüldü. Bonus: zemin 1664 hücre → ~50 draw (perf).
+  · Kasaba→çayır 4 kolonluk yumuşak geçiş bandı; uzak çayır ufka (sky_bot) karışır.
+  · _dusk(c,k) helper: gün eğrisinde düz darkened yerine morumsu hue-shift + doygunluk
+    (sınırlı-palet ramp dersi). Yol/çayır/ağaç geceyle kararır (ağaçlar gece parlak kalıyordu).
+    PALET KİLİDİ korunur — kaynak renkler SEASONS'tan, yalnız ara-lerp yolu değişti.
+  · status_text: öğlen "huzurlu bir akşam" (HTML kalıntısı) → gün/akşamüstü ayrımı.
+  · Metrikler: gündüz 118.2 / akşam 88.5 / gece 59.1 (bant 58-88 alt sınıra yakın — gece
+    ağaç karartması eklerken ölçmeden dokunma!), R−B>0, value>60. Üç kare gözle incelendi.
+- KALAN FAZ C: dikey mod re-layout, ana menü/başlangıç ekranı, font/ikon/uygulama ikonu
+  (asset işi — dev-pipeline), native ışıklar (perf bütçesine bağlı). MÜZİK DERİNLİĞİ
+  (incommensurable pad loops + adaptif katman + generative chime) sıradaki iş.
