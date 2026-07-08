@@ -10,8 +10,57 @@ func _init() -> void:
 	ok = _test_save() and ok
 	ok = _test_pomodoro_stats() and ok
 	ok = _test_atomic_save() and ok
+	ok = _test_letters_depth() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D: mektup havuzu çeşitliliği + kilometre taşları + determinizm.
+func _test_letters_depth() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(24000): w.step_world()   # 10 gün: vedalar + taşınmalar birikir
+	# veda metinleri havuzdan mı + çeşitlilik var mı (tek şablon değil)
+	var veda_texts := {}
+	var kinds := {}
+	for l in w.letters:
+		kinds[l.kind] = true
+		if l.kind == "veda":
+			var core: String = l.text.split("\n\n")[0]   # bond eki ayrılır
+			var in_pool: bool = Letters.VEDA.has(core) or Letters.VEDA_ATKI.has(core)
+			if not in_pool:
+				print("D: havuz dışı veda metni FAIL"); return false
+			veda_texts[core] = true
+	var variety: bool = veda_texts.size() >= 2
+	# kilometre taşları: eşik aşımı tetikler, tek seferlik
+	var w2 = W.new(); w2.gen(0)
+	w2.tick = 30 * 2400 - 1
+	w2.name_idx = 100
+	w2.stat_farewells = 50
+	w2.step_world()
+	var m3: bool = w2.milestones.get("gun30", false) and w2.milestones.get("sakin100", false) and w2.milestones.get("veda50", false)
+	var an_count := 0
+	for l in w2.letters:
+		if l.kind == "an":
+			an_count += 1
+	w2.step_world()   # ikinci adım yeni "an" mektubu üretmemeli
+	var an_count2 := 0
+	for l in w2.letters:
+		if l.kind == "an":
+			an_count2 += 1
+	var once: bool = an_count == 3 and an_count2 == 3
+	# determinizm: aynı tohum → aynı mektup metinleri
+	var wa = W.new(); wa.gen(7)
+	var wb = W.new(); wb.gen(7)
+	for t in range(12000):
+		wa.step_world(); wb.step_world()
+	var det: bool = wa.letters.size() == wb.letters.size()
+	for i in range(wa.letters.size()):
+		if wa.letters[i].text != wb.letters[i].text:
+			det = false
+	print("D mektup: çeşit=%d kaynaklar=%s milestone3=%s tek-sefer=%s determinizm=%s" % [veda_texts.size(), str(kinds.keys()), str(m3), str(once), str(det)])
+	var pass_ok: bool = variety and m3 and once and det
+	print("D: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # B+ atomic save (#22): tmp→rename + .bak; bozuk asıl kayıt → yedekten dönüş; settings.cfg round-trip.
 func _test_atomic_save() -> bool:

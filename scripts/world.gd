@@ -74,10 +74,12 @@ var concert_done := false
 # --- dilek + bond (A4) ---
 var wish = null                        # {"who": person, "type": idx} ya da null
 var bond := 0
+var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50 — tek seferlik)
+# teşekkür metinleri Letters.DILEK havuzunda (tek kaynak; Faz D çeşitlilik)
 const WISH_TYPES := [
-	{ "k": "çeşme", "txt": "meydana küçük bir çeşme", "thank": "Çeşmenin sesi geceleri pencereme geliyor. Su gibi aziz ol." },
-	{ "k": "ağaç",  "txt": "sokağıma bir ağaç",       "thank": "Diktiğin ağacın ilk yaprağını kitabımın arasına koydum." },
-	{ "k": "fener", "txt": "kapımın önüne bir fener",  "thank": "Artık eve dönerken karanlıktan korkmuyorum. Fenerin için teşekkürler." },
+	{ "k": "çeşme", "txt": "meydana küçük bir çeşme" },
+	{ "k": "ağaç",  "txt": "sokağıma bir ağaç" },
+	{ "k": "fener", "txt": "kapımın önüne bir fener" },
 ]
 
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
@@ -144,6 +146,7 @@ func gen(seed_val: int = 0) -> void:
 	letters = []
 	wish = null
 	bond = 0
+	milestones = {}
 	streak = 0
 	sessions = 0
 	unlocked = { "atolye": false, "kutuphane": false }
@@ -393,6 +396,14 @@ func step_world() -> void:
 			wish = { "who": who, "type": _h(tick * 7) % WISH_TYPES.size() }
 			_push_event("💭 %s bir dilek tuttu" % who.name)
 
+	# uzun-vade anları (Faz D): tek seferlik kutlamalar
+	if tick >= 30 * TICKS_PER_DAY and not milestones.get("gun30", false):
+		_milestone("gun30", "🕯 kasabanın 30. günü — meydanda mum ışığı")
+	if name_idx >= 100 and not milestones.get("sakin100", false):
+		_milestone("sakin100", "💯 100. komşu aramızda")
+	if stat_farewells >= 50 and not milestones.get("veda50", false):
+		_milestone("veda50", "🌳 50. anı ağacı — çayır artık bir koru")
+
 	# saat başı: kule nabzı (görsel çan/kuş A2; melodi A5)
 	var hr := int(floor(time_of_day))
 	if hr != last_hour:
@@ -469,6 +480,7 @@ func to_save() -> Dictionary:
 		"building_now": bn_idx,
 		"wish": wsh,
 		"letters": letters.duplicate(true),
+		"milestones": milestones.duplicate(),
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -508,6 +520,7 @@ func from_save(d: Dictionary) -> void:
 	stat_farewells = int(d.stat_farewells)
 	stat_arrivals = int(d.stat_arrivals)
 	stat_wishes = int(d.get("stat_wishes", 0))
+	milestones = (d.get("milestones", {}) as Dictionary).duplicate()
 	landmark = Vector2i(int(d.landmark[0]), int(d.landmark[1]))
 	road_list = _to_vec_list(d.road_list)
 	road_set = {}
@@ -661,6 +674,8 @@ func _queue_move_in(b: Dictionary) -> void:
 		b.members.append(p)
 		movers.append(p)
 	stat_arrivals += 1
+	if not b.members.is_empty():
+		_maybe_move_letter(b.members[0], b.seed * 23 + tick)
 
 func _step_mover(p: Dictionary) -> void:
 	p.steps += 1
@@ -733,6 +748,20 @@ func _push_letter(l: Dictionary) -> void:
 			return
 	letters.pop_back()   # hepsi yanıtsızsa en eskisi düşer (sınır sınırdır)
 
+## Taşınma mektubu (Faz D): yeni yuva kuran/gelen %35 şansla yazar (3 çağrı yeri: aile/kuşak/göç).
+func _maybe_move_letter(p: Dictionary, salt: int) -> void:
+	if _hf(salt) < 0.35:
+		_push_letter({ "from": p.name, "who": p.seed, "kind": "taşınma", "replied": false,
+			"text": Letters.pick(Letters.TASINMA, _h(salt * 13)) })
+
+## Uzun-vade anı (Faz D): tek seferlik kutlama mektubu + olay.
+func _milestone(key: String, ev_text: String) -> void:
+	if milestones.get(key, false):
+		return
+	milestones[key] = true
+	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "an", "replied": false, "text": Letters.AN[key] })
+	_push_event(ev_text)
+
 func _life_cycle() -> void:
 	# yaşlanma + nazik veda (determinist tohumlu)
 	for p in people.duplicate():
@@ -773,6 +802,7 @@ func _life_cycle() -> void:
 				movers.append(seeker)
 				seeker.wants_home = false
 				_push_event("🏡 %s kendi yuvasına taşındı" % seeker.name)
+				_maybe_move_letter(seeker, seeker.seed * 41 + tick)
 
 	# GÖÇ: boş ev + gevşek nüfus → yeni aile (kasaba asla ölmez; boşsa hızlanır)
 	var mig_every := 400 if housing_pressure() < 0.45 else 800
@@ -791,6 +821,8 @@ func _life_cycle() -> void:
 				movers.append(p)
 			stat_arrivals += 1
 			_push_event("🧳 uzaktan yeni bir aile geldi")
+			if not nb.members.is_empty():
+				_maybe_move_letter(nb.members[0], nb.seed * 29 + tick)
 
 	# DOĞUM (Banished): 2+ yetişkinli, yeri olan evde yavaş şans; tek doğum/kontrol
 	if tick % 40 == 0:
@@ -806,6 +838,12 @@ func _life_cycle() -> void:
 				b.members.append(c)
 				stat_births += 1
 				_push_event("🌱 %s dünyaya geldi" % c.name)
+				if _hf(b.seed * 5 + tick) < 0.30:
+					for m in b.members:
+						if m.stage == 1:   # mektup ebeveynden gelir
+							_push_letter({ "from": m.name, "who": m.seed, "kind": "doğum", "replied": false,
+								"text": Letters.pick(Letters.DOGUM, _h(tick * 17 + c.seed)) })
+							break
 				break
 
 func _pass_away(p: Dictionary) -> void:
@@ -824,11 +862,11 @@ func _pass_away(p: Dictionary) -> void:
 			_push_event("🌒 bir evin ışıkları söndü")
 	_plant_memory_tree(p)
 	_push_event("✦ %s yıldızlara karıştı — çayıra bir anı ağacı dikildi" % p.name)
-	# veda mektubu (duygusal çekirdek; dilek/odak mektupları + UI = A4)
-	_push_letter({
-		"from": p.name, "who": p.seed, "kind": "veda", "replied": false,
-		"text": "Bu kasabada güzel bir ömür geçirdim. Penceremden hep senin ışıklarını izledim. Çayırdaki ağacıma ara sıra uğra, olur mu?",
-	})
+	# veda mektubu (duygusal çekirdek) — havuzdan determinist seçim; atkı sahibine kişisel ton
+	var vtxt: String = Letters.pick(Letters.VEDA_ATKI if p.scarf else Letters.VEDA, _h(p.seed * 31))
+	if bond >= 5 and _hf(p.seed * 7 + tick) < 0.4:
+		vtxt += Letters.pick(Letters.BOND_EK, _h(p.seed * 3))
+	_push_letter({ "from": p.name, "who": p.seed, "kind": "veda", "replied": false, "text": vtxt })
 
 # ============================================================ KULE MELODİSİ (A5)
 ## Kuleye öğret: kule saat başı bu melodiyi çalar. İyi beste → Meydan Konseri (bir kez).
@@ -904,7 +942,7 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükseliyor. Kasaba seninle akıllanıyor." })
 		_push_event("📚 seri ödülü: Kütüphane yükseliyor")
 	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
-		"text": "Bugün masanda çalışırken hepimiz hissettik: birlikte üretiyoruz. Meydanda senin için bir kutlama yaptık." })
+		"text": Letters.pick(Letters.ODAK, _h(sessions * 97 + tick)) })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
 	return res
 
@@ -924,7 +962,8 @@ func grant_wish():
 		"çeşme": fountains.append({ "gx": px, "gy": py })
 		"ağaç": trees.append({ "gx": px, "gy": py, "s": 1, "sway": _hf(px + py) })
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
-	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false, "text": t.thank })
+	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false,
+		"text": Letters.pick(Letters.DILEK[t.k], _h(tick * 11 + px)) })
 	stat_wishes += 1
 	_push_event("🌟 %s'nın dileği gerçek oldu" % who.name)
 	wish = null
