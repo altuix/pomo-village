@@ -182,11 +182,15 @@ func _process(delta: float) -> void:
 	while _accum >= TICK_DT:
 		world.step_world()
 		_accum -= TICK_DT
-		# saat başı kule melodisi: kenar tespiti TICK DÖNGÜSÜ İÇİNDE — lag/boot'ta tek karede
-		# çok tick işlenirse chime 1.0'a çıkıp 0.9 altına inebiliyor, kare-sonu kontrolü kaçırırdı
-		if world.chime_t > 0.9 and _prev_chime <= 0.9 and world.melody_saved and not world.is_asleep():
+		# saat başı kule sesi: kenar tespiti TICK DÖNGÜSÜ İÇİNDE — lag/boot'ta tek karede
+		# çok tick işlenirse chime 1.0'a çıkıp 0.9 altına inebiliyor, kare-sonu kontrolü kaçırırdı.
+		# Melodi öğretilmişse ONU çalar; değilse tek çan (J7: görsel nabız artık hiç sessiz değil).
+		if world.chime_t > 0.9 and _prev_chime <= 0.9 and not world.is_asleep():
 			if is_instance_valid(audio):
-				audio.play_melody(world.melody)   # uykuda 23-05 susar (ışık bütçesi ruhu)
+				if world.melody_saved:
+					audio.play_melody(world.melody)   # uykuda 23-05 susar (ışık bütçesi ruhu)
+				else:
+					audio.event("towerChime")
 		_prev_chime = world.chime_t
 	_save_accum += delta
 	if _save_accum >= 60.0:   # periyodik otomatik kayıt
@@ -313,6 +317,9 @@ func grant_wish() -> void:
 func reply_letter(lid: int) -> void:
 	if world != null:
 		world.reply_letter(lid)
+		if is_instance_valid(town_view) and town_view.has_method("float_text"):
+			# J9: bağ artışı olayın yerinde görünür (kule üstünde nazik +1💛)
+			town_view.float_text(float(world.landmark.x), float(world.landmark.y) - 3.0, "+1 💛", Color(1.0, 0.81, 0.48))
 	if is_instance_valid(ui) and ui.has_method("refresh_mail"):
 		ui.refresh_mail()
 

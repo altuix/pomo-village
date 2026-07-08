@@ -7,7 +7,8 @@ const RATE := 22050.0
 # Generative pad (Eno 'Music for Airports' modeli): her ses ortak-katsız döngüsünde TEK
 # pentatonik nota çalar → katmanlar asla aynı hizaya gelmez, uzun süre tekrarsız cozy ambient.
 const PAD_SCALE := [130.8, 146.8, 164.8, 196.0, 220.0]   # pentatonik alt oktav (C-D-E-G-A)
-const PAD_PERIODS := [19.7, 26.3, 33.1, 43.7, 53.9]      # ortak-katsız süreler (sn)
+const PAD_PERIODS := [19.7, 26.3, 33.1, 43.7, 53.9, 71.3]  # ortak-katsız süreler (sn); son = kök drone
+const ROOT_FREQ := 65.4                                   # C2 kök — pad'in sıcak alt zemini (J12)
 const CHIME_PERIOD := 27.7                                # kule arası serpinti döngüsü
 
 var gains := { "rain": 0.0, "stream": 0.0, "pad": 0.0, "cricket": 0.0, "master": 0.7 }
@@ -19,9 +20,9 @@ var _player: AudioStreamPlayer
 var _pb: AudioStreamGeneratorPlayback = null
 var _rng := 0x1234abcd
 var _t := 0.0
-var _pad_ph := [0.0, 0.0, 0.0, 0.0, 0.0]
-var _pad_cyc := [-1, -1, -1, -1, -1]
-var _pad_freq := [130.8, 164.8, 196.0, 220.0, 261.6]
+var _pad_ph := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+var _pad_cyc := [-1, -1, -1, -1, -1, -1]
+var _pad_freq := [130.8, 164.8, 196.0, 220.0, 261.6, 65.4]
 var _chime_cycle := -1
 var _lp := 0.0
 var _lp2 := 0.0
@@ -82,18 +83,20 @@ func _process(_d: float) -> void:
 		# 🎹 generative pad: ses başına döngü zarfı sin(π·t) — sınırda 0 → nota değişimi tıksız;
 		# nota seçimi döngü sayısından Rng.h (frekans yalnız döngü değişince hesaplanır — CPU)
 		var pad := 0.0
-		var nv := 5 if focus_active else 4   # odak: üst-oktav 5. katman (vertical layering)
-		for k in range(nv):
+		for k in range(6):
+			if k == 4 and not focus_active:
+				continue   # üst-oktav pırıltı yalnız odak seansında (vertical layering)
 			var per: float = PAD_PERIODS[k]
 			var cyc := int(_t / per)
 			if cyc != _pad_cyc[k]:
 				_pad_cyc[k] = cyc
-				_pad_freq[k] = PAD_SCALE[Rng.h(cyc * 7 + k * 131) % PAD_SCALE.size()] * (2.0 if k == 4 else 1.0)
+				# k==5 KÖK DRONE (J12): nota değişmez, hep C — pad'in sıcak zemini
+				_pad_freq[k] = ROOT_FREQ if k == 5 else PAD_SCALE[Rng.h(cyc * 7 + k * 131) % PAD_SCALE.size()] * (2.0 if k == 4 else 1.0)
 			var env := sin(fmod(_t, per) / per * PI)
 			_pad_ph[k] += _pad_freq[k] * dt
 			if _pad_ph[k] > 1.0:
 				_pad_ph[k] -= 1.0
-			pad += _tri(_pad_ph[k]) * env
+			pad += _tri(_pad_ph[k]) * env * (0.6 if k == 5 else 1.0)
 		s += pad * 0.055 * gains.pad * (0.8 + 0.3 * evening)   # akşam pad hafif dolgunlaşır
 		# 🦗 gece cırcırı: seyrek blip × evening
 		var cg: float = gains.cricket * evening
@@ -170,6 +173,12 @@ func event(kind: String) -> void:
 			_tone(523.0, 0.4, 0.07, "triangle")
 			_tone(659.0, 0.4, 0.07, "triangle", 0.12)
 			_tone(784.0, 0.6, 0.08, "triangle", 0.24)
+		"towerChime":   # melodi öğretilmemişken saat başı tek çan (görsel nabız sessizdi — J7)
+			_tone(392.0, 1.4, 0.05, "sine")
+			_tone(784.0, 1.0, 0.02, "sine", 0.02)   # üst harmonik: çan parlaklığı
+		"build":   # inşaat bitti: alçak ahşap çift-tık (en tatminkâr an sessizdi — J8)
+			_tone(196.0, 0.12, 0.07, "triangle")
+			_tone(261.6, 0.18, 0.06, "triangle", 0.09)
 		"farewell":
 			_tone(392.0, 1.6, 0.07, "sine")
 			_tone(494.0, 1.6, 0.05, "sine", 0.05)

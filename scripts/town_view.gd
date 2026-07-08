@@ -125,6 +125,9 @@ func _draw() -> void:
 	var S: Dictionary = SEASONS[world.season]
 	var ev := world.evening()
 	var fr := world.frontier
+	# J10: gölge yönü güne göre kayar (sabah sola, öğlen kısa, akşam sağa; gece ay — zayıf).
+	# Bedava zaman sinyali; ışık kaynağı değil, bütçeye dokunmaz.
+	var sun_dx := sin((world.time_of_day - 12.0) / 12.0 * PI) * 3.0 * (0.35 if ev > 0.8 else 1.0)
 	# GÖKYÜZÜ/ZEMİN/NEHİR-TABANI/YOL/ÇAYIR-DETAY/PLAZA/ANI-AĞAÇLARI → _bg (town_bg.gd, statik katman)
 
 	# yıldızlar + bulutlar
@@ -190,7 +193,7 @@ func _draw() -> void:
 		var X: float = tr.gx * CW + CW / 2.0
 		var Y: float = tr.gy * CH + CH / 2.0
 		var sw := sin(_t * 0.6 + tr.sway * 6.0) * 1.2
-		draw_circle(Vector2(X, Y + 3.0), CW * 0.4, Color(0.12, 0.16, 0.12, 0.4))
+		draw_circle(Vector2(X + sun_dx, Y + 3.0), CW * 0.4, Color(0.12, 0.16, 0.12, 0.4))
 		draw_rect(Rect2(X - 1.0, Y - 1.0, 2.0, CH * 0.4), Color8(90,122,82))
 		draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, tree_col)
 
@@ -212,7 +215,7 @@ func _draw() -> void:
 		var walking := pos.distance_to(Vector2(p.x * CW + CW * 0.5, p.y * CH + CH * 0.5)) > 0.8
 		var bob := (sin(_t * 20.0 + p.seed) * 1.1) if walking else 0.0
 		var r := 2.1 if p.stage == 0 else (2.8 if p.stage == 2 else 3.1)
-		draw_circle(Vector2(pos.x, pos.y + bob + 3.0), r + 0.4, Color(0.17, 0.12, 0.18, 0.35))
+		draw_circle(Vector2(pos.x + sun_dx * 0.6, pos.y + bob + 3.0), r + 0.4, Color(0.17, 0.12, 0.18, 0.35))
 		var col: Color = PCOL[p.col]
 		if p.stage == 2: col.a = 0.85
 		draw_circle(Vector2(pos.x, pos.y + bob), r, col)
@@ -375,6 +378,18 @@ func _ease_out_back(t: float) -> float:
 func celebrate(gx: int, gy: int) -> void:
 	_spawn(Vector2((gx + 0.5) * CW, (gy + 0.5) * CH), "mote", 9, { "sp": 1.0, "up": true, "decay": 0.02 })
 
+## J9: olayın YERİNDE yükselip sönen nazik metin (✦/🌱/+1💛 — agresif değil, cozy pop)
+func float_text(gx: float, gy: float, txt: String, col: Color) -> void:
+	_pop_rings.append({ "pos": Vector2((gx + 0.5) * CW, gy * CH), "t": 1.0, "kind": "text", "txt": txt, "col": col })
+
+## J6: içe toplanan ışık (anticipation) — halka üstünden merkeze süzülen mote
+func _spawn_gather(center: Vector2) -> void:
+	_fx_seed += 1
+	var a := Rng.hf(_fx_seed * 17) * TAU
+	var off := Vector2(cos(a), sin(a)) * (12.0 + Rng.hf(_fx_seed * 5) * 8.0)
+	parts.append({ "pos": center + off, "vel": -off.normalized() * 1.4, "life": 1.0,
+		"decay": 0.075, "type": "mote", "size": 1.6, "seed": _fx_seed })
+
 # ============================================================ PARTİKÜLLER (A2)
 func _spawn(pos: Vector2, type: String, n: int, opt: Dictionary = {}) -> void:
 	if parts.size() > 240:
@@ -392,14 +407,18 @@ func _spawn(pos: Vector2, type: String, n: int, opt: Dictionary = {}) -> void:
 		parts.append({"pos": pos, "vel": Vector2(cos(a) * sp, vy), "life": 1.0, "decay": decay, "type": type, "size": size, "seed": _fx_seed})
 
 func _emit_events(delta: float) -> void:
-	# İNŞAAT: yükselirken toz, bitişte 10-mote patlaması
+	# İNŞAAT: yükselirken toz, %90+ ANTICIPATION (içe toplanan ışık — J6), bitişte patlama + ses (J8)
 	var cur = world.building_now
 	if _prev_building != null and cur == null:
 		_spawn(Vector2((_prev_building.gx + 0.5) * CW, _prev_building.gy * CH), "mote", 10, {"sp": 1.1, "up": true, "decay": 0.02})
+		if audio != null:
+			audio.event("build")
 	if cur != null:
 		_fx_seed += 1
 		if Rng.hf(_fx_seed) < delta * 4.0:
 			_spawn(Vector2((cur.gx + 0.5) * CW, (cur.gy + 1) * CH), "dust", 1, {"sp": 0.6, "decay": 0.03})
+		if cur.build_prog > 0.9 and Rng.hf(_fx_seed * 3) < delta * 6.0:
+			_spawn_gather(Vector2((cur.gx + 0.5) * CW, cur.gy * CH))   # payoff'u satan hazırlık
 	_prev_building = cur
 
 	# LAMBA KASKADI: eşiği yeni geçen lamba kıvılcım saçar
@@ -426,6 +445,7 @@ func _emit_events(delta: float) -> void:
 				var hx: int = home.gx if home != null else int(p.x)
 				var hy: int = home.gy if home != null else int(p.y)
 				_spawn(Vector2((hx + 0.5) * CW, hy * CH), "petal", 7, {"sp": 0.4, "decay": 0.012})
+				float_text(float(hx), float(hy) - 0.5, "🌱", Color(0.79, 0.88, 0.69))
 				if audio != null:
 					audio.event("birth")
 
@@ -487,17 +507,23 @@ func _update_parts(delta: float) -> void:
 			"spark": P.vel.y += 0.02 * stepf
 		survivors.append(P)
 	parts = survivors
-	# pop halkaları / veda yıldızı
+	# pop halkaları / veda yıldızı / yüzen metin
 	var rings: Array = []
 	for R in _pop_rings:
-		R.t -= 0.03 * stepf
+		var dec := 0.03
+		# J11: veda yıldızı tepede TUTULUR (hit-pause'un duygusal hali — sessizlik momenti)
+		if R.kind == "star" and R.t < 0.58 and R.t > 0.40:
+			dec = 0.007
+		R.t -= dec * stepf
 		if R.t <= 0.0:
 			continue
 		if R.kind == "star":
-			R.pos.y -= 0.8 * stepf
+			R.pos.y -= (0.8 if R.t > 0.5 else 0.15) * stepf   # tutuşta süzülme yavaşlar
 			_fx_seed += 1
 			if Rng.hf(_fx_seed) < delta * 8.0:
 				_spawn(R.pos + Vector2(0, 3), "stardust", 1, {"sp": 0.15, "decay": 0.03})
+		elif R.kind == "text":
+			R.pos.y -= 0.35 * stepf
 		rings.append(R)
 	_pop_rings = rings
 
@@ -516,6 +542,11 @@ func _draw_parts(ev: float) -> void:
 			draw_circle(R.pos, 2.2, Color(0.9, 0.86, 1.0, R.t))
 			draw_rect(Rect2(R.pos - Vector2(4, 0.5), Vector2(8, 1)), Color(0.9, 0.86, 1.0, R.t * 0.5))
 			draw_rect(Rect2(R.pos - Vector2(0.5, 4), Vector2(1, 8)), Color(0.9, 0.86, 1.0, R.t * 0.5))
+		elif R.kind == "text":
+			var tc: Color = R.col
+			tc.a = minf(1.0, R.t * 1.6)
+			draw_string(ThemeDB.fallback_font, R.pos + Vector2(-10, 0), R.txt,
+				HORIZONTAL_ALIGNMENT_CENTER, 20.0, 11, tc)
 	# ateşböcekleri (ışık bütçesi: sabit 8, evening>0.5)
 	if ev > 0.5:
 		var span := maxi(1, int(VW - (world.frontier + 4) * CW))
