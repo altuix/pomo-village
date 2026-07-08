@@ -9,8 +9,50 @@ func _init() -> void:
 	ok = _test_melody() and ok
 	ok = _test_save() and ok
 	ok = _test_pomodoro_stats() and ok
+	ok = _test_atomic_save() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# B+ atomic save (#22): tmp→rename + .bak; bozuk asıl kayıt → yedekten dönüş; settings.cfg round-trip.
+func _test_atomic_save() -> bool:
+	# DİKKAT: headless user:// gerçek oyunla paylaşımlı — mevcut kayıtları yedekle, sonunda geri koy.
+	var keep := {}
+	for pth in ["user://save.json", "user://save.json.bak", "user://settings.cfg"]:
+		if FileAccess.file_exists(pth):
+			var fk := FileAccess.open(pth, FileAccess.READ)
+			keep[pth] = fk.get_as_text()
+			fk.close()
+	var W := load("res://scripts/world.gd")
+	var S := load("res://scripts/save.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(500): w.step_world()
+	S.save(w)                                    # 1. kayıt (tick 500)
+	for t in range(100): w.step_world()
+	S.save(w)                                    # 2. kayıt → .bak = 1. kayıt
+	var bak_ok: bool = FileAccess.file_exists("user://save.json.bak")
+	var fb := FileAccess.open("user://save.json", FileAccess.WRITE)
+	fb.store_string("{bozuk json")
+	fb.close()
+	var w2 = W.new()
+	var res: Dictionary = S.load_into(w2)       # bozuk asıl → .bak'tan (tick 500 + minik offline)
+	var fallback_ok: bool = res.get("ok", false) and w2.tick >= 500 and w2.tick < 560
+	var St := load("res://scripts/settings.gd")
+	St.save_audio({ "rain": 0.33, "master": 0.5 })
+	var g: Dictionary = St.load_audio()
+	var set_ok: bool = absf(g.rain - 0.33) < 0.001 and absf(g.master - 0.5) < 0.001 and absf(g.pad - 0.25) < 0.001
+	# temizle + gerçek kayıtları geri koy
+	var dir := DirAccess.open("user://")
+	for pth in ["user://save.json", "user://save.json.bak", "user://settings.cfg", "user://save.json.tmp"]:
+		if FileAccess.file_exists(pth):
+			dir.remove(String(pth).get_file())
+	for pth in keep.keys():
+		var fr := FileAccess.open(pth, FileAccess.WRITE)
+		fr.store_string(keep[pth])
+		fr.close()
+	print("B+ atomic: bak=%s yedekten-dönüş=%s (tick=%d) settings=%s" % [str(bak_ok), str(fallback_ok), w2.tick, str(set_ok)])
+	var pass_ok: bool = bak_ok and fallback_ok and set_ok
+	print("B+a: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # B+ Pomodoro: SERİ TANIMI (aynı gün art arda; gün değişince nazik sıfır, kazanılan kalır) + istatistik + seans kalıcılığı alanları.
 func _test_pomodoro_stats() -> bool:

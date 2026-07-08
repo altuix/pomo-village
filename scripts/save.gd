@@ -5,31 +5,51 @@ extends RefCounted
 ## step_world ileri-sar (sınırlı — çok uzun boot beklemesini önle), doğum/veda/gelen say.
 
 const PATH := "user://save.json"
+const BAK := "user://save.json.bak"
 const TICK_DT := 0.75
 const OFFLINE_CAP := 20000   # ~8 oyun günü / ~4 gerçek saat; aşınca "capped" işaretlenir
 
 static func has_save() -> bool:
-	return FileAccess.file_exists(PATH)
+	return FileAccess.file_exists(PATH) or FileAccess.file_exists(BAK)
 
+## ATOMİK yazım: tmp'ye yaz → eski kayıt .bak'a → tmp asıl adına. Yazım ortasında
+## crash/elektrik kesintisi = eski kayıt sağlam kalır (B+ denetim #22).
 static func save(world: World) -> bool:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	var f := FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
 	if f == null:
+		push_warning("[save] geçici dosya açılamadı — kayıt atlandı")
 		return false
 	f.store_string(JSON.stringify(world.to_save(), "\t"))
 	f.close()
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		push_warning("[save] user:// açılamadı — kayıt atlandı")
+		return false
+	if dir.file_exists("save.json"):
+		if dir.file_exists("save.json.bak"):
+			dir.remove("save.json.bak")
+		dir.rename("save.json", "save.json.bak")
+	dir.rename("save.json.tmp", "save.json")
 	return true
+
+static func _read_state(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return null
+	var d: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	return d if typeof(d) == TYPE_DICTIONARY else null
 
 ## Kaydı world'e yükler + offline ilerletir. Döner: {ok, elapsed_sec, offline:{...}}
 static func load_into(world: World) -> Dictionary:
-	if not FileAccess.file_exists(PATH):
-		return { "ok": false }
-	var f := FileAccess.open(PATH, FileAccess.READ)
-	if f == null:
-		return { "ok": false }
-	var txt := f.get_as_text()
-	f.close()
-	var d = JSON.parse_string(txt)
-	if typeof(d) != TYPE_DICTIONARY:
+	var d: Variant = _read_state(PATH)
+	if d == null:
+		# bozuk/eksik asıl kayıt sessizce yutulmaz: logla + yedekten dön (kural 9)
+		push_warning("[load] save.json bozuk ya da yok — yedek (.bak) deneniyor")
+		d = _read_state(BAK)
+	if d == null:
 		return { "ok": false }
 	world.from_save(d)
 	var last_exit := float(d.get("last_exit", 0.0))
