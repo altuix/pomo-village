@@ -110,6 +110,8 @@ func _restore_focus_session() -> void:
 			_focus_phase = "work"
 			world.growth_mult = 1.5
 			_focus_timer.start(remain)
+			if is_instance_valid(audio):
+				audio.focus_active = true
 		else:
 			world.finish_focus_reward(_daily_seed(), int(MODES[_focus_mode].work_min))
 	elif phase == "break" and remain > 1.0:
@@ -174,6 +176,8 @@ func start_focus(mode: int) -> void:
 	_focus_mode = clampi(mode, 0, MODES.size() - 1)
 	world.growth_mult = 1.5           # kullanıcı çalıştıkça kasaba ×1.5 büyür
 	_focus_timer.start(MODES[_focus_mode].work_min * 60.0)
+	if is_instance_valid(audio):
+		audio.focus_active = true     # pad'e üst-oktav odak katmanı eklenir
 
 ## Erken bırakma CEZASIZ (cozy): ödül yok ama seri/istatistik dokunulmaz kalır.
 func cancel_focus() -> void:
@@ -183,6 +187,8 @@ func cancel_focus() -> void:
 	_focus_timer.stop()
 	if world != null:
 		world.growth_mult = 1.0
+	if is_instance_valid(audio):
+		audio.focus_active = false
 
 ## UI okur: {phase, remaining(sn), mode}. Tek kaynak — buton metni/sayaç buradan türetilir.
 func focus_state() -> Dictionary:
@@ -245,6 +251,8 @@ func _on_focus_timeout() -> void:
 			_camera_pulse()
 		_focus_phase = "break"
 		_focus_timer.start(MODES[_focus_mode].break_min * 60.0)
+		if is_instance_valid(audio):
+			audio.focus_active = false
 	elif _focus_phase == "break":
 		_focus_phase = ""
 		if is_instance_valid(audio):

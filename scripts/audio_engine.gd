@@ -4,16 +4,24 @@ extends Node
 ## Sim'e DOKUNMAZ (yan çıktı). Gürültü için iç LCG (randf DEĞİL) — determinizmi etkilemez.
 
 const RATE := 22050.0
-const PAD_F := [130.8, 164.8, 196.0, 246.9]   # detune akor (Do-Mi-Sol-Si)
+# Generative pad (Eno 'Music for Airports' modeli): her ses ortak-katsız döngüsünde TEK
+# pentatonik nota çalar → katmanlar asla aynı hizaya gelmez, uzun süre tekrarsız cozy ambient.
+const PAD_SCALE := [130.8, 146.8, 164.8, 196.0, 220.0]   # pentatonik alt oktav (C-D-E-G-A)
+const PAD_PERIODS := [19.7, 26.3, 33.1, 43.7, 53.9]      # ortak-katsız süreler (sn)
+const CHIME_PERIOD := 27.7                                # kule arası serpinti döngüsü
 
 var gains := { "rain": 0.0, "stream": 0.0, "pad": 0.0, "cricket": 0.0, "master": 0.7 }
 var evening := 0.0                              # cırcır × evening (geceyle nefes alır)
+var focus_active := false                       # odak seansında 5. pad katmanı (üst oktav) açılır
 
 var _player: AudioStreamPlayer
 var _pb: AudioStreamGeneratorPlayback = null
 var _rng := 0x1234abcd
 var _t := 0.0
-var _pad_ph := [0.0, 0.0, 0.0, 0.0]
+var _pad_ph := [0.0, 0.0, 0.0, 0.0, 0.0]
+var _pad_cyc := [-1, -1, -1, -1, -1]
+var _pad_freq := [130.8, 164.8, 196.0, 220.0, 261.6]
+var _chime_cycle := -1
 var _lp := 0.0
 var _lp2 := 0.0
 var _cr_timer := 0.0
@@ -43,6 +51,21 @@ func _process(_d: float) -> void:
 		return
 	var n := _pb.get_frames_available()
 	var dt := 1.0 / RATE
+	# SESSİZLİK ATLAMASI (perf: always-on uygulamada boşa sinüs hesaplama — nişin 1 no'lu şikâyeti CPU):
+	# hiçbir kanal duyulmuyorken buffer sıfırla doldurulur; _t akmaya devam eder (döngüler tutarlı).
+	var audible: bool = gains.master > 0.001 and (gains.rain > 0.001 or gains.stream > 0.001 \
+		or gains.pad > 0.001 or gains.cricket * evening > 0.001 or not _voices.is_empty())
+	if not audible:
+		for i in range(n):
+			_pb.push_frame(Vector2.ZERO)
+		_t += n * dt
+		return
+	# 🗼 kule arası serpinti: ~28sn'de bir tek kısık pentatonik nota (determinist Rng — sim'e dokunmaz)
+	var ccyc := int(_t / CHIME_PERIOD)
+	if ccyc != _chime_cycle:
+		_chime_cycle = ccyc
+		if gains.pad > 0.02 and Rng.hf(ccyc * 17) < 0.55:
+			_tone(Melody.SCALE[Rng.h(ccyc * 31) % Melody.SCALE.size()], 1.4, 0.03, "sine")
 	for i in range(n):
 		var s := 0.0
 		var nz := _noise()
@@ -53,15 +76,22 @@ func _process(_d: float) -> void:
 		_lp2 += (nz - _lp2) * 0.02
 		var lfo := 0.5 + 0.5 * sin(_t * 0.3 * TAU)
 		s += (_lp - _lp2) * gains.stream * 0.6 * lfo
-		# 🎹 lo-fi pad: detune üçgen akor + tremolo
-		var trem := 0.85 + 0.15 * sin(_t * 0.11 * TAU)
+		# 🎹 generative pad: ses başına döngü zarfı sin(π·t) — sınırda 0 → nota değişimi tıksız;
+		# nota seçimi döngü sayısından Rng.h (frekans yalnız döngü değişince hesaplanır — CPU)
 		var pad := 0.0
-		for k in range(4):
-			_pad_ph[k] += PAD_F[k] * dt
+		var nv := 5 if focus_active else 4   # odak: üst-oktav 5. katman (vertical layering)
+		for k in range(nv):
+			var per: float = PAD_PERIODS[k]
+			var cyc := int(_t / per)
+			if cyc != _pad_cyc[k]:
+				_pad_cyc[k] = cyc
+				_pad_freq[k] = PAD_SCALE[Rng.h(cyc * 7 + k * 131) % PAD_SCALE.size()] * (2.0 if k == 4 else 1.0)
+			var env := sin(fmod(_t, per) / per * PI)
+			_pad_ph[k] += _pad_freq[k] * dt
 			if _pad_ph[k] > 1.0:
 				_pad_ph[k] -= 1.0
-			pad += _tri(_pad_ph[k])
-		s += pad * 0.05 * gains.pad * trem
+			pad += _tri(_pad_ph[k]) * env
+		s += pad * 0.055 * gains.pad * (0.8 + 0.3 * evening)   # akşam pad hafif dolgunlaşır
 		# 🦗 gece cırcırı: seyrek blip × evening
 		var cg: float = gains.cricket * evening
 		_cr_timer -= dt
