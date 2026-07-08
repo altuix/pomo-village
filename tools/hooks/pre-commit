@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# NEFES pre-commit kapısı (STEAM_ROADMAP Faz 0): check + sim yeşil olmadan commit yok.
+# Kurulum (bir kez): git config core.hooksPath tools/hooks
+# Acil atlama: git commit --no-verify
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+
+# yalnız doküman/görsel değişiyorsa kapı atlanır (40s sim'i .md commit'ine ödetme)
+if ! git diff --cached --name-only | grep -qvE '\.(md|png|txt)$'; then
+	echo "pre-commit: yalnız doküman — kapı atlandı"
+	exit 0
+fi
+
+"$ROOT/tools/verify.sh" check || { echo "pre-commit: check FAIL — commit engellendi"; exit 1; }
+"$ROOT/tools/verify.sh" sim || { echo "pre-commit: sim FAIL — commit engellendi"; exit 1; }

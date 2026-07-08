@@ -148,15 +148,15 @@ Amaç: sonraki tüm fazlar Claude Code ile hızlı ve güvenli ilerlesin. fable5
 4 zorlama katmanından (hook / agent / context / eval) NEFES'te context katmanı (CLAUDE.md
 anayasası) ve hook'un yarısı (`verify.sh`) zaten var; eksikler burada tamamlanır.
 
-- [ ] **Pre-commit / delivery gate hook'u**: `verify.sh all` yeşil olmadan commit'e izin verme
-      (fable5 `delivery-gate.sh` mantığının `tools/`'a uyarlanması — git pre-commit hook +
-      Claude Code Stop hook'u).
+- [x] **Pre-commit / delivery gate hook'u**: `tools/hooks/pre-commit` (check+sim; yalnız-doküman
+      commit'lerinde atlanır). Kurulum: `git config core.hooksPath tools/hooks`. Visual/endgame
+      faz kapanışlarında elle (her commit'e GPU penceresi açtırmak pratik değil).
 - [ ] **qa-verifier alışkanlığı**: her faz kapanışında, implementasyonu görmemiş bağımsız bir
       subagent'a "bu fazın kabul kriterlerini `verify.sh` + `tests/run_features.gd` çıktısıyla
       kanıtla" görevi verilir. fable5 `agents/qa-verifier.md` sözleşmesi örnek alınır,
       tam kurulum yapılmaz.
-- [ ] **Eval kuralı**: her yeni sistemle birlikte `tests/run_features.gd`'ye kabul testi ekleme
-      zorunluluğu CLAUDE.md "Çalışma Döngüsü" bölümüne yazılır.
+- [x] **Eval kuralı**: her yeni sistemle birlikte `tests/run_features.gd`'ye kabul testi ekleme
+      zorunluluğu CLAUDE.md "Çalışma Döngüsü" bölümüne yazıldı (+ endgame kuralı).
 - [ ] **Görev brifing şablonu**: fable5 `TASK_BRIEFING_TEMPLATE.md`'den sadeleştirilmiş tek
       şablon; her Claude oturumu faz maddesini bu şablonla alır.
 - [x] **End-game testi** (`verify.sh endgame`, denetim #29): headless, hızlandırılmış

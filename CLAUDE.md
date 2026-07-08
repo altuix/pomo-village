@@ -211,8 +211,13 @@ Her görevde, commit öncesi:
 3. **Sim iş:** `stepWorld×N` → 30 günde nüfus 20-90 bandında; çökme (=0) ya da
    patlama (>150) = regresyon.
 4. `tools/verify.sh` (check/sim/visual) yeşil.
-5. Görev sonunda `JUICE_YAPILACAKLAR.md`'de maddeyi işaretle; öğrenilen kuralı
-   `DEVIR_TESLIM.md`'ye ekle.
+5. **Eval kuralı:** her yeni sistem = `tests/run_features.gd`'ye kabul testi (testsiz sistem
+   tamamlanmamış iştir). **End-game kuralı:** sim'e (`world.gd`) dokunan her işten sonra
+   `verify.sh endgame` (365 gün) da koşulur — 30-günlük bant tek başına yetmez.
+6. Görev sonunda `JUICE_YAPILACAKLAR.md`/`STEAM_ROADMAP.md`'de maddeyi işaretle; öğrenilen
+   kuralı `DEVIR_TESLIM.md`'ye ekle.
+7. Pre-commit kapısı kurulu olmalı: `git config core.hooksPath tools/hooks`
+   (check+sim otomatik; yalnız-doküman commit'lerinde atlanır).
 
 ## Atomik commit'ler, Türkçe mesaj
 
