@@ -292,5 +292,22 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
 - Bug 7: `_step_mover` fallback adayları nehri kontrol etmiyordu → sakin nehir üstünden geçebiliyordu.
   Aday toplarken `river_set` elenir (90-adım emniyeti korunur). Pop-band 33-60 korundu (regresyon yok).
 - KURAL: sim saf kaldı (world event yaymaz); main chime'ı GÖZLEMLEYEREK ses tetikler — render↔sim ayrımı korunur.
-- KALAN B+ (sıradaki): Pomodoro çekirdeği (geri sayım + mola + cezasız iptal + seans kalıcılığı),
-  streak tanımı + istatistik paneli, sakin hover/tık kartı, atomic save + settings.cfg.
+
+# FAZ B+ — POMODORO ÇEKİRDEĞİ + SERİ/İSTATİSTİK (tamamlandı)
+- Durum makinesi (main): _focus_phase "" | "work" | "break", tek Timer. work bitince ödül +
+  otomatik mola (5/10 dk); mola bitince nazik iki-nota "breakEnd" sesi (alarm değil — cozy).
+  Buton üç iş: boşta başlat / çalışırken CEZASIZ bırak (ödül yok, seri dokunulmaz) /
+  molada molayı atla + yeni seans. Mod seçici yalnız work sırasında kilitli.
+- UI tek kaynaktan: main.focus_state() → {phase, remaining, mode}; ui._refresh_focus_button
+  geri sayımı (🎯 24:59 · bırak / ☕ mola 04:59) her karede türetir. set_focus_active KALDIRILDI.
+- SERİ TANIMI (kilitli karar): aynı gün (YYYYMMDD, main._daily_seed verir) art arda seans;
+  gün değişince seri nazikçe 0'a döner, kazanılan ödüller (atölye/kütüphane) kalır.
+  finish_focus_reward(day=-1, minutes=0): day=-1 → gün takibi yok (testler eski davranışla geçer).
+- İstatistik (world): stat_focus_min, today_focus_min, focus_day, best_streak; UI "seri N" butonu →
+  EMEĞİN paneli (bugün/toplam dk, seri/en uzun/seans). Save'e girer; eski save .get default'la açılır.
+- SEANS KALICILIĞI: kapanışta world.focus_phase/mode/until (unix) save'e; açılışta
+  _restore_focus_session: süresi kaldıysa kaldığı yerden sürer (growth_mult 1.5 geri),
+  yokken bittiyse ödül açılışta verilir (cozy: emek asla yanmaz). Yüklemede growth_mult=1.0 kuralı korunur.
+- Görsel doğrulama: .verify_out/pomo_work/stats/idle.png — geri sayım butonu, EMEĞİN paneli,
+  iptal sonrası growth_mult=1.0 doğrulandı. Testler: B+ pomodoro (gün-değişimi/roundtrip/uyku) PASS.
+- KALAN B+ (sıradaki): sakin hover/tık kartı, atomic save + settings.cfg + ambient default'ları.

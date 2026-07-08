@@ -133,10 +133,10 @@ Denetimdeki maddelerin kritik kısmı. Sıra: önce buglar, sonra Pomodoro çeki
 - [x] Bug 5: kütüphane binası gerçekten kurulsun (`type="library"` inşaatı; ayırt edici görsel Faz C sanat).
 - [x] Bug 6: mektuplara kalıcı kişi id'si (`person.seed`) — isimle eşleşme kalktı.
 - [x] Bug 7: `_step_mover` nehir hücrelerini adaylardan elesin.
-- [ ] Pomodoro çekirdeği: geri sayım göstergesi + mola akışı (25/5, 50/10) + cezasız iptal
-      butonu + seans kalıcılığı (kapanışta bitiş zamanı save'e).
-- [ ] Streak tanımı netleşsin (öneri: aynı gün içinde art arda; gün değişince nazikçe sıfır,
-      kazanılanlar kalır — cozy) + istatistik paneli (bugün/toplam odak dk, en uzun seri).
+- [x] Pomodoro çekirdeği: geri sayım göstergesi + mola akışı (25/5, 50/10) + cezasız iptal
+      butonu + seans kalıcılığı (kapanışta bitiş zamanı save'e; yokken biten seansın ödülü açılışta verilir).
+- [x] Streak tanımı netleşti (aynı gün içinde art arda; gün değişince nazikçe sıfır,
+      kazanılanlar kalır — cozy) + istatistik paneli "EMEĞİN" (bugün/toplam odak dk, en uzun seri, seans).
 - [ ] Sakin etkileşimi: hover/tıklama → isim + evre + atkı/bond mini kartı.
 - [ ] Atomic save (tmp+rename) + `save.json.bak` + settings kalıcılığı (`user://settings.cfg`,
       ambient default'ları sıfırdan makul değere).
