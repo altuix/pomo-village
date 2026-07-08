@@ -295,8 +295,16 @@ func _test_atomic_save() -> bool:
 		var fr := FileAccess.open(pth, FileAccess.WRITE)
 		fr.store_string(keep[pth])
 		fr.close()
-	print("B+ atomic: bak=%s yedekten-dönüş=%s (tick=%d) settings=%s" % [str(bak_ok), str(fallback_ok), w2.tick, str(set_ok)])
-	var pass_ok: bool = bak_ok and fallback_ok and set_ok
+	# ana menü altyapısı (Faz C): Yeni Kasaba yedeği + hızlı-başlat bayrağı
+	var fnb := FileAccess.open("user://save.json", FileAccess.WRITE)
+	fnb.store_string("{\"v\":1}")
+	fnb.close()
+	S.backup_current()
+	var backup_ok: bool = not FileAccess.file_exists("user://save.json") and FileAccess.file_exists("user://save.json.bak")
+	St.set_flag("quick_start", true)
+	var flag_ok: bool = St.get_flag("quick_start") and not St.get_flag("olmayan_bayrak")
+	print("B+ atomic: bak=%s yedekten-dönüş=%s (tick=%d) settings=%s yeni-kasaba-yedek=%s bayrak=%s" % [str(bak_ok), str(fallback_ok), w2.tick, str(set_ok), str(backup_ok), str(flag_ok)])
+	var pass_ok: bool = bak_ok and fallback_ok and set_ok and backup_ok and flag_ok
 	print("B+a: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 

@@ -50,6 +50,9 @@ func _ready() -> void:
 	_wire()
 	if not _pending_offline.is_empty() and is_instance_valid(ui) and ui.has_method("show_offline"):
 		ui.show_offline(_pending_offline)
+	# ana menü (Faz C): hızlı-başlat açıksa atlanır (companion kimliği — doğrudan şeride)
+	if not _is_capture and is_instance_valid(ui) and not Settings.get_flag("quick_start"):
+		ui.show_menu()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST:
@@ -79,9 +82,12 @@ func _place_strip() -> void:
 func _input(e: InputEvent) -> void:
 	if e is InputEventKey and e.pressed and not e.echo:
 		match e.keycode:
-			KEY_ESCAPE:
-				_save()
-				get_tree().quit()
+			KEY_ESCAPE:   # Esc = menü (çıkış artık menüdeki "Kaydet ve Çık"; B3'teki doğrudan-çıkış kalktı)
+				if is_instance_valid(ui):
+					if ui.menu_visible():
+						ui.hide_menu()
+					else:
+						ui.show_menu()
 			KEY_V:   # dikey/yatay kadraj arası geçiş (konumlandırma)
 				_vertical = not _vertical
 				_place_strip()

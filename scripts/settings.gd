@@ -22,3 +22,17 @@ static func save_audio(gains: Dictionary) -> void:
 		cfg.set_value("audio", k, gains[k])
 	if cfg.save(PATH) != OK:
 		push_warning("[settings] settings.cfg yazılamadı")
+
+# genel bayraklar (hızlı başlat vb. — ana menü, Faz C)
+static func get_flag(key: String, def: bool = false) -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		return def
+	return bool(cfg.get_value("flags", key, def))
+
+static func set_flag(key: String, val: bool) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)
+	cfg.set_value("flags", key, val)
+	if cfg.save(PATH) != OK:
+		push_warning("[settings] settings.cfg yazılamadı")

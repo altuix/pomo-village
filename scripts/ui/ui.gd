@@ -461,6 +461,95 @@ func _letter_card(l: Dictionary, idx: int) -> PanelContainer:
 		vb.add_child(rb)
 	return card
 
+# ---- ANA MENÜ (Faz C): canlı sim arka planda, yarı saydam perde; Esc de bunu açar ----
+var menu_screen: PanelContainer = null
+var _menu_msg: Label
+var _confirm_new := false
+var _quick_cb: CheckBox
+
+const CREDITS := "NEFES — Rain City evreni.\nGodot Engine ile yapıldı (MIT lisansı, © Godot Engine katkıcıları).\nTüm görseller prosedürel, tüm sesler %100 sentez.\nSolo geliştirici + Claude."
+
+func show_menu() -> void:
+	if menu_screen == null:
+		_build_menu()
+	_confirm_new = false
+	_menu_msg.text = "ekranının altında, sen çalışırken uyanan minyatür bir kasaba"
+	_quick_cb.set_pressed_no_signal(Settings.get_flag("quick_start"))
+	menu_screen.visible = true
+	menu_screen.modulate.a = 0.0
+	create_tween().tween_property(menu_screen, "modulate:a", 1.0, 0.3)   # yumuşak giriş (fade)
+
+func hide_menu() -> void:
+	if menu_screen != null:
+		var tw := create_tween()
+		tw.tween_property(menu_screen, "modulate:a", 0.0, 0.25)
+		tw.tween_callback(func(): menu_screen.visible = false)
+
+func menu_visible() -> bool:
+	return menu_screen != null and menu_screen.visible
+
+func _build_menu() -> void:
+	menu_screen = PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.106, 0.078, 0.129, 0.82)   # ink perdesi — canlı kasaba altta seçilir
+	menu_screen.add_theme_stylebox_override("panel", sb)
+	menu_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	menu_screen.visible = false
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	menu_screen.add_child(center)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(vb)
+	var title := _label("N E F E S", 34, HONEY)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(title)
+	_menu_msg = _label("", 11, MUTED)
+	_menu_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_menu_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_menu_msg.custom_minimum_size = Vector2(420, 0)
+	vb.add_child(_menu_msg)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(row)
+	var bresume := _button("▶ Devam Et")
+	bresume.add_theme_color_override("font_color", Color("c9e0b0"))
+	bresume.pressed.connect(func(): hide_menu())
+	row.add_child(bresume)
+	var bnew := _button("🌱 Yeni Kasaba")
+	bnew.pressed.connect(_on_new_town)
+	row.add_child(bnew)
+	var bcred := _button("ℹ Krediler")
+	bcred.pressed.connect(func(): _confirm_new = false; _menu_msg.text = CREDITS)
+	row.add_child(bcred)
+	var bquit := _button("✕ Kaydet ve Çık")
+	bquit.pressed.connect(func(): if main != null: main.quit_game())
+	row.add_child(bquit)
+	_quick_cb = CheckBox.new()
+	_quick_cb.text = "açılışta menüyü atla, doğrudan kasabaya gel"
+	_quick_cb.add_theme_font_size_override("font_size", 10)
+	_quick_cb.add_theme_color_override("font_color", MUTED)
+	_quick_cb.focus_mode = Control.FOCUS_NONE
+	_quick_cb.toggled.connect(func(v): Settings.set_flag("quick_start", v))
+	var qrow := HBoxContainer.new()
+	qrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	qrow.add_child(_quick_cb)
+	vb.add_child(qrow)
+	add_child(menu_screen)   # CanvasLayer'a — her şeyin üstünde
+
+## Yeni Kasaba: iki aşamalı NAZİK onay (cozy: yanlışlıkla kayıp yok; mevcut kayıt .bak'a alınır).
+func _on_new_town() -> void:
+	if not _confirm_new:
+		_confirm_new = true
+		_menu_msg.text = "Emin misin? Mevcut kasaban güvenle yedeklenecek (save.json.bak) ve bugünün tohumuyla yepyeni bir kasaba uyanacak. Bir daha dokunursan başlıyoruz."
+		return
+	_confirm_new = false
+	if main != null and main.has_method("new_town"):
+		main.new_town()
+	hide_menu()
+
 func _process(delta: float) -> void:
 	if world == null:
 		return

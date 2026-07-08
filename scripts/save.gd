@@ -32,6 +32,16 @@ static func save(world: World) -> bool:
 	dir.rename("save.json.tmp", "save.json")
 	return true
 
+## Yeni Kasaba öncesi: mevcut kayıt .bak'a alınır (cozy: yanlışlıkla kayıp yok — ana menü onayı söyler).
+static func backup_current() -> void:
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		return
+	if dir.file_exists("save.json"):
+		if dir.file_exists("save.json.bak"):
+			dir.remove("save.json.bak")
+		dir.rename("save.json", "save.json.bak")
+
 static func _read_state(path: String) -> Variant:
 	if not FileAccess.file_exists(path):
 		return null
