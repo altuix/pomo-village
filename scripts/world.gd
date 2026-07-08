@@ -52,10 +52,18 @@ var name_idx := 0
 var event_log: Array[String] = []      # son ~5 olay (UI: A7)
 var letters: Array = []                # {from, text, kind, replied} — kaynak veda (A1); dilek/odak + UI = A4
 
-# --- odak seansı + seri (A3) ---
+# --- odak seansı + seri (A3; B+ istatistik + kalıcılık) ---
 var streak := 0
 var sessions := 0
 var unlocked := { "atolye": false, "kutuphane": false }
+var best_streak := 0
+var stat_focus_min := 0          # toplam odak dakikası
+var today_focus_min := 0
+var focus_day := -1              # YYYYMMDD; SERİ TANIMI: aynı gün art arda, gün değişince nazik sıfır (kazanılan kalır)
+# aktif seans kalıcılığı (main yazar/yorumlar; sim OKUMAZ — kapanışta seans yanmasın)
+var focus_until := 0.0           # unix bitiş zamanı
+var focus_phase := ""            # "" | "work" | "break"
+var focus_mode := 0
 
 # --- kule melodisi (A5) ---
 var melody: Array = [0, 2, 4, 2, -1, 3, 1, 0]
@@ -133,6 +141,13 @@ func gen(seed_val: int = 0) -> void:
 	streak = 0
 	sessions = 0
 	unlocked = { "atolye": false, "kutuphane": false }
+	best_streak = 0
+	stat_focus_min = 0
+	today_focus_min = 0
+	focus_day = -1
+	focus_until = 0.0
+	focus_phase = ""
+	focus_mode = 0
 	melody = [0, 2, 4, 2, -1, 3, 1, 0]
 	melody_saved = false
 	concert_done = false
@@ -432,6 +447,9 @@ func to_save() -> Dictionary:
 		"growth": growth, "goal": goal, "growth_mult": growth_mult,
 		"light_curve": light_curve, "last_hour": last_hour, "chime_t": chime_t,
 		"name_idx": name_idx, "bond": bond, "streak": streak, "sessions": sessions,
+		"best_streak": best_streak, "stat_focus_min": stat_focus_min,
+		"today_focus_min": today_focus_min, "focus_day": focus_day,
+		"focus_until": focus_until, "focus_phase": focus_phase, "focus_mode": focus_mode,
 		"unlocked": unlocked.duplicate(), "melody": melody.duplicate(),
 		"melody_saved": melody_saved, "concert_done": concert_done,
 		"stat_births": stat_births, "stat_farewells": stat_farewells, "stat_arrivals": stat_arrivals,
@@ -464,6 +482,14 @@ func from_save(d: Dictionary) -> void:
 	bond = int(d.bond)
 	streak = int(d.streak)
 	sessions = int(d.sessions)
+	# B+ alanları eski save'lerde yok → .get default (sessiz veri kaybı değil, bilinçli geriye-uyum)
+	best_streak = int(d.get("best_streak", streak))
+	stat_focus_min = int(d.get("stat_focus_min", 0))
+	today_focus_min = int(d.get("today_focus_min", 0))
+	focus_day = int(d.get("focus_day", -1))
+	focus_until = float(d.get("focus_until", 0.0))
+	focus_phase = str(d.get("focus_phase", ""))
+	focus_mode = int(d.get("focus_mode", 0))
 	unlocked = { "atolye": bool(d.unlocked.atolye), "kutuphane": bool(d.unlocked.kutuphane) }
 	melody = []
 	for n in d.melody:
@@ -794,10 +820,19 @@ func teach_tower(mel: Array) -> Dictionary:
 
 # ============================================================ ODAK SEANSI (A3)
 ## Seans bitişi ödülü: anında inşaat + seri + atölye/kütüphane + kutlama mektubu. Cozy: cezasız.
-func finish_focus_reward() -> Dictionary:
+## day (YYYYMMDD, main verir; -1 = gün takibi yok/test): SERİ TANIMI aynı gün art arda —
+## gün değişince seri nazikçe sıfırlanır, kazanılan ödüller kalır. minutes → istatistik.
+func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
+	if day >= 0 and day != focus_day:
+		streak = 0
+		today_focus_min = 0
+		focus_day = day
+	stat_focus_min += minutes
+	today_focus_min += minutes
 	growth += goal                       # ödül: bir inşaat hemen
 	sessions += 1
 	streak += 1
+	best_streak = maxi(best_streak, streak)
 	var res := { "atolye": false, "kutuphane": false }
 	if streak >= 3 and not unlocked.atolye:
 		unlocked.atolye = true

@@ -127,6 +127,9 @@ func event(kind: String) -> void:
 			_tone(1800.0, 0.06, 0.03, "sine")
 		"letter":
 			_tone(2600.0, 0.10, 0.04, "sine")
+		"breakEnd":   # mola bitti: nazik iki-nota iniş (davet, alarm değil — cozy)
+			_tone(659.0, 0.5, 0.07, "sine")
+			_tone(523.0, 0.7, 0.06, "sine", 0.18)
 		"farewell":
 			_tone(392.0, 1.6, 0.07, "sine")
 			_tone(494.0, 1.6, 0.05, "sine", 0.05)

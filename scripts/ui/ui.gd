@@ -17,11 +17,13 @@ var _clock: Label
 var _sub: Label
 var _stat: Label
 var _events: Label
-var _streak: Label
+var _streak_btn: Button
 var _mail_btn: Button
 var _wish_btn: Button
 var _focus_btn: Button
 var _mode_opt: OptionButton
+var stats_box: PanelContainer
+var _stats_body: Label
 
 # paneller (A3-A6 doldurur) — sağ/sol alt çekmeceler
 var sound_box: PanelContainer
@@ -123,8 +125,10 @@ func _build() -> void:
 	_focus_btn.pressed.connect(_on_focus)
 	bar.add_child(_focus_btn)
 
-	_streak = _label("seri 0", 11, SAGE)
-	bar.add_child(_streak)
+	_streak_btn = _button("seri 0")
+	_streak_btn.add_theme_color_override("font_color", SAGE)
+	_streak_btn.pressed.connect(func(): _toggle(stats_box); _refresh_stats())
+	bar.add_child(_streak_btn)
 
 	var snd := _button("🔊")
 	snd.pressed.connect(func(): _toggle(sound_box))
@@ -157,6 +161,13 @@ func _build() -> void:
 	root.add_child(melody_box)
 	_fill_melody()
 
+	stats_box = _panel("EMEĞİN")
+	stats_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	stats_box.position = Vector2(150, -150)
+	root.add_child(stats_box)
+	_stats_body = _label("", 11, CREAM)
+	stats_box.get_node("VB").add_child(_stats_body)
+
 	mail_box = _panel("MEKTUPLAR")
 	mail_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	mail_box.position = Vector2(-360, -320)
@@ -177,17 +188,20 @@ func _toggle(p: Control) -> void:
 	if p != null:
 		p.visible = not p.visible
 
+## Buton üç durumda üç iş yapar: boşta başlat, çalışırken CEZASIZ bırak, molada molayı atla + yeni seans.
 func _on_focus() -> void:
-	if main != null and main.has_method("start_focus"):
+	if main == null or not main.has_method("focus_state"):
+		return
+	if main.focus_state().phase == "work":
+		main.cancel_focus()
+	else:
 		main.start_focus(_mode_opt.selected)
 
-func set_focus_active(active: bool) -> void:
-	if active:
-		_focus_btn.text = "🎯 Odaktasın… kasaba ×1.5 büyüyor"
-		_focus_btn.disabled = true
-	else:
-		_focus_btn.text = "🎯 Başlat"
-		_focus_btn.disabled = false
+func _refresh_stats() -> void:
+	if world == null or _stats_body == null:
+		return
+	_stats_body.text = "bugün %d dk · toplam %d dk\nseri %d · en uzun seri %d · %d seans" % [
+		world.today_focus_min, world.stat_focus_min, world.streak, world.best_streak, world.sessions]
 
 func _on_wish() -> void:
 	if main != null and main.has_method("grant_wish"):
@@ -379,7 +393,10 @@ func _process(_d: float) -> void:
 	_clock.text = world.clock_string()
 	_sub.text = "%s · %s" % [World.SEASON_NAMES[world.season], world.status_text()]
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
-	_streak.text = "seri %d" % world.streak
+	_streak_btn.text = "seri %d" % world.streak
+	_refresh_focus_button()
+	if stats_box != null and stats_box.visible:
+		_refresh_stats()
 	if not world.event_log.is_empty():
 		_events.text = "   ·   ".join(world.event_log)
 	_mail_btn.text = "✉ Mektuplar %d" % world.unreplied_letters()
@@ -389,3 +406,20 @@ func _process(_d: float) -> void:
 		_wish_btn.visible = true
 	else:
 		_wish_btn.visible = false
+
+## Geri sayım + faz metni tek kaynaktan (main.focus_state). Mod seçici seans sırasında kilitli.
+func _refresh_focus_button() -> void:
+	if main == null or not main.has_method("focus_state"):
+		return
+	var fs: Dictionary = main.focus_state()
+	var rem: int = int(ceil(float(fs.remaining)))
+	match fs.phase:
+		"work":
+			_focus_btn.text = "🎯 %02d:%02d · bırak" % [rem / 60, rem % 60]
+			_mode_opt.disabled = true
+		"break":
+			_focus_btn.text = "☕ mola %02d:%02d · yeni seans" % [rem / 60, rem % 60]
+			_mode_opt.disabled = false
+		_:
+			_focus_btn.text = "🎯 Başlat"
+			_mode_opt.disabled = false

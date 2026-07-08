@@ -8,8 +8,38 @@ func _init() -> void:
 	ok = _test_focus() and ok
 	ok = _test_melody() and ok
 	ok = _test_save() and ok
+	ok = _test_pomodoro_stats() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# B+ Pomodoro: SERİ TANIMI (aynı gün art arda; gün değişince nazik sıfır, kazanılan kalır) + istatistik + seans kalıcılığı alanları.
+func _test_pomodoro_stats() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(3000): w.step_world()
+	w.finish_focus_reward(20260708, 25)
+	var d1: bool = w.streak == 1 and w.today_focus_min == 25 and w.stat_focus_min == 25
+	w.finish_focus_reward(20260708, 25)
+	var d2: bool = w.streak == 2 and w.today_focus_min == 50 and w.best_streak == 2
+	w.finish_focus_reward(20260709, 50)   # yeni gün: seri nazikçe 1'e döner, toplam/best korunur
+	var d3: bool = w.streak == 1 and w.today_focus_min == 50 and w.stat_focus_min == 100 and w.best_streak == 2
+	# seans kalıcılığı + istatistik save round-trip; growth_mult yüklemede daima 1.0
+	w.focus_phase = "work"; w.focus_until = 1234567.0; w.focus_mode = 1
+	w.growth_mult = 1.5
+	var d = JSON.parse_string(JSON.stringify(w.to_save()))
+	var w2 = W.new(); w2.from_save(d)
+	var rt: bool = w2.stat_focus_min == 100 and w2.best_streak == 2 and w2.focus_day == 20260709 \
+		and w2.focus_phase == "work" and int(w2.focus_until) == 1234567 and w2.focus_mode == 1 \
+		and w2.growth_mult == 1.0
+	# uyku penceresi (kule susması): 23-05 arası
+	w.force_time(23.5)
+	var asleep: bool = w.is_asleep()
+	w.force_time(12.0)
+	var awake: bool = not w.is_asleep()
+	print("B+ pomodoro: gün1=%s gün1b=%s günDeğişimi=%s roundtrip=%s uyku=%s/%s" % [str(d1), str(d2), str(d3), str(rt), str(asleep), str(awake)])
+	var pass_ok: bool = d1 and d2 and d3 and rt and asleep and awake
+	print("B+: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 func _test_save() -> bool:
 	var W := load("res://scripts/world.gd")

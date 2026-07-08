@@ -4,16 +4,17 @@ extends Node2D
 ## Kare-başına sim YOK (determinizm); tick akümülatörü ile ilerler.
 
 const TICK_DT := 0.75
-# GERÇEK dakika seansları (CLAUDE.md): Pomodoro 25, Derin 50. Mola opsiyonel (5/10).
+# GERÇEK dakika seansları (CLAUDE.md): Pomodoro 25/5, Derin 50/10. Mola nazik: atlanabilir, cezasız.
 const MODES := [
-	{ "name": "Pomodoro 25/5", "work_min": 25.0 },
-	{ "name": "Derin 50/10", "work_min": 50.0 },
+	{ "name": "Pomodoro 25/5", "work_min": 25.0, "break_min": 5.0 },
+	{ "name": "Derin 50/10", "work_min": 50.0, "break_min": 10.0 },
 ]
 
 var world: World = null
 var _accum := 0.0
 var _frozen := false   # capture/duraklatma sırasında sim'i dondur
-var _focus_active := false
+var _focus_phase := ""   # "" | "work" | "break" (tek Timer, faz bu değişkende)
+var _focus_mode := 0
 var _focus_timer: Timer = null
 var _save_accum := 0.0
 var _pending_offline := {}
@@ -40,6 +41,7 @@ func _ready() -> void:
 	_focus_timer.one_shot = true
 	add_child(_focus_timer)
 	_focus_timer.timeout.connect(_on_focus_timeout)
+	_restore_focus_session()
 	_wire()
 	if not _pending_offline.is_empty() and is_instance_valid(ui) and ui.has_method("show_offline"):
 		ui.show_offline(_pending_offline)
@@ -81,7 +83,32 @@ func _input(e: InputEvent) -> void:
 
 func _save() -> void:
 	if world != null and not _frozen and not _is_capture:
+		# aktif seans kapanışta yanmasın: bitiş zamanı save'e (açılışta _restore_focus_session yorumlar)
+		world.focus_phase = _focus_phase
+		world.focus_mode = _focus_mode
+		world.focus_until = (Time.get_unix_time_from_system() + _focus_timer.time_left) if _focus_phase != "" else 0.0
 		SaveGame.save(world)
+
+## Açılışta kaydedilmiş seansı değerlendir: süresi varsa kaldığı yerden sürer,
+## kullanıcı yokken bittiyse ödül yine verilir (cozy: emek asla yanmaz).
+func _restore_focus_session() -> void:
+	if world == null or world.focus_phase == "":
+		return
+	var remain: float = world.focus_until - Time.get_unix_time_from_system()
+	var phase: String = world.focus_phase
+	_focus_mode = clampi(world.focus_mode, 0, MODES.size() - 1)
+	world.focus_phase = ""
+	world.focus_until = 0.0
+	if phase == "work":
+		if remain > 1.0:
+			_focus_phase = "work"
+			world.growth_mult = 1.5
+			_focus_timer.start(remain)
+		else:
+			world.finish_focus_reward(_daily_seed(), int(MODES[_focus_mode].work_min))
+	elif phase == "break" and remain > 1.0:
+		_focus_phase = "break"
+		_focus_timer.start(remain)
 
 func _wire() -> void:
 	if is_instance_valid(town_view):
@@ -133,30 +160,46 @@ func capture_setup(seed_val: int, tod: float, steps: int = 0) -> void:
 		ui.visible = false   # capture: piksel metrikleri kasabayı ölçsün, UI gizli
 
 # ---- UI eylem kancaları ----
+## Seans başlat; moladayken çağrılırsa mola atlanır (cozy: mola öneri, zorunluluk değil).
 func start_focus(mode: int) -> void:
-	if _focus_active or world == null:
+	if _focus_phase == "work" or world == null:
 		return
-	_focus_active = true
+	_focus_phase = "work"
+	_focus_mode = clampi(mode, 0, MODES.size() - 1)
 	world.growth_mult = 1.5           # kullanıcı çalıştıkça kasaba ×1.5 büyür
-	var m := clampi(mode, 0, MODES.size() - 1)
-	_focus_timer.start(MODES[m].work_min * 60.0)
-	if is_instance_valid(ui) and ui.has_method("set_focus_active"):
-		ui.set_focus_active(true)
+	_focus_timer.start(MODES[_focus_mode].work_min * 60.0)
 
-func _on_focus_timeout() -> void:
-	_focus_active = false
+## Erken bırakma CEZASIZ (cozy): ödül yok ama seri/istatistik dokunulmaz kalır.
+func cancel_focus() -> void:
+	if _focus_phase == "":
+		return
+	_focus_phase = ""
+	_focus_timer.stop()
 	if world != null:
 		world.growth_mult = 1.0
-		var res := world.finish_focus_reward()
-		if is_instance_valid(town_view) and town_view.has_method("celebrate"):
-			town_view.celebrate(world.landmark.x, world.landmark.y - 3)
+
+## UI okur: {phase, remaining(sn), mode}. Tek kaynak — buton metni/sayaç buradan türetilir.
+func focus_state() -> Dictionary:
+	return { "phase": _focus_phase, "remaining": _focus_timer.time_left, "mode": _focus_mode }
+
+func _on_focus_timeout() -> void:
+	if _focus_phase == "work":
+		if world != null:
+			world.growth_mult = 1.0
+			var res := world.finish_focus_reward(_daily_seed(), int(MODES[_focus_mode].work_min))
+			if is_instance_valid(town_view) and town_view.has_method("celebrate"):
+				town_view.celebrate(world.landmark.x, world.landmark.y - 3)
+			if is_instance_valid(audio):
+				audio.event("focusDone")
+				if res.atolye or res.kutuphane:
+					audio.event("unlock")
+			_camera_pulse()
+		_focus_phase = "break"
+		_focus_timer.start(MODES[_focus_mode].break_min * 60.0)
+	elif _focus_phase == "break":
+		_focus_phase = ""
 		if is_instance_valid(audio):
-			audio.event("focusDone")
-			if res.atolye or res.kutuphane:
-				audio.event("unlock")
-		_camera_pulse()
-	if is_instance_valid(ui) and ui.has_method("set_focus_active"):
-		ui.set_focus_active(false)
+			audio.event("breakEnd")
 	if is_instance_valid(ui) and ui.has_method("refresh_mail"):
 		ui.refresh_mail()
 
