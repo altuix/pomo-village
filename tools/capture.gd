@@ -35,7 +35,7 @@ func _init() -> void:
 	_main.set("_is_capture", true)   # _ready kayıt yüklemesin/yazmasın
 	get_root().add_child(_main)
 	if _main.has_method("capture_setup"):
-		_main.call("capture_setup", _seed, _tod)
+		_main.call("capture_setup", _seed, _tod, _steps)   # steps: timelapse (gün N kasabası)
 	process_frame.connect(_on_frame)
 
 func _on_frame() -> void:

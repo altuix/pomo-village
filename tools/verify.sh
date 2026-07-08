@@ -6,7 +6,9 @@
 #   tools/verify.sh check     # tüm .gd script'leri --check-only ile doğrula
 #   tools/verify.sh sim       # headless pop-band + determinizm testi
 #   tools/verify.sh visual    # gündüz/akşam/gece PNG yakala + piksel denetimi
-#   tools/verify.sh all       # üçü birden
+#   tools/verify.sh endgame   # 365 gün hızlandırılmış koşu (sim'e dokunan HER işte zorunlu)
+#   tools/verify.sh timelapse # gün 0..365 büyüme kareleri (.verify_out/timelapse/) — gözle incele
+#   tools/verify.sh all       # check+sim+visual
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -68,12 +70,41 @@ cmd_visual() {
 	done
 }
 
+cmd_endgame() {
+	echo "== endgame (365 gün) =="
+	if "$GODOT" --headless --script "$ROOT/tests/run_endgame.gd" -- "$@"; then
+		echo "  endgame PASS"
+	else
+		echo "  endgame FAIL"; FAIL=1
+	fi
+}
+
+cmd_timelapse() {
+	echo "== timelapse (büyüme kareleri, akşam 19:00, tohum sabit) =="
+	local tl="$OUT/timelapse"
+	mkdir -p "$tl"
+	for day in 0 3 7 14 30 60 120 365; do
+		local png="$tl/day_$(printf '%03d' "$day").png"
+		rm -f "$png"
+		# ileri-sarma senkron: kill penceresi gün sayısıyla büyür (365 gün ≈ 80-120s sim)
+		run_windowed $((30 + day / 2)) "$GODOT" --script "$ROOT/tools/capture.gd" -- "out=$png" "time=19.0" "seed=20260707" "steps=$((day * 2400))"
+		if [[ -f "$png" ]]; then
+			echo "  OK   gün $day -> $png"
+		else
+			echo "  FAIL gün $day yakalanamadı"; FAIL=1
+		fi
+	done
+	echo "  (kareleri GÖZLE incele: büyüme hikâyesi tek bakışta okunmalı)"
+}
+
 case "${1:-all}" in
 	check)  cmd_check ;;
 	sim)    shift; cmd_sim "$@" ;;
 	visual) cmd_visual ;;
+	endgame) shift; cmd_endgame "$@" ;;
+	timelapse) cmd_timelapse ;;
 	all)    cmd_check; cmd_sim; cmd_visual ;;
-	*) echo "kullanım: verify.sh {check|sim|visual|all}"; exit 2 ;;
+	*) echo "kullanım: verify.sh {check|sim|visual|endgame|timelapse|all}"; exit 2 ;;
 esac
 
 echo "======================================"
