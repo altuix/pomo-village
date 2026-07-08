@@ -57,7 +57,16 @@ var letters: Array = []                # {from, text, kind, replied} — kaynak 
 # --- odak seansı + seri (A3; B+ istatistik + kalıcılık) ---
 var streak := 0
 var sessions := 0
-var unlocked := { "atolye": false, "kutuphane": false }
+var unlocked := { "atolye": false, "kutuphane": false, "rasathane": false, "sera": false, "hamam": false }
+# seri sonrası uzun-vade bina zinciri (Faz D): toplam seans eşikleriyle açılır
+const MILESTONE_BUILDINGS := [
+	{ "key": "rasathane", "at": 10, "ev": "🔭 Rasathane yükseliyor — gökyüzü artık daha yakın",
+	  "txt": "On seansın şerefine tepeye bir RASATHANE kuruyoruz. Gece gökyüzünü birlikte izleyeceğiz." },
+	{ "key": "sera", "at": 20, "ev": "🌿 Sera kuruluyor — kışın bile yeşil",
+	  "txt": "Yirmi seans! Meydanın yanına bir SERA dikiyoruz; kışın bile domates, her mevsim çiçek." },
+	{ "key": "hamam", "at": 35, "ev": "♨ Hamam yükseliyor — yorgunluğa veda",
+	  "txt": "Otuz beş seans... Emeğin şerefine kasabaya bir HAMAM yapıyoruz. Yorgunluk artık misafir, ev sahibi değil." },
+]
 var best_streak := 0
 var stat_focus_min := 0          # toplam odak dakikası
 var today_focus_min := 0
@@ -164,7 +173,7 @@ func gen(seed_val: int = 0) -> void:
 	town_complete = false
 	streak = 0
 	sessions = 0
-	unlocked = { "atolye": false, "kutuphane": false }
+	unlocked = { "atolye": false, "kutuphane": false, "rasathane": false, "sera": false, "hamam": false }
 	best_streak = 0
 	stat_focus_min = 0
 	today_focus_min = 0
@@ -376,7 +385,12 @@ func step_world() -> void:
 			var t := (0.04 + ev * 0.72) * (1.0 - sleep * 0.85)
 			b.lit_frac += (t - b.lit_frac) * 0.03
 
-	# yükselen bina
+	# yükselen bina; sahipsiz yarım inşaat varsa sahiplen (çoklu ödül dönüşümü / eski save iyileşmesi)
+	if building_now == null:
+		for b in buildings:
+			if b.built == 0 and b.build_prog > 0.0:
+				building_now = b
+				break
 	if building_now != null:
 		building_now.build_prog = minf(1.0, building_now.build_prog + 0.02)
 		if building_now.build_prog >= 1.0:
@@ -444,8 +458,8 @@ func step_world() -> void:
 			if not p.moving and _hf(p.seed + tick) < 0.4:
 				p.x = clampf(landmark.x + float(_h(p.seed) % 7) - 3.0, 0.0, float(GW - 1))
 				p.y = clampf(landmark.y + float(_h(p.seed * 3) % 7) - 3.0, 0.0, float(GH - 1))
-	if festival_t > 0.0:
-		festival_t -= 0.005   # ~200 tick şenlik nabzı
+	# maxf: dinlenme durumu TAM 0.0 (negatif e-16 kalıntısı JSON hassasiyetinde roundtrip bozuyor)
+	festival_t = maxf(0.0, festival_t - 0.005)   # ~200 tick şenlik nabzı
 
 	# yağmur geçişleri (görsel/ses katmanının olay bildirimi; sim durumuna etkimez)
 	var raining := rain_amount() > 0.1
@@ -468,8 +482,7 @@ func step_world() -> void:
 	if hr != last_hour:
 		last_hour = hr
 		chime_t = 1.0
-	if chime_t > 0.0:
-		chime_t -= 0.02
+	chime_t = maxf(0.0, chime_t - 0.02)   # aynı JSON-kalıntı korunması
 
 # ============================================================ SAVE / LOAD (B1)
 # Not: oyuncu etkileşimleri (dilek/mektup/odak/konser) dünyayı seed+tick'ten saptırır →
@@ -574,7 +587,11 @@ func from_save(d: Dictionary) -> void:
 	focus_until = float(d.get("focus_until", 0.0))
 	focus_phase = str(d.get("focus_phase", ""))
 	focus_mode = int(d.get("focus_mode", 0))
-	unlocked = { "atolye": bool(d.unlocked.atolye), "kutuphane": bool(d.unlocked.kutuphane) }
+	# anahtarlar sabit listeden yüklenir (eski hardcoded yükleme yeni anahtarları DÜŞÜRÜYORDU)
+	unlocked = { "atolye": false, "kutuphane": false, "rasathane": false, "sera": false, "hamam": false }
+	var du: Dictionary = d.get("unlocked", {})
+	for k in unlocked.keys():
+		unlocked[k] = bool(du.get(k, false))
 	melody = []
 	for n in d.melody:
 		melody.append(int(n))
@@ -1000,6 +1017,18 @@ func teach_tower(mel: Array) -> Dictionary:
 		_push_event("🎼 kule öğrendi — ipucu: ≥5 nota, ≥3 farklı ses, iniş-çıkış")
 	return { "concert": false, "quality": q }
 
+## İnşasız bir binayı özel tipe çevirip inşaatı başlatır (atölye/kütüphane/zincir ortak yolu).
+## El değmemiş (build_prog<=0) bina seçilir ve building_now yalnız boşsa alınır — aynı ödülde
+## birden çok dönüşüm birbirinin binasını ÇALMASIN (çalınan inşaat 0.01'de sonsuza dek kalıyordu).
+func _convert_unbuilt(t: String) -> void:
+	for b in buildings:
+		if b.built == 0 and b.build_prog <= 0.0:
+			b.type = t
+			b.build_prog = 0.01
+			if building_now == null:
+				building_now = b
+			return
+
 # ============================================================ ODAK SEANSI (A3)
 ## Seans bitişi ödülü: anında inşaat + seri + atölye/kütüphane + kutlama mektubu. Cozy: cezasız.
 ## day (YYYYMMDD, main verir; -1 = gün takibi yok/test): SERİ TANIMI aynı gün art arda —
@@ -1019,28 +1048,25 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 	if streak >= 3 and not unlocked.atolye:
 		unlocked.atolye = true
 		res.atolye = true
-		for b in buildings:
-			if b.built == 0:
-				b.type = "shop"
-				building_now = b
-				b.build_prog = 0.01
-				break
+		_convert_unbuilt("shop")
 		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
 			"text": "Üç seanslık emeğinin şerefine bir ATÖLYE kuruyoruz. Ellerine sağlık." })
 		_push_event("🔨 seri ödülü: Atölye kuruluyor")
 	if streak >= 5 and not unlocked.kutuphane:
 		unlocked.kutuphane = true
 		res.kutuphane = true
-		# kütüphane gerçekten yükselsin (atölye gibi): inşasız bir binayı "library" tipine çevir + inşaatı başlat
-		for b in buildings:
-			if b.built == 0:
-				b.type = "library"
-				building_now = b
-				b.build_prog = 0.01
-				break
+		_convert_unbuilt("library")
 		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
 			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükseliyor. Kasaba seninle akıllanıyor." })
 		_push_event("📚 seri ödülü: Kütüphane yükseliyor")
+	# zincirin devamı (denetim #12: 5'ten sonra ödül yoktu): toplam seans eşikleri
+	for mb in MILESTONE_BUILDINGS:
+		if sessions >= mb.at and not unlocked[mb.key]:
+			unlocked[mb.key] = true
+			res["special"] = true
+			_convert_unbuilt(mb.key)
+			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false, "text": mb.txt })
+			_push_event(mb.ev)
 	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
 		"text": Letters.pick(Letters.ODAK, _h(sessions * 97 + tick)) })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")

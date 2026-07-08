@@ -289,15 +289,29 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 	var awake: bool = b.awake
 	var wall: Color = _mix(Color8(201,168,146), Color8(150,120,120), ev * 0.4) if awake else _mix(Color8(120,100,110), Color8(70,58,72), ev * 0.5)
 	draw_rect(Rect2(X + 1.0, Y, W, H), wall)
+	if b.type == "sera":   # camsı cephe + filizler (kışın bile yeşil)
+		draw_rect(Rect2(X + 1.0, Y, W, H), Color(0.78, 0.9, 0.88, 0.35))
+		for k in range(3):
+			draw_circle(Vector2(X + 3.0 + k * (W - 6.0) / 2.0, Y + H - 2.5), 1.3, Color8(122, 155, 106))
 	if bp < 0.99:
 		draw_rect(Rect2(X + 1.0, Y, W, H), Color(0.59, 0.47, 0.35, 0.5), false, 1.0)
 		return
-	# çatı (3 tip)
+	# çatı (3 tip + özel binalar: rasathane kubbe / hamam ikiz kubbe)
 	var pair: Array = ROOF_COLS[b.roof]
 	var r_hi: Color = _mix(pair[0], pair[0].darkened(0.4), ev * 0.4)
 	var r_lo: Color = _mix(pair[1], pair[1].darkened(0.4), ev * 0.4)
 	var y_top: float = Y - CH * 0.55
-	if b.roof_type == 1:
+	if b.type == "rasathane":
+		var dome: Color = _mix(Color8(106,134,168), Color8(88,111,146), ev * 0.4)   # 6a86a8 çatı paleti
+		draw_circle(Vector2(X + W / 2.0 + 0.5, Y + 1.0), W * 0.5, dome)
+		draw_line(Vector2(X + W / 2.0, Y - CH * 0.1), Vector2(X + W * 0.95, Y - CH * 0.6), Color8(232,220,200), 1.2)
+	elif b.type == "hamam":
+		draw_circle(Vector2(X + W * 0.34, Y + 0.5), W * 0.30, r_hi)
+		draw_circle(Vector2(X + W * 0.74, Y + 1.0), W * 0.24, r_lo)
+		for k in range(2):   # süzülen buhar
+			var st := fmod(_t * 0.4 + k * 0.5, 1.0)
+			draw_circle(Vector2(X + W * 0.34 + k * W * 0.4, Y - 3.0 - st * 8.0), 1.2 + st * 1.5, Color(0.92, 0.92, 0.95, 0.25 * (1.0 - st)))
+	elif b.roof_type == 1:
 		draw_colored_polygon([Vector2(X, Y), Vector2(X + W / 2.0 + 1.0, y_top), Vector2(X + W + 1.0, Y)], r_lo)
 		draw_colored_polygon([Vector2(X, Y), Vector2(X + W / 2.0 + 1.0, y_top), Vector2(X + W / 2.0 + 1.0, Y)], r_hi)
 	elif b.roof_type == 2:
@@ -320,6 +334,9 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 			draw_rect(Rect2(wx, wy, ww, wh), Color(0.23, 0.18, 0.23, 0.85))
 	if b.type == "shop" and awake:
 		draw_rect(Rect2(X + 1.0, Y + CH * 0.1, W, 3.0), ROOF_COLS[b.roof][0])
+	if b.type == "library":   # cephede renkli kitap sırtları (çatı paletinden)
+		for bi in range(4):
+			draw_rect(Rect2(X + 2.5 + bi * 2.6, Y + H - CH * 0.42, 1.8, CH * 0.32), ROOF_COLS[(b.seed + bi) % 5][0])
 	# end-game güzelleştirmesi (Faz D): çiçekli pencere kutuları (mevsim çiçek paleti)
 	if b.get("bloom", false):
 		var fcol: Color = SEASONS[world.season].flowers[b.seed % 3]

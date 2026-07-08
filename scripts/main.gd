@@ -248,7 +248,7 @@ func _on_focus_timeout() -> void:
 				town_view.celebrate(world.landmark.x, world.landmark.y - 3)
 			if is_instance_valid(audio):
 				audio.event("focusDone")
-				if res.atolye or res.kutuphane:
+				if res.atolye or res.kutuphane or res.get("special", false):
 					audio.event("unlock")
 			_camera_pulse()
 		_focus_phase = "break"

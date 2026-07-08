@@ -15,8 +15,52 @@ func _init() -> void:
 	ok = _test_weather() and ok
 	ok = _test_festival() and ok
 	ok = _test_wish_variety() and ok
+	ok = _test_milestone_buildings() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# Faz D milestone bina zinciri: rasathane(10)/sera(20)/hamam(35 seans); çakışmada bina çalınmaz.
+func _test_milestone_buildings() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	for t in range(3000): w.step_world()
+	# ÇAKIŞMA: aynı ödülde streak→3 (atölye) VE sessions→10 (rasathane) — ikisi de ayrı bina almalı
+	w.streak = 2
+	w.sessions = 9
+	w.finish_focus_reward()
+	var shop_b = null
+	var ras_b = null
+	for b in w.buildings:
+		if b.built == 0 and b.build_prog > 0.0:
+			if b.type == "shop": shop_b = b
+			if b.type == "rasathane": ras_b = b
+	var collision_ok: bool = shop_b != null and ras_b != null and shop_b != ras_b
+	# ikisi de zamanla TAMAMLANIR (sahipsiz inşaat sahiplenilir)
+	for t in range(400): w.step_world()
+	var both_done: bool = shop_b.built == 1 and ras_b.built == 1
+	# zincirin kalanı
+	w.sessions = 19
+	w.finish_focus_reward()
+	w.sessions = 34
+	w.finish_focus_reward()
+	var chain_ok: bool = w.unlocked.sera and w.unlocked.hamam
+	# tek seferlik: yeni çağrı yeni "seri" mektubu üretmez
+	var n1 := 0
+	for l in w.letters:
+		if l.kind == "seri": n1 += 1
+	w.finish_focus_reward()
+	var n2 := 0
+	for l in w.letters:
+		if l.kind == "seri": n2 += 1
+	var once: bool = n1 == n2
+	# unlocked YÜKLEME DÜZELTMESİ: yeni anahtarlar roundtrip'te korunur (eski kod düşürüyordu)
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w2.unlocked.rasathane and w2.unlocked.sera and w2.unlocked.hamam and w2.unlocked.atolye
+	print("D bina-zinciri: çakışma=%s ikisi-bitti=%s zincir=%s tek=%s roundtrip=%s" % [str(collision_ok), str(both_done), str(chain_ok), str(once), str(rt)])
+	var pass_ok: bool = collision_ok and both_done and chain_ok and once and rt
+	print("Db: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Faz D dilek çeşitliliği: 7 tipin hepsi kurulur; yeni 4'ü decor'e düşer; roundtrip int-güvenli.
 func _test_wish_variety() -> bool:
