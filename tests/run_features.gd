@@ -162,7 +162,8 @@ func _test_wish_letter() -> bool:
 	var pos = w.grant_wish()
 	var placed: bool = (w.fountains.size() + w.trees.size() + w.lamps.size()) > f0
 	var lettered: bool = w.letters.size() > lt0 and w.letters[0].kind == "dilek"
-	print("A4 dilek: obje 0→1=%s, mektup(dilek)=%s, pos=%s, wish temizlendi=%s" % [str(placed), str(lettered), str(pos), str(w.wish == null)])
+	var counted: bool = w.stat_wishes == 1   # albüm sayacı (Faz C)
+	print("A4 dilek: obje 0→1=%s, mektup(dilek)=%s, sayaç=%s, pos=%s, wish temizlendi=%s" % [str(placed), str(lettered), str(counted), str(pos), str(w.wish == null)])
 
 	# cevap → bond + atkı
 	var b0: int = w.bond
@@ -180,7 +181,7 @@ func _test_wish_letter() -> bool:
 			scarfed = true
 	print("A4 cevap: bond %d→%d=%s, atkı=%s" % [b0, w.bond, str(bonded), str(scarfed)])
 	# atkı: yanıtlanan kişi hâlâ hayatta olmayabilir (veda mektubu); dilek mektubu sahibi genelde yaşar
-	var pass_ok: bool = placed and lettered and w.wish == null and bonded
+	var pass_ok: bool = placed and lettered and counted and w.wish == null and bonded
 	print("A4: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 

@@ -46,6 +46,7 @@ var building_now = null           # yükselen bina (Dictionary) ya da null
 var stat_births := 0
 var stat_farewells := 0
 var stat_arrivals := 0
+var stat_wishes := 0   # gerçekleşen dilekler (albüm: kurulan objeler gen objeleriyle aynı listede — sayaç ayırt eder)
 
 # --- isim / olay / mektup (A1) ---
 var name_idx := 0
@@ -154,6 +155,7 @@ func gen(seed_val: int = 0) -> void:
 	stat_births = 0
 	stat_farewells = 0
 	stat_arrivals = 0
+	stat_wishes = 0
 
 	frontier = int(floor(GW * 0.30))
 
@@ -453,6 +455,7 @@ func to_save() -> Dictionary:
 		"unlocked": unlocked.duplicate(), "melody": melody.duplicate(),
 		"melody_saved": melody_saved, "concert_done": concert_done,
 		"stat_births": stat_births, "stat_farewells": stat_farewells, "stat_arrivals": stat_arrivals,
+		"stat_wishes": stat_wishes,
 		"landmark": [landmark.x, landmark.y],
 		"road_list": _vec_list(road_list), "river": _vec_list(river), "plaza_cells": _vec_list(plaza_cells),
 		"buildings": sb, "people": sp,
@@ -499,6 +502,7 @@ func from_save(d: Dictionary) -> void:
 	stat_births = int(d.stat_births)
 	stat_farewells = int(d.stat_farewells)
 	stat_arrivals = int(d.stat_arrivals)
+	stat_wishes = int(d.get("stat_wishes", 0))
 	landmark = Vector2i(int(d.landmark[0]), int(d.landmark[1]))
 	road_list = _to_vec_list(d.road_list)
 	road_set = {}
@@ -916,6 +920,7 @@ func grant_wish():
 		"ağaç": trees.append({ "gx": px, "gy": py, "s": 1, "sway": _hf(px + py) })
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
 	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false, "text": t.thank })
+	stat_wishes += 1
 	_push_event("🌟 %s'nın dileği gerçek oldu" % who.name)
 	wish = null
 	return Vector2i(px, py)

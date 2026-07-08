@@ -26,6 +26,8 @@ var stats_box: PanelContainer
 var _stats_body: Label
 var _person_card: PanelContainer
 var _person_body: Label
+var album_box: PanelContainer
+var _album_list: VBoxContainer
 
 const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
 
@@ -146,6 +148,10 @@ func _build() -> void:
 	mel.pressed.connect(func(): _toggle(melody_box))
 	bar.add_child(mel)
 
+	var alb := _button("📖")
+	alb.pressed.connect(func(): _toggle(album_box); _refresh_album())
+	bar.add_child(alb)
+
 	_wish_btn = _button("")
 	_wish_btn.add_theme_color_override("font_color", Color("c9e0b0"))
 	_wish_btn.visible = false
@@ -175,6 +181,20 @@ func _build() -> void:
 	root.add_child(stats_box)
 	_stats_body = _label("", 11, CREAM)
 	stats_box.get_node("VB").add_child(_stats_body)
+
+	# albüm (Faz C #17): sakin koleksiyonu + anı ağaçları + kasabanın hikâyesi (retention çekirdeği)
+	album_box = _panel("ALBÜM")
+	album_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	album_box.position = Vector2(-360, 8)
+	album_box.custom_minimum_size = Vector2(340, 0)
+	var asc := ScrollContainer.new()
+	asc.custom_minimum_size = Vector2(316, 250)
+	_album_list = VBoxContainer.new()
+	_album_list.add_theme_constant_override("separation", 4)
+	_album_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	asc.add_child(_album_list)
+	album_box.get_node("VB").add_child(asc)
+	root.add_child(album_box)
 
 	# sakin hover kartı: imleci sakinin üstüne getirince isim+evre (mektup göndereni kasabada bulunur)
 	_person_card = PanelContainer.new()
@@ -433,6 +453,39 @@ func _process(_d: float) -> void:
 		_wish_btn.visible = true
 	else:
 		_wish_btn.visible = false
+
+## Albüm içeriği: yaşayan sakinler + anı ağaçları + hikâye sayaçları. Açılışta tazelenir (her karede değil).
+func _refresh_album() -> void:
+	if world == null or _album_list == null:
+		return
+	for c in _album_list.get_children():
+		c.queue_free()
+	_album_list.add_child(_label("SAKİNLER (%d)" % world.population(), 11, HONEY))
+	for p in world.people:
+		var line: String = "● %s · %s" % [p.name, STAGE_NAMES[clampi(int(p.stage), 0, 2)]]
+		if p.scarf:
+			line += " · 💛"
+		_album_list.add_child(_label(line, 10, CREAM))
+	_album_list.add_child(_label(" ", 4, CREAM))
+	_album_list.add_child(_label("ANI AĞAÇLARI (%d)" % world.mem_trees.size(), 11, Color("c9b8e0")))
+	for mt in world.mem_trees:
+		_album_list.add_child(_label("✦ %s'nin ağacı" % mt.name, 10, Color("c9b8e0")))
+	_album_list.add_child(_label(" ", 4, CREAM))
+	_album_list.add_child(_label("KASABANIN HİKÂYESİ", 11, HONEY))
+	var w := world
+	var story := "🌱 %d doğum · ✦ %d veda · 🧳 %d gelen\n🌟 %d dilek gerçekleşti · 💛 bağ %d\n🎯 %d seans · %d dk emek · en uzun seri %d" % [
+		w.stat_births, w.stat_farewells, w.stat_arrivals, w.stat_wishes, w.bond,
+		w.sessions, w.stat_focus_min, w.best_streak]
+	if w.concert_done:
+		story += "\n🎻 Meydan Konseri verildi"
+	if w.unlocked.atolye:
+		story += "\n🔨 Atölye kuruldu"
+	if w.unlocked.kutuphane:
+		story += "\n📚 Kütüphane yükseldi"
+	var sl := _label(story, 10, CREAM)
+	sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sl.custom_minimum_size = Vector2(300, 0)
+	_album_list.add_child(sl)
 
 ## İmleç altındaki sakinin mini kartı (main.hovered_person → render tespiti). Kart imleci izler.
 func _refresh_person_card() -> void:
