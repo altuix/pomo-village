@@ -323,3 +323,24 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
 - TEST DERSİ: headless user:// GERÇEK oyunla paylaşımlı — dosyaya dokunan test önce mevcut
   save/settings'i yedekler, sonunda geri koyar (run_features._test_atomic_save deseni).
 - Görsel: .verify_out/hover.png (Kemal · bilge kartı + halka). Testler: B+a atomic PASS.
+
+# FAZ 0 — ENDGAME + TIMELAPSE TEST ALTYAPISI (tamamlandı)
+- `verify.sh endgame` (tests/run_endgame.gd, 365 gün ≈ 80s headless): bant 20-90 + çökme/patlama,
+  bellek tavanları (letters ≤ 100, mem_trees ≤ 40), perf düzlüğü (son 10 gün ≤ ilk 10 × 3),
+  365. gün TAM-STRINGIFY save roundtrip, timelapse günlerinde İNŞA sayısı monotonluğu.
+  KURAL (kalıcı): sim'e dokunan HER işten sonra endgame de koşulur.
+- `verify.sh timelapse`: gün 0/3/7/14/30/60/120/365 kareleri (akşam 19:00, tohum sabit) →
+  .verify_out/timelapse/. Kill penceresi güne orantılı (365 gün senkron ileri-sarma ~80-120s).
+  capture.gd BUG düzeltildi: steps parse ediliyordu ama capture_setup'a İLETİLMİYORDU.
+- Endgame testinin yakaladığı GERÇEK buglar (test kendini hemen ödedi):
+  1) from_save int normalizasyonu eksikti: letters.who, trees/lamps/fountains/mem_trees gx/gy/s
+     JSON'dan float kalıyordu (kritik tuzak 2'nin devamı) → tam-stringify roundtrip FAIL veriyordu.
+  2) Monotonluk metriği dersi: lit_count OLMAZ (veda ile ev kararır, dalgalanır) —
+     monoton olan İNŞA EDİLMİŞ (built==1) bina sayısıdır.
+- MEKTUP TAVANI (denetim #27 minimal çözüm): world._push_letter tek kaynak (7 site dönüştü),
+  LETTER_CAP=100; tavan aşılınca önce en eski YANITLANMIŞ düşer (yanıtsız duygusal çekirdek
+  korunur); kalıcı arşiv albümle (Faz C) gelir.
+- 365 GÜN ÖLÇÜMÜ (Faz D end-game tasarımının girdisi): pop bandı 30-80 sağlıklı; perf ×1.28 düz;
+  AMA frontier 29/64'te kalıyor ve goal 55.611'e şişiyor (×1.18 üstel) → büyüme fiilen platoda.
+  Gözle: gün 365'te kasaba haritanın ~%35'inde. "Kasaba doldu/bütünlendi" tasarımı + goal eğrisi
+  yeniden ayarı Faz D'de bu sayılarla yapılacak.

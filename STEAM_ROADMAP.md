@@ -159,7 +159,7 @@ anayasası) ve hook'un yarısı (`verify.sh`) zaten var; eksikler burada tamamla
       zorunluluğu CLAUDE.md "Çalışma Döngüsü" bölümüne yazılır.
 - [ ] **Görev brifing şablonu**: fable5 `TASK_BRIEFING_TEMPLATE.md`'den sadeleştirilmiş tek
       şablon; her Claude oturumu faz maddesini bu şablonla alır.
-- [ ] **End-game testi** (`verify.sh endgame`, denetim #29): headless, hızlandırılmış
+- [x] **End-game testi** (`verify.sh endgame`, denetim #29): headless, hızlandırılmış
       365 oyun-günü koşusu (`step_world × 876000`, sim saf olduğu için dakikalar içinde
       biter). Assert edilenler:
       - Çökme/patlama yok: pop bandı uzun vadede de korunur (çökme=0, patlama>150 FAIL).
@@ -169,7 +169,7 @@ anayasası) ve hook'un yarısı (`verify.sh`) zaten var; eksikler burada tamamla
         nüfusla O(n²) büyüyen bir döngü sızmış demektir).
       - Kasaba dolduktan sonra growth'un akıbeti loglanır — sessiz no-op görünür kılınır
         (end-game tasarımı Faz D'de çözülür, test burada sadece ölçer).
-- [ ] **Timelapse görsel testi** (`verify.sh timelapse`): şehrin büyüdüğünü GÖZLE
+- [x] **Timelapse görsel testi** (`verify.sh timelapse`): şehrin büyüdüğünü GÖZLE
       doğrulamak için. Mevcut `tools/capture.gd` zaten `capture_setup(seed, tod, steps)`
       alıyor — sarmalayıcı script sabit tohum + sabit saat (ör. 19:00) ile gün
       0/3/7/14/30/60/120/365'te frame yakalar, `.verify_out/timelapse/` altına yazar ve
