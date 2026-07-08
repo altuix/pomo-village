@@ -428,3 +428,25 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   cırcır×evening deseninin yağmur karşılığı. Sessizlik atlaması rain_gain'i hesaba katar.
 - KALAN FAZ D: mevsimsel festivaller, milestone bina zinciri (rasathane/sera/hamam),
   dilek çeşitliliği (4-6 yeni obje), oyun saati↔gerçek saat kararı (Açık Karar #6).
+
+# FAZ D (ikinci blok) — FESTİVALLER · DİLEK ÇEŞİTLİLİĞİ · BİNA ZİNCİRİ (tamamlandı — FAZ D KAPANDI)
+- FESTİVAL: mevsim ortası (season_tick==600) bir kez; festival_t nabzı (chime_t deseni) render'da
+  kutlama + mevsim serpintisi (petal/stardust/leaf/mote) + üç-nota festival sesi tetikler;
+  sakinler meydana (%40); mektup %15 (mevsimler 1200 tick — spam değil). fest_done mevsim dönüşünde sıfırlanır.
+- DİLEK 7 TİPE çıktı: +bank/kuş yuvası/posta kutusu/rüzgâr gülü → world.decor (save, int-güvenli);
+  Letters.DILEK her tipe 4 metin (~90 şablon). Render dinamikte (rüzgâr gülü rüzgârla döner,
+  yuvaya ara sıra kuş). REVIEW: bank/yuva renkleri palet dışıydı → yol kahvesi + c99b46'ya çekildi.
+- BİNA ZİNCİRİ (denetim #12+#20): MILESTONE_BUILDINGS sabiti — rasathane(10)/sera(20)/hamam(35
+  toplam seans). Görseller: kubbe+teleskop / camsı cephe+filiz / ikiz kubbe+buhar; kütüphaneye
+  kitap sırtları. res["special"] → main unlock fanfarı.
+- İKİ GERÇEK BUG (review/test yakaladı):
+  1) _convert_unbuilt çakışması: aynı ödülde çoklu dönüşüm aynı binayı çalıyor, ilk inşaat 0.01'de
+     SONSUZA DEK kalıyordu → el değmemiş bina seç + building_now yalnız boşsa al + step_world
+     sahipsiz yarım inşaatı SAHİPLENİR (eski save'leri de iyileştirir).
+  2) from_save unlocked hardcoded iki anahtar — yeni anahtarlar yüklemede DÜŞÜYORDU → sabit
+     listeden .get ile genel yükleme. DERS: dict'e anahtar eklerken from_save'i kontrol et.
+  3) (endgame yakaladı) festival_t/chime_t azalması negatif e-16 kalıntısında takılıyor; Godot JSON
+     bu büyüklükte hassasiyet kaybediyor → 365-gün roundtrip FAIL. maxf(0.0, ...) clamp — dinlenme
+     durumu TAM 0.0. DERS: azalan-sayaç alanları save'e giriyorsa sıfıra clamp'le.
+- Doğrulama: features 12 test grubu + sim bandı + endgame 365 + görsel kareler (özel binalar,
+  çiçekler, yağmur) + gerçek oyun 10sn açık-kalma kontrolü. HEPSİ PASS.

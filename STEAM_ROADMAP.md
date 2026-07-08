@@ -263,18 +263,20 @@ bitti"). Mevcut içerik ~1-2 haftalık yenilik sunuyor; hedef 4-6 hafta.
       dilek 3×5, taşınma 8, doğum 8, an 4, bond-eki 4); parametrik format (i18n hazır);
       bağlam: atkı sahibine kişisel veda, bond≥5'te sıcak not. Determinist seçim.
       (100+ hedefine Faz D devamında festival/mevsim mektuplarıyla ulaşılır.)
-- [ ] **Mevsimsel olaylar** — her mevsime 1 küçük festival (kış feneri gecesi, bahar çiçek
-      günü vb.); kule mevsim şarkıları (konser ödülünün genişlemesi — DEVIR_TESLIM'de not var).
-- [ ] **Milestone zinciri** — atölye→kütüphane'den sonra: rasathane, sera, hamam... 3-5 yeni
-      özel bina; seri/odak birikimiyle açılır, kasabaya görsel + işlevsel katkı.
-- [ ] **Dilek çeşitliliği** — çeşme/ağaç/fener'e 4-6 yeni obje.
+- [x] **Mevsimsel olaylar** — 4 festival (Çiçek Günü/Dere Şenliği/Hasat Akşamı/Fener Gecesi):
+      meydan toplanması + mevsim serpintisi + festival sesi + %15 mektup. Kule mevsim
+      şarkıları ileride (konser genişlemesi).
+- [x] **Milestone zinciri** — rasathane(10)/sera(20)/hamam(35 toplam seans); ayırt edici
+      görseller (kubbe+teleskop, camsı cephe, ikiz kubbe+buhar) + kütüphane kitap sırtları.
+- [x] **Dilek çeşitliliği** — +4 obje (bank/kuş yuvası/posta kutusu/rüzgâr gülü), her birine
+      4 teşekkür mektubu; decor listesi save'de.
 - [x] **Kasaba yıldönümü / uzun-vade anları** — 30. gün, 100. komşu, 50. anı ağacı:
       tek seferlik kutlama mektubu + olay (milestones save'de).
 - [x] **Hafif hava durumu** (denetim #19) — world.rain_amount() saf türetim (~%28 gün,
       3-6 saat, rampa; kışın kapalı); yağmur çizgileri + ıslak zemin + kurşuni gök (sıcaklık
       korunur); rain ses kanalı yağmurda hafif kendiliğinden; geçiş olayları.
-- [ ] **Seri ödül zinciri uzatması** (denetim #12 ile birlikte) — atölye(3)→kütüphane(5)
-      sonrası milestone zincirine bağlanır; her yeni özel bina bir seri/odak hedefine oturur.
+- [x] **Seri ödül zinciri uzatması** (denetim #12) — milestone zinciriyle çözüldü
+      (toplam seans eşikleri; _convert_unbuilt ortak yolu + çakışma/sahiplenme düzeltmesi).
 - [x] **End-game tasarımı** (denetim #29) — "Kasaba bütünlendi" tek seferlik kutlama +
       mektup; PLATO TAŞMA kanalı: goal şişince biriken emek sabit maliyetle (~3 günde bir)
       evleri çiçeklendirir (goal eğrisi DEĞİŞMEDİ: ×1.10 denemesi nüfusu 94-104'e taşıyıp
