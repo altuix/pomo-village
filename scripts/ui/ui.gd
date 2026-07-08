@@ -255,9 +255,31 @@ func _build() -> void:
 func VW() -> float:
 	return 960.0
 
+# J4: paneller anlık aç/kapa yerine çekmece hissi — 12px kenar-kayması + fade (0.18s).
+# base_pos meta'da tutulur (tween pozisyonu bozmasın); hızlı çift-tık eski tween'i öldürür.
 func _toggle(p: Control) -> void:
-	if p != null:
-		p.visible = not p.visible
+	if p == null:
+		return
+	if not p.has_meta("base_pos"):
+		p.set_meta("base_pos", p.position)
+	var base: Vector2 = p.get_meta("base_pos")
+	if p.has_meta("tw") and is_instance_valid(p.get_meta("tw")):
+		(p.get_meta("tw") as Tween).kill()
+	var tw := create_tween().set_parallel(true)
+	p.set_meta("tw", tw)
+	if not p.visible:
+		p.visible = true
+		p.position = base + Vector2(-12, 0)
+		p.modulate.a = 0.0
+		tw.tween_property(p, "position", base, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(p, "modulate:a", 1.0, 0.15)
+	else:
+		tw.tween_property(p, "position", base + Vector2(-12, 0), 0.13)
+		tw.tween_property(p, "modulate:a", 0.0, 0.13)
+		tw.chain().tween_callback(func():
+			p.visible = false
+			p.position = base
+			p.modulate.a = 1.0)
 
 func _open_from_menu(p: Control) -> void:
 	menu_box.visible = false
@@ -315,17 +337,25 @@ func show_offline(s: Dictionary) -> void:
 	get_node(".").add_child(card)   # CanvasLayer'a ekle (root Control mouse_filter IGNORE)
 
 func _toggle_mail() -> void:
-	mail_box.visible = not mail_box.visible
+	_toggle(mail_box)   # çekmece animasyonu (J4)
 	if mail_box.visible:
 		refresh_mail()
+		if audio != null:
+			audio.event("letter")   # kağıt hışırtısı — zarf açılıyor (J3)
 
 func refresh_mail() -> void:
 	if mail_list == null or world == null:
 		return
 	for c in mail_list.get_children():
 		c.queue_free()
+	# J3: kartlar kademeli belirir (kağıtlar tek tek masaya konur hissi)
+	var i := 0
 	for l in world.letters:
-		mail_list.add_child(_letter_card(l))
+		var card := _letter_card(l)
+		mail_list.add_child(card)
+		card.modulate.a = 0.0
+		create_tween().tween_property(card, "modulate:a", 1.0, 0.22).set_delay(minf(0.4, i * 0.04))
+		i += 1
 
 # ---- ses mikseri (A6; B+ kalıcı ayarlar) ----
 var _sound_sliders := {}   # kanal -> HSlider (sync_from_world ayarlardan doldurur)
@@ -431,33 +461,39 @@ func _on_mel_teach() -> void:
 	else:
 		_mel_note.text = "Kule öğrendi. İpucu: en az 5 nota, 3 farklı ses ve iniş-çıkış olursa kasaba coşar…"
 
-# kart lid yakalar (INDEX DEĞİL — sim push_front yaptıkça index kayıyor, yanlış mektup yanıtlanıyordu)
+# J3: mektup = KAĞIT (duygusal çekirdek en soğuk ekrandı — juice kritiği). CREAM zemin,
+# ink mürekkep, honey mühür noktası. Kart lid yakalar (INDEX DEĞİL — push_front kaydırıyordu).
 func _letter_card(l: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Palette.CARD_BG
-	sb.set_corner_radius_all(4)
-	sb.set_content_margin_all(9)
+	sb.bg_color = CREAM
+	sb.set_corner_radius_all(3)
+	sb.set_content_margin_all(10)
 	sb.border_color = HONEY
-	sb.border_width_left = 2
+	sb.border_width_left = 3
+	sb.border_width_bottom = 1
 	card.add_theme_stylebox_override("panel", sb)
 	var vb := VBoxContainer.new()
 	card.add_child(vb)
+	# mühür: gönderen satırının önünde küçük bal-mumu noktası (draw yerine tekst-dışı ayraç)
 	var txt := Label.new()
 	txt.text = l.text
 	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	txt.custom_minimum_size = Vector2(288, 0)
 	txt.add_theme_font_size_override("font_size", 12)
-	txt.add_theme_color_override("font_color", Color("d8ccc0"))
+	txt.add_theme_color_override("font_color", INK)   # kağıt üstünde mürekkep
 	vb.add_child(txt)
 	var from := Label.new()
-	from.text = "— " + l.from
+	from.text = "●  — %s" % l.from
 	from.add_theme_font_size_override("font_size", 10)
-	from.add_theme_color_override("font_color", HONEY)
+	from.add_theme_color_override("font_color", Color(Palette.PANEL_BORDER, 1.0))
 	from.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	vb.add_child(from)
 	if l.replied:
-		var r := _label("✓ yanıtladın · bağ +1", 10, SAGE)
+		var r := Label.new()
+		r.text = "✓ yanıtladın · bağ +1"
+		r.add_theme_font_size_override("font_size", 10)
+		r.add_theme_color_override("font_color", SAGE.darkened(0.25))
 		vb.add_child(r)
 	else:
 		var rb := _button("İçtenlikle yanıtla")

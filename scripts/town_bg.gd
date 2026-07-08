@@ -45,7 +45,8 @@ func _draw() -> void:
 	sky_top = view._mix(sky_top, Color8(104,98,116), rain * 0.5)
 	sky_mid = view._mix(sky_mid, Color8(112,104,120), rain * 0.5)
 	sky_bot = view._mix(sky_bot, Color8(118,108,122), rain * 0.5)
-	var bands := 36
+	# 72 bant (36 idi): dusk'ta görünür şeritlenme "ucuz" okunuyordu (juice kritiği J5)
+	var bands := 72
 	for i in range(bands):
 		var t0 := float(i) / float(bands)
 		var col: Color
@@ -68,15 +69,27 @@ func _draw() -> void:
 			col = view._mix(town_base, col, (float(gx - fr) + 0.5) / float(BORDER_COLS))
 		draw_rect(Rect2(gx * CW, 0, CW + 1.0, VH), col)
 
+	# ---- UZAK TEPELER (J2: ölü sağ çayıra derinlik — dev daire yaylarının üstü tepe okur) ----
+	var hill_far: Color = view._dusk(S.grass, ev * 0.5 + 0.25)
+	draw_circle(Vector2(VW - 40.0, VH + 190.0), 250.0, view._mix(hill_far, sky_bot, 0.35))
+	draw_circle(Vector2(VW - 190.0, VH + 240.0), 280.0, view._mix(hill_far, sky_bot, 0.5))
+	draw_circle(Vector2(VW + 60.0, VH + 150.0), 230.0, view._mix(hill_far, sky_bot, 0.2))
+
 	# ---- NEHİR TABANI (ışıltı çizgisi animasyonlu → TownView'da) ----
 	var river_col: Color = view._mix(Color8(90,120,160), Color8(40,58,92), ev)
 	for rc in world.river:
 		draw_rect(Rect2(rc.x * CW, rc.y * CH, CW + 1.0, CH + 1.0), river_col)
 
-	# ---- YOLLAR ----
+	# ---- YOLLAR (J1: keskin bloklu şerit "render bug'ı gibi" okunuyordu — juice kritiğinin
+	# 1 no'lu görsel kusuru). Üst üste binen daireler + hash-jitter = organik patika; çayır
+	# tarafında kontrast düşürülür (yol çevresine karışır) ----
 	var rc_col: Color = view._dusk(S.road, ev * 1.3)
+	var rc_meadow: Color = rc_col.lerp(meadow_base, 0.30)
 	for r in world.road_list:
-		draw_rect(Rect2(r.x * CW - 1.0, r.y * CH - 1.0, CW + 2.0, CH + 2.0), rc_col)
+		var jx := (Rng.hf(r.x * 31 + r.y * 7) - 0.5) * 3.0
+		var jy := (Rng.hf(r.x * 13 + r.y * 41) - 0.5) * 3.0
+		var col := rc_meadow if r.x >= fr else rc_col
+		draw_circle(Vector2(r.x * CW + CW * 0.5 + jx, r.y * CH + CH * 0.5 + jy), CW * 0.66, col)
 
 	# ---- ÇAYIR DETAY (çiçek/ağaç — hash örüntüsü sabit) ----
 	var tree_col: Color = view._dusk(S.tree, ev * 0.45)

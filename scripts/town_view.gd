@@ -175,6 +175,15 @@ func _draw() -> void:
 				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) + Vector2(cos(wa), sin(wa)) * 3.0, Color8(232, 220, 200), 1.0)
 				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) - Vector2(cos(wa), sin(wa)) * 3.0, Color8(201, 155, 70), 1.0)
 
+	# ---- ÖN PLAN ÇİÇEKLERİ (J2: sağ çayırda rüzgârla salınan yaşam; bg çiçekleri statik kalır) ----
+	var meadow_w := maxf(1.0, VW - (fr + 6) * CW)
+	for i in range(12):
+		var fx := (fr + 4) * CW + float(Rng.h(i * 97) % int(meadow_w))
+		var fy := VH * 0.25 + float(Rng.h(i * 53) % int(VH * 0.65))
+		var swf := sin(_t * 1.6 + float(i) * 1.3) * 1.6 * (0.5 + _wind)
+		draw_line(Vector2(fx, fy + 4.0), Vector2(fx + swf, fy), Color8(90, 122, 82), 1.0)
+		draw_circle(Vector2(fx + swf, fy - 0.5), 1.6, S.flowers[i % 3])
+
 	# ---- KASABA AĞAÇLARI (sway animasyonlu → dinamik katmanda) ----
 	var tree_col := _dusk(S.tree, ev * 0.45)
 	for tr in world.trees:
