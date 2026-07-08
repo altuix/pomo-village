@@ -104,6 +104,13 @@ func _process(delta: float) -> void:
 func _mix(a: Color, b: Color, t: float) -> Color:
 	return a.lerp(b, clampf(t, 0.0, 1.0))
 
+## Gün eğrisi renk yolu: düz koyulaştırma yerine hafif morumsu hue kayması + doygunluk artışı
+## (sınırlı-palet ramp dersi: düz value ramp'ı soluk kalır). Palet kilidi korunur — kaynak
+## renkler SEASONS/sabitlerden; bu yalnız ara-lerp yolu.
+func _dusk(c: Color, k: float) -> Color:
+	k = clampf(k, 0.0, 1.6)
+	return Color.from_hsv(fmod(c.h + 0.045 * k + 1.0, 1.0), clampf(c.s * (1.0 + 0.18 * k), 0.0, 1.0), clampf(c.v * (1.0 - 0.42 * k), 0.0, 1.0))
+
 func _draw() -> void:
 	if world == null:
 		return
@@ -141,18 +148,19 @@ func _draw() -> void:
 		draw_circle(Vector2(cl.x + cl.w * 0.3, cl.y - 3.0), cl.w / 5.0, cc)
 
 	# ---- ZEMİN (kasaba sıcak / çayır mevsimsel) ----
-	for gy in range(World.GH):
-		for gx in range(World.GW):
-			var X: float = gx * CW
-			var Y: float = gy * CH
-			if gx < fr:
-				var base := _mix(Color8(132,108,104), Color8(46,34,52), ev * 0.85)
-				draw_rect(Rect2(X, Y, CW + 1.0, CH + 1.0), base)
-			else:
-				var fmix := float(gx - fr) / float(World.GW - fr)
-				var c: Color = _mix(S.grass, S.grass.darkened(0.4), ev * 0.5)
-				c.a = 0.4 + fmix * 0.5
-				draw_rect(Rect2(X, Y, CW + 1.0, CH + 1.0), c)
+	# OPAK kolon şeritleri: eski yarı saydam hücre bindirmesi (CW+1 üst üste) görünür grid
+	# çizgisi üretiyordu; ayrıca 1664 hücre → ~50 draw (perf). Çayır ufka karışır (HTML alpha
+	# eğrisinin opak eşdeğeri: yakın uçta gökyüzü ağırlıklı, uzakta çayır koyulaşır).
+	var town_base := _mix(Color8(132,108,104), Color8(46,34,52), ev * 0.85)
+	draw_rect(Rect2(0, 0, fr * CW, VH), town_base)
+	var meadow_base := _dusk(S.grass, ev * 0.5)
+	const BORDER_COLS := 4   # kasaba→çayır yumuşak geçiş bandı (sert dikey sınır kalksın)
+	for gx in range(fr, World.GW):
+		var fmix := float(gx - fr) / float(World.GW - fr)
+		var col := _mix(sky_bot, meadow_base, 0.4 + fmix * 0.5)
+		if gx - fr < BORDER_COLS:
+			col = _mix(town_base, col, (float(gx - fr) + 0.5) / float(BORDER_COLS))
+		draw_rect(Rect2(gx * CW, 0, CW + 1.0, VH), col)
 
 	# ---- NEHİR ----
 	for rc in world.river:
@@ -163,11 +171,12 @@ func _draw() -> void:
 		draw_rect(Rect2(X, Y + rp * 2.0, CW + 1.0, 1.5), Color(0.86, 0.92, 1.0, 0.05 + 0.04 * rp + ev * 0.05))
 
 	# ---- YOLLAR ----
-	var rc_col: Color = _mix(S.road, S.road.darkened(0.68), ev * 0.9)
+	var rc_col: Color = _dusk(S.road, ev * 1.3)
 	for r in world.road_list:
 		draw_rect(Rect2(r.x * CW - 1.0, r.y * CH - 1.0, CW + 2.0, CH + 2.0), rc_col)
 
 	# ---- ÇAYIR DETAY (çiçek/ağaç) ----
+	var tree_col := _dusk(S.tree, ev * 0.45)   # ağaçlar da geceyle kararır (gündüz parlaklığı gece sırıtıyordu)
 	for gy in range(1, World.GH - 1):
 		for gx in range(fr, World.GW):
 			var c := Vector2i(gx, gy)
@@ -176,7 +185,7 @@ func _draw() -> void:
 			var X: float = gx * CW
 			var Y: float = gy * CH
 			if n < 9:
-				draw_circle(Vector2(X + CW / 2.0, Y + CH / 2.0), CW * 0.22, S.tree)
+				draw_circle(Vector2(X + CW / 2.0, Y + CH / 2.0), CW * 0.22, tree_col)
 			elif n < 15:
 				draw_rect(Rect2(X + CW / 2.0 - 1.0, Y + CH / 2.0 - 1.0, 2.0, 2.0), S.flowers[Rng.h(gx + gy) % 3])
 
@@ -199,7 +208,7 @@ func _draw() -> void:
 		var sw := sin(_t * 0.6 + tr.sway * 6.0) * 1.2
 		draw_circle(Vector2(X, Y + 3.0), CW * 0.4, Color(0.12, 0.16, 0.12, 0.4))
 		draw_rect(Rect2(X - 1.0, Y - 1.0, 2.0, CH * 0.4), Color8(90,122,82))
-		draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, S.tree)
+		draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, tree_col)
 
 	# ---- BİNALAR (geri→ön) ----
 	var sorted_b := world.buildings.duplicate()

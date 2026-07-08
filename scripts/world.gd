@@ -103,7 +103,9 @@ func status_text() -> String:
 		return "kasaba ışıl ışıl"
 	if ev > 0.3:
 		return "akşam çöküyor, ışıklar yanıyor"
-	return "huzurlu bir akşam"
+	if ev > 0.0:
+		return "huzurlu bir akşamüstü"
+	return "huzurlu bir gün"   # öğlen "akşam" yazıyordu (HTML port kalıntısı)
 
 func unreplied_letters() -> int:
 	var n := 0
