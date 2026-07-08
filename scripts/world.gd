@@ -509,11 +509,33 @@ func from_save(d: Dictionary) -> void:
 	for c in river:
 		river_set[c] = true
 	plaza_cells = _to_vec_list(d.plaza_cells)
-	lamps = (d.lamps as Array).duplicate(true)
-	trees = (d.trees as Array).duplicate(true)
-	fountains = (d.fountains as Array).duplicate(true)
-	mem_trees = (d.mem_trees as Array).duplicate(true)
-	letters = (d.letters as Array).duplicate(true)
+	# JSON tüm sayıları float yapar (kritik tuzak 2) → int-kritik alanlar burada da zorlanır
+	# (roundtrip eşitliği + dizi indeksi güvenliği; endgame testi yakaladı)
+	lamps = []
+	for sd in d.lamps:
+		var L: Dictionary = (sd as Dictionary).duplicate(true)
+		L.gx = int(L.gx); L.gy = int(L.gy)
+		lamps.append(L)
+	trees = []
+	for sd in d.trees:
+		var T: Dictionary = (sd as Dictionary).duplicate(true)
+		T.gx = int(T.gx); T.gy = int(T.gy); T.s = int(T.s)
+		trees.append(T)
+	fountains = []
+	for sd in d.fountains:
+		var F: Dictionary = (sd as Dictionary).duplicate(true)
+		F.gx = int(F.gx); F.gy = int(F.gy)
+		fountains.append(F)
+	mem_trees = []
+	for sd in d.mem_trees:
+		var M: Dictionary = (sd as Dictionary).duplicate(true)
+		M.gx = int(M.gx); M.gy = int(M.gy)
+		mem_trees.append(M)
+	letters = []
+	for sd in d.letters:
+		var L2: Dictionary = (sd as Dictionary).duplicate(true)
+		L2.who = int(L2.get("who", -1))
+		letters.append(L2)
 	# binalar (members geçici olarak index)
 	buildings = []
 	for sd in d.buildings:
@@ -689,6 +711,19 @@ func _push_event(t: String) -> void:
 	if event_log.size() > 5:
 		event_log.pop_front()
 
+## Mektup tavanı (denetim #27: sınırsız büyüme = uzun save şişmesi). Tavan aşılınca önce
+## en eski YANITLANMIŞ düşer (duygusal çekirdek yanıtsızlar korunur); kalıcı arşiv = albüm (Faz C).
+const LETTER_CAP := 100
+func _push_letter(l: Dictionary) -> void:
+	letters.push_front(l)
+	if letters.size() <= LETTER_CAP:
+		return
+	for i in range(letters.size() - 1, -1, -1):
+		if letters[i].replied:
+			letters.remove_at(i)
+			return
+	letters.pop_back()   # hepsi yanıtsızsa en eskisi düşer (sınır sınırdır)
+
 func _life_cycle() -> void:
 	# yaşlanma + nazik veda (determinist tohumlu)
 	for p in people.duplicate():
@@ -781,7 +816,7 @@ func _pass_away(p: Dictionary) -> void:
 	_plant_memory_tree(p)
 	_push_event("✦ %s yıldızlara karıştı — çayıra bir anı ağacı dikildi" % p.name)
 	# veda mektubu (duygusal çekirdek; dilek/odak mektupları + UI = A4)
-	letters.push_front({
+	_push_letter({
 		"from": p.name, "who": p.seed, "kind": "veda", "replied": false,
 		"text": "Bu kasabada güzel bir ömür geçirdim. Penceremden hep senin ışıklarını izledim. Çayırdaki ağacıma ara sıra uğra, olur mu?",
 	})
@@ -810,7 +845,7 @@ func teach_tower(mel: Array) -> Dictionary:
 		muz.name = "Gezgin Müzisyen"
 		if home != null:
 			home.members.append(muz)
-		letters.push_front({ "from": "Gezgin Müzisyen", "who": muz.seed, "kind": "konser", "replied": false,
+		_push_letter({ "from": "Gezgin Müzisyen", "who": muz.seed, "kind": "konser", "replied": false,
 			"text": "Melodini kulenin tepesinden dinledim. Yıllardır yol alırım, böylesine yürekten bir ezgi az duydum. Bu akşam meydanda herkes senin şarkınla dans etti. Ben de artık burada kalıyorum." })
 		_push_event("🎻 MEYDAN KONSERİ! Gezgin Müzisyen kasabaya yerleşti")
 		return { "concert": true, "quality": q }
@@ -843,7 +878,7 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 				building_now = b
 				b.build_prog = 0.01
 				break
-		letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
+		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
 			"text": "Üç seanslık emeğinin şerefine bir ATÖLYE kuruyoruz. Ellerine sağlık." })
 		_push_event("🔨 seri ödülü: Atölye kuruluyor")
 	if streak >= 5 and not unlocked.kutuphane:
@@ -856,10 +891,10 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 				building_now = b
 				b.build_prog = 0.01
 				break
-		letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
+		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
 			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükseliyor. Kasaba seninle akıllanıyor." })
 		_push_event("📚 seri ödülü: Kütüphane yükseliyor")
-	letters.push_front({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
+	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
 		"text": "Bugün masanda çalışırken hepimiz hissettik: birlikte üretiyoruz. Meydanda senin için bir kutlama yaptık." })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
 	return res
@@ -880,7 +915,7 @@ func grant_wish():
 		"çeşme": fountains.append({ "gx": px, "gy": py })
 		"ağaç": trees.append({ "gx": px, "gy": py, "s": 1, "sway": _hf(px + py) })
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
-	letters.push_front({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false, "text": t.thank })
+	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false, "text": t.thank })
 	_push_event("🌟 %s'nın dileği gerçek oldu" % who.name)
 	wish = null
 	return Vector2i(px, py)
