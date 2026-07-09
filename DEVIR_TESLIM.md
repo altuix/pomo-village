@@ -528,3 +528,57 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   menüde seçici (rebuild_ui anında), Names.POOL_EN. KALAN: olay şablonları + 93 mektup EN.
 - DERSLER: yerleşik gölgeleme (set_scale) ve dizi-elemanından := Variant çıkarımı check-only'de
   GÖRÜNMEZ — runtime/görsel ölçüm şart. OS locale EN ise oyun EN açılır (test dil-bağımsız yazıldı).
+
+# G TURU — "BÜYÜME HİSSİ" BÜYÜK REVİZYONU (playtest 2, 12 madde; tamamlandı)
+İkinci playtest kritik: "nüfus 70'i geçmiyor, şehir büyümüyor, gamification yok, izlemesi
+keyif vermiyor — projeyi bırakmayı düşünüyorum". 3 araştırma ajanı + 1 tasarım ajanı kök neden
+çıkardı. 12 commit, her biri yeşil (check+sim+ui+features+endgame).
+
+## G1 — SİM BÜYÜME + GAMIFICATION (8 commit; en kritik)
+- KÖK NEDEN: goal ×1.18 SINIRSIZ üstel + FLOWER_OVERFLOW + 0.75/0.75 basınç kilidi nüfusu
+  ~70'te BİLEREK platolatıyordu (20-90 bant testi bunu assert ediyordu). Bant felsefesi
+  DEĞİŞTİ: denge değil GÖRÜNÜR BÜYÜME + perf tavanı (POP_SOFT_CAP=320).
+- G1.1 gün/yıl + mevsim 7 güne (SEASON_TICKS=7×2400, DAYS_PER_YEAR=28); HUD "2. yıl · gün 37".
+- G1.2 büyüme eğrisi: GOAL_CAP=7200 (üstel fren tavanı), basınç 0.72/0.85 penceresi,
+  💍 ÇİFT MEKANİĞİ (asıl kilit — bekâr genç boş evi kapatıp 2-yetişkin doğum şartını hiç
+  sağlamıyordu → demografik çıkmaz), ömür 12.5-24.5 gün, doğum lojistik freni, inşaat 200 tick
+  (izlenebilir). Eğri: gün30≈98, gün365≈156-199, yıl2≈250+. Testler büyüme-trend + monotonluğa
+  kilitlendi (20-90 bandı KALDIRILDI).
+- G1.3 harita yoğunlaşma (density_level 0-3): frontier dolunca içe sıklaşır (yalnız-ekleme,
+  determinist); kasabanın ömrü ~2→~4+ yıla uzar.
+- G1.4 kasaba ünvanları (tier): Mezra→Köy(25)→Büyük Köy(60)→Kasaba(100)→Küçük Şehir(150)→
+  Şehir(220); kule dibinde TABELA + kutlama + 5 duygusal AN mektubu; HUD ünvanla başlar.
+- G1.5 ihtiyaç binaları (8): kuyu/fırın/pazar/çayevi/okul/değirmen/han/festival alanı; tier
+  açar, ev-oranıyla kurulur; her biri İZLENEBİLİR (fırın bacası tüter, değirmen çarkı döner…).
+- G1.6 ev evreleri: kulübe→ev→taş ev; 240-tick'te tek pasif terfi (servis+yaş+tier); asla gerileme.
+- G1.7 odak ödülü GARANTİLİ görünür (inşaat→terfi→çiçek zinciri; eski kod çoğu zaman görünmez
+  bir şey yapıyordu) + kümülatif seans anıtları 50→500 (heykel/kameriye/meşe/fener/kule yaldızı/
+  bahçe/ebedi alev); seri = yalnız kutlama yoğunluğu (ceza yok).
+- G1.8 rastgele gün olayları (10, hepsi HEDİYE, savaş YOK): tüccar/düğün/hasat/gökkuşağı/balon/
+  göçebe aile (söz tutulur)/kuş sürüsü/uçurtma/yıldız yağmuru/Işık Toplayıcısı; son-3 tekrar-önleme.
+
+## G2 — GÖRÜNÜRLÜK
+- Yıl/gün HUD; mektup panelinde yanıtsızlar ÜSTTE + ayraç (world.letters dizisi değişmez);
+  odak butonu sabit 150px + kısa mola metni (bar taşması bitti). DERS: FADED palet alias'ı
+  eksikti → ui.gd runtime'da yüklenmedi; CHECK-ONLY YAKALAMADI, run_ui takılması yakaladı.
+
+## G3 — GÖRSEL YUMUŞATMA
+- Sezon geçişi lerp (Palette.season_mix son %15 smoothstep); dere kare-kare draw_rect yerine
+  satır-merkezinden AKAN 2 polyline (AA); kışta ŞEHİR zemini+yol+ÇATI karlanır (_snow_cover);
+  sprite'lar 2× süper-örnekleme (linear küçültme = yumuşak kenar). Görsel kapı PASS.
+
+## G4 — DİKEY MOD
+- VW()/VH() sabit 960 yerine content_scale_size'dan; dar pencerede bar 346px'e iner (odak 96px,
+  streak 🔥N, mektup ✉N); paneller genişlik-clamp. run_ui dikey smoke. Menü/buton cilası S2'de vardı.
+
+## G5 — CC0 LOFİ MÜZİK
+- 5 CC0 parça (omfgdude + TAD, OpenGameArt); sıralı çalma + 20-40sn nefes + gain drift + pad
+  ducking (%30); "🎵 müzik" slider'ı. ANAYASA ses maddesi "sentez öncelikli + belgelenmiş CC0
+  istisnası" revize edildi. Kaynak/lisans ASSETS.md'de. tests/run_audio.gd smoke (Dummy driver).
+
+## KALAN (kullanıcı-taraflı / sonraki)
+- Dikey mod GÖRSEL doğrulaması headless capture ile yapılamaz (content_scale yalnız gerçek
+  pencerede) — kullanıcı oyunda V ile denemeli.
+- S3-devam: 93 mektup + olay şablonlarının EN çevirisi (büyük yaratıcı iş).
+- TAD parçaları CC0 ama GarageBand loop kütüphanesinden türetilme — pür-CC0 tercih edilirse
+  omfgdude tek başına yeterli; ASSETS.md'de not düşüldü.
