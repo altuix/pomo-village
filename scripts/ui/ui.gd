@@ -326,8 +326,15 @@ func _build() -> void:
 	mail_box.get_node("VB").add_child(sc)
 	root.add_child(mail_box)
 
+## Mantıksal ekran boyutu — content_scale_size'dan (yatay 960×360 / dikey 380×700).
+## Eskiden sabit 960 döndürüyordu; dikey modda _events/paneller ekran dışına taşıyordu (G4).
 func VW() -> float:
-	return 960.0
+	var cs := get_window().content_scale_size if get_window() != null else Vector2i.ZERO
+	return float(cs.x) if cs.x > 0 else 960.0
+
+func VH() -> float:
+	var cs := get_window().content_scale_size if get_window() != null else Vector2i.ZERO
+	return float(cs.y) if cs.y > 0 else 360.0
 
 ## Açık drawer listesi (tek-drawer politikası + Esc/dış-tık kapatma bu listeyi gezer)
 func _drawers() -> Array:
@@ -806,7 +813,7 @@ func _process(delta: float) -> void:
 		Loc.t("date_fmt") % [world.year(), world.day()],
 		Loc.t("season%d" % world.season), world.status_text()]
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
-	_streak_btn.text = Loc.t("series") % world.streak
+	_streak_btn.text = ("🔥%d" % world.streak) if _compact else (Loc.t("series") % world.streak)
 	_refresh_focus_button()
 	_refresh_person_card()
 	if stats_box != null and stats_box.visible:
@@ -843,9 +850,26 @@ func set_vertical(v: bool) -> void:
 	if _mode_opt != null:
 		_mode_opt.visible = not v
 	if _events != null:
-		_events.size.x = (340.0 if v else VW() - 28.0)
+		_events.size.x = VW() - 28.0
 	if _menu_btn != null:
-		_menu_btn.text = "☰" if v else "☰ Kasaba"
+		_menu_btn.text = "☰" if v else "☰ " + Loc.t("town_menu").substr(2)
+	# G4: dar pencerede (380px) bar taşmasın — odak butonu daralır, streak/mail metni _process'te
+	# _compact'e göre kısalır; tooltip'ler telafi eder
+	if _focus_btn != null:
+		_focus_btn.custom_minimum_size = Vector2(96 if v else 150, 0)
+	# paneller dar pencereye göre yeniden konumlanır (köşe-çapa 960 için ayarlıydı)
+	_place_panels_for_width()
+
+## Panel genişliklerini pencereye sığdır (G4): köşe-çapalı paneller 380px dikey pencerede
+## de ekranda kalır; yalnız içerik genişliği taşarsa daraltılır (ScrollContainer'lar dahil).
+func _place_panels_for_width() -> void:
+	var pw := minf(340.0, VW() - 24.0)
+	for sc_parent in [mail_box, album_box]:
+		if sc_parent == null:
+			continue
+		for c in sc_parent.get_node("VB").get_children():
+			if c is ScrollContainer:
+				c.custom_minimum_size.x = pw - 24.0
 
 ## Albüm içeriği: yaşayan sakinler + anı ağaçları + hikâye sayaçları. Açılışta tazelenir (her karede değil).
 func _refresh_album() -> void:

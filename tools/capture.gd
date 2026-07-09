@@ -14,6 +14,7 @@ var _tod := -1.0
 var _seed := -1
 var _frames := 4
 var _steps := 0
+var _vert := false
 var _count := 0
 var _main: Node = null
 
@@ -27,6 +28,7 @@ func _init() -> void:
 			"seed": _seed = int(kv[1])
 			"frames": _frames = int(kv[1])
 			"steps": _steps = int(kv[1])
+			"vert": _vert = kv[1] == "1"
 
 	var scene := load("res://Main.tscn")
 	if scene == null:
@@ -36,6 +38,8 @@ func _init() -> void:
 	get_root().add_child(_main)
 	if _main.has_method("capture_setup"):
 		_main.call("capture_setup", _seed, _tod, _steps)   # steps: timelapse (gün N kasabası)
+	if _vert and _main.has_method("toggle_vertical"):
+		_main.call("toggle_vertical")   # dikey mod karesi (G4 doğrulama)
 	process_frame.connect(_on_frame)
 
 func _on_frame() -> void:

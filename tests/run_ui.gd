@@ -123,6 +123,16 @@ func _run_tests() -> void:
 	print("UI panel-UX: tek-drawer=%s/%s esc-kapat=%s ✕=%s" % [str(one1), str(one2), str(closed_any and one3), str(one4)])
 	ok = one1 and one2 and closed_any and one3 and one4 and ok
 
+	# G4: dikey mod — set_vertical kompakt bayrağı + bar dar pencereye (380) sığar
+	main.toggle_vertical()
+	var compact_ok: bool = ui._compact and ui.VW() <= 400.0
+	var bar_w: float = ui._bar.get_combined_minimum_size().x
+	var bar_fits: bool = bar_w <= ui.VW() - 12.0
+	main.toggle_vertical()   # yatay moda geri dön (diğer testler etkilenmesin)
+	var back_ok: bool = not ui._compact and ui.VW() > 900.0
+	print("UI dikey: kompakt=%s bar-genişlik=%.0f/%.0f sığar=%s geri=%s" % [str(compact_ok), bar_w, ui.VW(), str(bar_fits), str(back_ok)])
+	ok = compact_ok and bar_fits and back_ok and ok
+
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 
