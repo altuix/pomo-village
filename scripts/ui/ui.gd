@@ -13,6 +13,7 @@ const HONEY := Palette.HONEY
 const CREAM := Palette.CREAM
 const SAGE := Palette.SAGE
 const MUTED := Palette.MUTED
+const FADED := Palette.FADED
 
 var _clock: Label
 var _sub: Label
@@ -206,6 +207,10 @@ func _build() -> void:
 
 	_focus_btn = _button(Loc.t("start"))
 	_focus_btn.tooltip_text = Loc.t("tt_focus")
+	# G2: sabit genişlik — moladaki uzun metin butonu şişirip bar'daki kardeşleri
+	# (mektup dahil) ekran dışına itiyordu; metin değişse de bar artık oynamaz
+	_focus_btn.custom_minimum_size = Vector2(150, 0)
+	_focus_btn.clip_text = true
 	_focus_btn.pressed.connect(_on_focus)
 	bar.add_child(_focus_btn)
 
@@ -458,9 +463,26 @@ func refresh_mail() -> void:
 		return
 	for c in mail_list.get_children():
 		c.queue_free()
+	# G2: yanıt bekleyenler HEP ÜSTTE (playtest: "cevaplananlar yerinde duruyor") —
+	# world.letters dizisi DEĞİŞMEZ (lid/save bozulmaz), yalnız görünüm sıralanır
+	var unread := []
+	var done := []
+	for l in world.letters:
+		if l.replied:
+			done.append(l)
+		else:
+			unread.append(l)
 	# J3: kartlar kademeli belirir (kağıtlar tek tek masaya konur hissi)
 	var i := 0
-	for l in world.letters:
+	for l in unread:
+		var card := _letter_card(l)
+		mail_list.add_child(card)
+		card.modulate.a = 0.0
+		create_tween().tween_property(card, "modulate:a", 1.0, 0.22).set_delay(minf(0.4, i * 0.04))
+		i += 1
+	if not unread.is_empty() and not done.is_empty():
+		mail_list.add_child(_label(Loc.t("replied_sep"), 9, FADED))
+	for l in done:
 		var card := _letter_card(l)
 		mail_list.add_child(card)
 		card.modulate.a = 0.0
@@ -887,9 +909,11 @@ func _refresh_focus_button() -> void:
 	match fs.phase:
 		"work":
 			_focus_btn.text = Loc.t("work_fmt") % [rem / 60, rem % 60]
+			_focus_btn.tooltip_text = Loc.t("tt_focus")
 			_mode_opt.disabled = true
 		"break":
 			_focus_btn.text = Loc.t("break_skip") % [rem / 60, rem % 60]
+			_focus_btn.tooltip_text = Loc.t("tt_break")
 			_mode_opt.disabled = false
 		_:
 			_focus_btn.text = Loc.t("start")

@@ -84,6 +84,14 @@ func _run_tests() -> void:
 		var right_target: bool = target.replied and not w.letters[0].replied
 		print("UI mektup hedefi: doğru=%s (hedef=%s araya-giren=%s)" % [str(right_target), str(target.replied), str(w.letters[0].replied)])
 		ok = right_target and ok
+		# G2: yanıtlananlar alta iner — iki grup varken ayraç etiketi görünmeli
+		ui.refresh_mail()
+		var has_sep := false
+		for c in ui.mail_list.get_children():
+			if c is Label and Loc.t("replied_sep") in c.text:
+				has_sep = true
+		print("UI mektup sırası: ayraç=%s" % str(has_sep))
+		ok = has_sep and ok
 
 	# Yeni Kasaba onay akışı: iki basış → dünya yeniden üretilir (tick sıfırlanır)
 	ui.show_menu()
