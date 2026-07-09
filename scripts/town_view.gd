@@ -378,10 +378,80 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 	if b.type == "library":   # cephede renkli kitap sırtları (çatı paletinden)
 		for bi in range(4):
 			draw_rect(Rect2(X + 2.5 + bi * 2.6, Y + H - CH * 0.42, 1.8, CH * 0.32), ROOF_COLS[(b.seed + bi) % 5][0])
+	_draw_need_accents(b, X, Y, W, H, Yb, ev)
 	# end-game güzelleştirmesi (Faz D): çiçekli pencere kutuları (mevsim çiçek paleti)
 	if b.get("bloom", false):
 		var fcol: Color = SEASONS[world.season].flowers[b.seed % 3]
 		draw_rect(Rect2(X + 3.0, Y + CH * 0.25 + maxf(3.0, (H - CH * 0.7) / 2.0 - 3.0), W - 6.0, 1.8), fcol)
+
+## G1.5 ihtiyaç binası aksanları: her tipin İZLENEBİLİR bir davranışı var (playtest:
+## "sadece bina bina" — gelişme hissi görünür detaylardan gelir). Fener ışıkları
+## bloom bütçesine tabidir (lit_count zaten bu binaları sayıyor).
+func _draw_need_accents(b: Dictionary, X: float, Y: float, W: float, H: float, Yb: float, ev: float) -> void:
+	var bud := minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
+	match b.type:
+		"kuyu":
+			# önde taş bilezik + makara; kova ışıltısı sakin uğradıkça (periyodik parıltı)
+			draw_circle(Vector2(X + W * 0.5, Yb + 1.5), 3.2, Color8(120, 110, 120))
+			draw_circle(Vector2(X + W * 0.5, Yb + 1.5), 2.0, Color8(70, 80, 100))
+			draw_line(Vector2(X + W * 0.5 - 3.0, Yb - 2.5), Vector2(X + W * 0.5 + 3.0, Yb - 2.5), Color8(90, 76, 84), 1.0)
+			if fmod(_t + b.seed % 7, 6.0) < 0.6:
+				draw_circle(Vector2(X + W * 0.5, Yb - 1.0), 1.2, Palette.HONEY * Color(1, 1, 1, 0.8))
+		"firin":
+			# baca + SABAH dumanı (05-09: fırıncı erken kalkar) + sıcak kapı ağzı
+			draw_rect(Rect2(X + W * 0.72, Y - CH * 0.5, 2.5, CH * 0.5), Color8(120, 100, 110))
+			if world.time_of_day >= 5.0 and world.time_of_day <= 9.0:
+				for k in range(3):
+					var st := fmod(_t * 0.5 + k * 0.33, 1.0)
+					draw_circle(Vector2(X + W * 0.72 + 1.2 + sin(st * 5.0) * 1.5, Y - CH * 0.5 - st * 7.0), 1.0 + st * 1.6, Color(0.92, 0.9, 0.88, 0.3 * (1.0 - st)))
+				draw_rect(Rect2(X + W * 0.35, Y + H - 4.0, W * 0.3, 4.0), Color(1.0, 0.7, 0.35, 0.55))
+		"pazar":
+			# çizgili tente; her 4. gün önde kasalar (pazar günü tezgâh kurulur)
+			for k in range(4):
+				draw_rect(Rect2(X + 1.0 + k * W / 4.0, Y + CH * 0.05, W / 4.0 - 0.5, 3.0),
+					ROOF_COLS[b.roof][0] if k % 2 == 0 else Palette.CREAM)
+			if world.day() % 4 == 0:
+				draw_rect(Rect2(X - 2.0, Yb - 3.0, 4.0, 3.0), Color8(150, 120, 90))
+				draw_rect(Rect2(X + W - 1.0, Yb - 4.0, 4.5, 4.0), Color8(122, 155, 106))
+		"cayevi":
+			# kapı feneri (bütçeli) + akşam buharı tüten çaydanlık ışığı
+			var lx := X - 1.5
+			draw_line(Vector2(lx, Y + CH * 0.15), Vector2(lx, Y + CH * 0.35), Color8(90, 76, 84), 1.0)
+			if ev > 0.2:
+				draw_circle(Vector2(lx, Y + CH * 0.42), CW * 0.9, Color(1.0, 0.75, 0.43, 0.16 * ev * bud))
+				draw_circle(Vector2(lx, Y + CH * 0.42), 1.4, Color(1.0, 0.9, 0.66))
+			if ev > 0.3:
+				var st := fmod(_t * 0.6, 1.0)
+				draw_circle(Vector2(X + W * 0.5, Y - 2.0 - st * 5.0), 0.9 + st, Color(0.9, 0.9, 0.92, 0.22 * (1.0 - st)))
+		"okul":
+			# bayrak direği + alınlık; 08-09 teneffüs kalabalığı çizimi sim tarafından (çocuklar okula yürür)
+			var px := X + W + 2.0
+			draw_line(Vector2(px, Yb), Vector2(px, Y - CH * 0.5), Color8(90, 76, 84), 1.0)
+			var wv := sin(_t * 2.5 + _wind) * 1.5
+			draw_colored_polygon([Vector2(px, Y - CH * 0.5), Vector2(px + 5.0, Y - CH * 0.42 + wv), Vector2(px, Y - CH * 0.32)], Color8(194, 90, 74))
+			draw_colored_polygon([Vector2(X, Y), Vector2(X + W * 0.5, Y - CH * 0.2), Vector2(X + W, Y)], Palette.CREAM * Color(1, 1, 1, 0.5))
+		"degirmen":
+			# dönen su çarkı (dere kenarı — sim nehre yakın seçer)
+			var wc := Vector2(X - 2.5, Y + H * 0.55)
+			draw_circle(wc, CH * 0.55, Color(0.35, 0.28, 0.32, 0.9))
+			draw_circle(wc, CH * 0.42, Color8(150, 120, 90))
+			for k in range(4):
+				var a := _t * 1.2 + k * TAU / 4.0
+				draw_line(wc, wc + Vector2(cos(a), sin(a)) * CH * 0.55, Color8(110, 88, 70), 1.2)
+		"han":
+			# kapı feneri (gece yolcusu için hep yanık — bütçeli) + asılı tabela
+			var hx := X + W + 1.5
+			draw_line(Vector2(hx, Y + CH * 0.1), Vector2(hx, Y + CH * 0.3), Color8(90, 76, 84), 1.0)
+			draw_rect(Rect2(hx - 2.0, Y + CH * 0.3, 4.0, 3.0), Palette.CREAM * Color(1, 1, 1, 0.9))
+			if ev > 0.15:
+				draw_circle(Vector2(X + W * 0.5, Y + H - 2.0), CW * 1.1, Color(1.0, 0.75, 0.43, 0.14 * ev * bud))
+				draw_circle(Vector2(X + W * 0.5, Y + H - 2.0), 1.4, Color(1.0, 0.9, 0.66))
+		"festival_alani":
+			# cephe boyu bayrak dizisi (şenlikte town_view festival nabzı zaten meydanı süslüyor)
+			for k in range(5):
+				var fx := X + 1.0 + k * (W - 2.0) / 4.0
+				var fy := Y + CH * 0.12 + sin(k * 1.7) * 1.2
+				draw_colored_polygon([Vector2(fx, fy), Vector2(fx + 2.4, fy), Vector2(fx + 1.2, fy + 2.8)], PCOL[(b.seed + k) % 6])
 
 func _draw_landmark(ev: float) -> void:
 	var b := world.landmark

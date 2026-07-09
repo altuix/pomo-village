@@ -60,9 +60,14 @@ func _init() -> void:
 	for i in range(1, win_avgs.size()):
 		if win_avgs[i] < win_avgs[i - 1] * 0.9:
 			mono_pop = false
-	# tier: gün-365'te en az Küçük Şehir (nüfus 180 eşiği) — ünvan sistemi yıl içinde işlemiş olmalı
+	# tier: gün-365'te en az Küçük Şehir; ihtiyaç binaları (kuyu/fırın/…) yıl içinde kurulmuş olmalı
+	var needs_n := 0
+	for b in w.buildings:
+		for n in w.NEED_BUILDINGS:
+			if b.type == n.type:
+				needs_n += 1
 	var band_ok: bool = w.population() >= 130 and w.population() <= 260 and pmax <= 340 \
-		and w.tier >= 4 and mono_pop and not ever_zero and not ever_explode
+		and w.tier >= 4 and needs_n >= 5 and mono_pop and not ever_zero and not ever_explode
 	var mem_ok: bool = max_letters <= w.LETTER_CAP and max_memtrees <= 40
 
 	# --- perf düzlüğü KİŞİ-BAŞINA: nüfus meşru büyür; O(n²) sızıntısını yine yakalar ---

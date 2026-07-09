@@ -96,9 +96,22 @@ const TIERS := [
 	{ "name": "Mezra", "pop": 0, "key": "" },
 	{ "name": "Köy", "pop": 25, "key": "tier_koy" },
 	{ "name": "Büyük Köy", "pop": 60, "key": "tier_buyuk_koy" },
-	{ "name": "Kasaba", "pop": 110, "key": "tier_kasaba" },
-	{ "name": "Küçük Şehir", "pop": 180, "key": "tier_kucuk_sehir" },
-	{ "name": "Şehir", "pop": 260, "key": "tier_sehir" },
+	{ "name": "Kasaba", "pop": 100, "key": "tier_kasaba" },
+	{ "name": "Küçük Şehir", "pop": 150, "key": "tier_kucuk_sehir" },
+	{ "name": "Şehir", "pop": 220, "key": "tier_sehir" },
+]
+
+# İhtiyaç binaları (G1.5 — Banished merdiveni): tier açar, ev sayısına oranla kurulur.
+# per=999 → kasabada TEK. Her tip render'da izlenebilir davranış taşır (town_view).
+const NEED_BUILDINGS := [
+	{ "type": "kuyu", "tier": 1, "per": 10, "ev": "⛲ mahalleye bir KUYU kazılıyor" },
+	{ "type": "firin", "tier": 1, "per": 15, "ev": "🍞 kasabaya FIRIN yapılıyor — sabahlar ekmek kokacak" },
+	{ "type": "pazar", "tier": 2, "per": 25, "ev": "🧺 meydana PAZAR tezgâhı kuruluyor" },
+	{ "type": "cayevi", "tier": 2, "per": 20, "ev": "🍵 köşeye ÇAYEVİ açılıyor — akşam sohbetleri burada" },
+	{ "type": "okul", "tier": 3, "per": 30, "ev": "🏫 çocuklar için OKUL yükseliyor" },
+	{ "type": "degirmen", "tier": 3, "per": 999, "ev": "🌾 dere kenarına DEĞİRMEN kuruluyor" },
+	{ "type": "han", "tier": 4, "per": 999, "ev": "🏮 gezginler için HAN yapılıyor" },
+	{ "type": "festival_alani", "tier": 4, "per": 999, "ev": "🎪 FESTİVAL ALANI hazırlanıyor — bayraklar asıldı" },
 ]
 var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50/butunlendi — tek seferlik)
 var town_complete := false             # harita doldu: growth artık güzelleştirmeye akar (end-game, Faz D)
@@ -811,7 +824,16 @@ func _start_construction() -> void:
 				cand.append(b)
 		cand.sort_custom(func(a, b): return _dist(a) < _dist(b))
 		if not cand.is_empty():
-			building_now = cand[0]
+			var pick: Dictionary = cand[0]
+			var need := _need_deficit()
+			if not need.is_empty():
+				if need.type == "degirmen" and not river.is_empty():
+					# değirmen dere kenarına — çark suda dönsün
+					cand.sort_custom(func(a, b): return _river_dist(a) < _river_dist(b))
+					pick = cand[0]
+				pick.type = need.type
+				_push_event(need.ev)
+			building_now = pick
 			building_now.build_prog = 0.01
 			return
 		if attempt == 0 and frontier < GW - 8:
@@ -866,6 +888,29 @@ func _densify(level: int) -> void:
 
 func _dist(b: Dictionary) -> int:
 	return abs(b.gx - landmark.x) + abs(b.gy - landmark.y)
+
+func _river_dist(b: Dictionary) -> int:
+	var best := 9999
+	for r in river:
+		best = mini(best, abs(b.gx - r.x) + abs(b.gy - r.y))
+	return best
+
+## Eksik ihtiyaç binası (G1.5): tier'la açık her tip için hedef sayının altındaysa o tipi döndürür.
+## İnşaattakiler de sayılır (çifte sipariş önlenir); ev sayısı yalnız BİTMİŞ evlerden.
+func _need_deficit() -> Dictionary:
+	var houses := 0
+	var counts := {}
+	for b in buildings:
+		if b.built == 1 and b.type == "house":
+			houses += 1
+		counts[b.type] = int(counts.get(b.type, 0)) + 1
+	for n in NEED_BUILDINGS:
+		if tier < n.tier:
+			continue
+		var want: int = 1 if n.per >= 999 else maxi(1, houses / int(n.per))
+		if int(counts.get(n.type, 0)) < want:
+			return n
+	return {}
 
 func _expand_frontier() -> void:
 	var old := frontier

@@ -18,6 +18,7 @@ func _init() -> void:
 	ok = _test_milestone_buildings() and ok
 	ok = _test_densify() and ok
 	ok = _test_tiers() and ok
+	ok = _test_needs() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
@@ -88,6 +89,36 @@ func _test_tiers() -> bool:
 	print("G1 ünvan: köy=%s büyük-köy=%s kasaba=%s tek-sefer=%s roundtrip=%s" % [str(t1), str(t2), str(t3), str(once), str(rt)])
 	var pass_ok: bool = t1 and t2 and t3 and once and rt
 	print("Gt: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+# G1.5 ihtiyaç binaları: tier açar, oranla kurulur; inşaattaki sayılır (çifte sipariş yok);
+# değirmen nehre yakın aday seçer.
+func _test_needs() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	w.tier = 1
+	var d1: Dictionary = w._need_deficit()
+	var kuyu_first: bool = d1.get("type", "") == "kuyu"
+	w._start_construction()
+	var conv: bool = w.building_now != null and w.building_now.type == "kuyu"
+	var d2: Dictionary = w._need_deficit()   # kuyu inşaatta → sıradaki eksik fırın (tier-2 pazar İSTENMEZ)
+	var next_firin: bool = d2.get("type", "") == "firin"
+	# değirmen: alt basamaklar tamamlanmış sayılır → tier 3'te değirmen nehre yakın adaya kurulur
+	for n in ["firin", "pazar", "cayevi", "okul"]:
+		w._add_building(10, 10, false)
+		var nb: Dictionary = w.buildings[w.buildings.size() - 1]
+		nb.built = 1
+		nb.build_prog = 1.0
+		nb.type = n
+	w.tier = 3
+	var d3: Dictionary = w._need_deficit()
+	var mill_next: bool = d3.get("type", "") == "degirmen"
+	w.building_now = null
+	w._start_construction()
+	var mill_ok: bool = w.building_now != null and w.building_now.type == "degirmen" and w._river_dist(w.building_now) <= 6
+	print("G1 ihtiyaç: kuyu-önce=%s dönüşüm=%s sıra-fırın=%s değirmen=%s/%s" % [str(kuyu_first), str(conv), str(next_firin), str(mill_next), str(mill_ok)])
+	var pass_ok: bool = kuyu_first and conv and next_firin and mill_next and mill_ok
+	print("Gn: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).
