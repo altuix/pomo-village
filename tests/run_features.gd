@@ -19,6 +19,7 @@ func _init() -> void:
 	ok = _test_densify() and ok
 	ok = _test_tiers() and ok
 	ok = _test_needs() and ok
+	ok = _test_stages() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
@@ -119,6 +120,47 @@ func _test_needs() -> bool:
 	print("G1 ihtiyaç: kuyu-önce=%s dönüşüm=%s sıra-fırın=%s değirmen=%s/%s" % [str(kuyu_first), str(conv), str(next_firin), str(mill_next), str(mill_ok)])
 	var pass_ok: bool = kuyu_first and conv and next_firin and mill_next and mill_ok
 	print("Gn: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+# G1.6 ev evreleri: kulübe doğar; yaş+servisle EVE, yaş+tier'la TAŞ EVE; 240-tick'te TEK terfi;
+# asla gerileme; save roundtrip.
+func _test_stages() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	var core_ok: bool = w.buildings[0].stage == 1   # çekirdek evler tanıdık görünümle başlar
+	w._add_building(20, 10, false)
+	var b: Dictionary = w.buildings[w.buildings.size() - 1]
+	var born_hut: bool = b.stage == 0 and b.built_at == -1
+	b.built = 1; b.build_prog = 1.0; b.built_at = 0
+	w._add_building(22, 10, false)
+	var b2: Dictionary = w.buildings[w.buildings.size() - 1]
+	b2.built = 1; b2.build_prog = 1.0; b2.built_at = 0
+	w.lamps.append({ "gx": 21, "gy": 10, "ph": 0.0 })   # ikisine de yakın servis
+	w.tick = 3 * 2400 + 239
+	w.step_world()   # 240'ın katı: terfi damlası
+	var one_per_drip: bool = (int(b.stage) + int(b2.stage)) == 1   # TEK ev terfi eder
+	w.tick += 239 - (w.tick % 240)
+	w.step_world()
+	var both_now: bool = b.stage == 1 and b2.stage == 1
+	# 1→2: yaş 10 gün+ ama tier < 3 → OLMAZ; tier 3 → olur
+	b.built_at = -30000
+	w.tier = 2
+	w.tick += 239 - (w.tick % 240)
+	w.step_world()
+	var gated: bool = b.stage == 1
+	w.tier = 3
+	w.tick += 239 - (w.tick % 240)
+	w.step_world()
+	var stone: bool = b.stage == 2
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt := false
+	for bb in w2.buildings:
+		if bb.gx == 20 and bb.gy == 10:
+			rt = bb.stage == 2 and int(bb.built_at) == -30000
+	print("G1 evre: çekirdek=%s kulübe=%s damla=%s ikisi=%s tier-kapı=%s taş=%s roundtrip=%s" % [str(core_ok), str(born_hut), str(one_per_drip), str(both_now), str(gated), str(stone), str(rt)])
+	var pass_ok: bool = core_ok and born_hut and one_per_drip and both_now and gated and stone and rt
+	print("Gs: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).

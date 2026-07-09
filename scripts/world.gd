@@ -284,6 +284,8 @@ func gen(seed_val: int = 0) -> void:
 		b.built = 1 if i < 6 else 0
 		b.lit_frac = 0.0
 		b.build_prog = 1.0 if b.awake else 0.0
+		b.stage = 1 if b.built == 1 else 0   # çekirdek evler tanıdık görünümle başlar
+		b.built_at = 0
 
 	# ağaçlar bahçe boşluklarını doldurur
 	for gx in range(5, frontier):
@@ -368,6 +370,7 @@ func _add_building(gx: int, gy: int, shop: bool) -> void:
 		"awake": false, "built": 0, "build_prog": 0.0, "lit_frac": 0.0, "bloom": false,
 		"cap": 2 + (_h(gx * 13 + gy * 7) % 3),   # HANE kapasitesi 2-4
 		"members": [],
+		"stage": 0, "built_at": -1,   # ev evresi (G1.6): kulübe→ev→taş ev; terfi damlaması step_world'de
 	})
 
 func _add_person(gx: int, gy: int, home, stage: int) -> Dictionary:
@@ -444,6 +447,7 @@ func step_world() -> void:
 		building_now.build_prog = minf(1.0, building_now.build_prog + 0.005)
 		if building_now.build_prog >= 1.0:
 			building_now.built = 1
+			building_now.built_at = tick   # evre terfisi yaşı buradan sayılır (G1.6)
 			_queue_move_in(building_now)
 			building_now = null
 			# tamamlanır tamamlanmaz sahiplen: growth aynı tick'te yeni doğal inşaat başlatıp
@@ -518,6 +522,23 @@ func step_world() -> void:
 	elif rain_was and not raining:
 		_push_event("🌦 yağmur dindi — toprak kokusu")
 	rain_was = raining
+
+	# EV EVRELERİ (G1.6 — Foundation deseni): 240 tick'te bir TEK terfi (görünür damlama,
+	# asla gerileme). Kulübe 3 günde + yakın servisle EVE; ev 10 günde + Kasaba tier'ıyla TAŞ EVE.
+	if tick % 240 == 0:
+		for b in buildings:
+			if b.type != "house" or b.built != 1:
+				continue
+			var age: int = tick - int(b.get("built_at", -1))
+			var st: int = int(b.get("stage", 1))
+			if st == 0 and age >= 3 * TICKS_PER_DAY and _near_service(b, 6):
+				b.stage = 1
+				_push_event("🏠 bir kulübe sıcacık bir eve dönüştü")
+				break
+			if st == 1 and age >= 10 * TICKS_PER_DAY and tier >= 3 and _near_service(b, 4):
+				b.stage = 2
+				_push_event("🏛 bir ev taş eve yükseldi — mahalle gururla bakıyor")
+				break
 
 	# KASABA ÜNVANI (G1.4): eşik aşımı → tabela + kutlama + mektup. 40 tick'te bir kontrol:
 	# eski save 0'dan başlayıp kademeli yakalar (her atlama ayrı kutlanır — hoş yeniden karşılama)
@@ -726,6 +747,9 @@ func from_save(d: Dictionary) -> void:
 		var b: Dictionary = (sd as Dictionary).duplicate(true)
 		for k in _BLD_INT:
 			b[k] = int(b.get(k, 0))
+		# G1.6 geriye uyum: eski save'de evre yok → mevcut görünüm (ev) + 3 gün önce inşa sayılır
+		b["stage"] = int(b.get("stage", 1))
+		b["built_at"] = int(b.get("built_at", tick - 3 * TICKS_PER_DAY))
 		buildings.append(b)
 	# sakinler (home geçici olarak index)
 	people = []
@@ -897,6 +921,17 @@ func _river_dist(b: Dictionary) -> int:
 
 ## Eksik ihtiyaç binası (G1.5): tier'la açık her tip için hedef sayının altındaysa o tipi döndürür.
 ## İnşaattakiler de sayılır (çifte sipariş önlenir); ev sayısı yalnız BİTMİŞ evlerden.
+## Yakın servis (G1.6): r hücre içinde ihtiyaç/özel bina ya da lamba — ev terfisinin koşulu
+func _near_service(b: Dictionary, r: int) -> bool:
+	for n in buildings:
+		if n.built == 1 and n.type != "house" and n.type != "shop":
+			if abs(int(n.gx) - int(b.gx)) + abs(int(n.gy) - int(b.gy)) <= r:
+				return true
+	for l in lamps:
+		if abs(int(l.gx) - int(b.gx)) + abs(int(l.gy) - int(b.gy)) <= r:
+			return true
+	return false
+
 func _need_deficit() -> Dictionary:
 	var houses := 0
 	var counts := {}

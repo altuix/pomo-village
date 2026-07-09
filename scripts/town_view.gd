@@ -315,13 +315,19 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 	var bp: float = 1.0 if b.build_prog >= 1.0 else maxf(0.0, _ease_out_back(b.build_prog) * b.build_prog)
 	var X: float = b.gx * CW
 	var Yb: float = b.gy * CH + CH
-	var full_h := CH * 1.7
+	# ev evresi (G1.6): kulübe basık ve sönük, taş ev yüksek ve açık — büyüme silüetten okunur
+	var stage: int = int(b.get("stage", 1)) if b.type == "house" else 1
+	var full_h := CH * (1.35 if stage == 0 else (1.7 if stage == 1 else 1.95))
 	var H := full_h * bp
 	var Y: float = Yb - H
 	var W := CW - 2.0
 	draw_rect(Rect2(X + 2.0, Yb - 3.0, W, 3.0), Color(0.17, 0.12, 0.18, 0.4))
 	var awake: bool = b.awake
 	var wall: Color = _mix(Color8(201,168,146), Color8(150,120,120), ev * 0.4) if awake else _mix(Color8(120,100,110), Color8(70,58,72), ev * 0.5)
+	if stage == 0:
+		wall = wall.lerp(Palette.INK, 0.18)      # kulübe: sönük ahşap
+	elif stage == 2:
+		wall = wall.lerp(Palette.CREAM, 0.22)    # taş ev: açık sıva (value hiyerarşisi korunur)
 	if _tex_wall != null:
 		draw_texture_rect(_tex_wall, Rect2(X + 1.0, Y, W, H), false, wall * Color(1.06, 1.06, 1.06, 1.0))
 	else:
@@ -348,6 +354,9 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 		for k in range(2):   # süzülen buhar
 			var st := fmod(_t * 0.4 + k * 0.5, 1.0)
 			draw_circle(Vector2(X + W * 0.34 + k * W * 0.4, Y - 3.0 - st * 8.0), 1.2 + st * 1.5, Color(0.92, 0.92, 0.95, 0.25 * (1.0 - st)))
+	elif stage == 0:
+		# kulübe hep düz-basık çatı (silüet farkı) — terfi edince kendi roof_type'ına kavuşur
+		draw_rect(Rect2(X, Y - CH * 0.2, W + 1.0, CH * 0.24), r_hi)
 	elif _tex_roof.has(b.roof_type):
 		var rtex: Texture2D = _tex_roof[b.roof_type]
 		var rh: float = CH * (0.62 if b.roof_type == 1 else (0.48 if b.roof_type == 2 else 0.34))
@@ -361,6 +370,11 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 	else:
 		draw_rect(Rect2(X, Y - CH * 0.28, W + 1.0, CH * 0.32), r_hi)
 		draw_rect(Rect2(X, Y - CH * 0.28, W + 1.0, 2.5), r_lo)
+	if stage == 2:
+		# taş ev: köşe taşları + garantili baca (statü, Foundation/K&C ev-yükseltme dili)
+		draw_rect(Rect2(X + 1.0, Y, 1.6, H), Palette.CREAM * Color(1, 1, 1, 0.45))
+		draw_rect(Rect2(X + W - 0.6, Y, 1.6, H), Palette.CREAM * Color(1, 1, 1, 0.45))
+		draw_rect(Rect2(X + W * 0.7, Y - CH * 0.45, 2.2, CH * 0.45), Color8(120, 100, 110))
 	# pencereler (bazıları yanar, evening ölçekli)
 	for r2 in range(2):
 		var wy: float = Y + CH * 0.25 + r2 * (H - CH * 0.7) / 2.0
