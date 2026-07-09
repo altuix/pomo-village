@@ -20,6 +20,7 @@ var _save_accum := 0.0
 var _pending_offline := {}
 var _is_capture := false   # capture modunda kayıt yükleme/yazma yok
 var _prev_chime := 0.0     # saat başı kule melodisi için yükselen-kenar takibi (town_view'daki desen)
+var _time_mult := 1.0      # DEV hız modu (yalnız debug build; end-game'i canlı test için — playtest isteği)
 
 @onready var town_view: Node2D = $TownView
 @onready var ui: CanvasLayer = $UI
@@ -88,6 +89,10 @@ func set_window_scale(n: int) -> void:
 	Settings.set_int("scale", _scale)
 	if not _is_capture:
 		_apply_layout()
+
+## DEV hız modu (yalnız debug build'de menüden erişilir): ×500'de 1 oyun günü ≈ 3.6sn.
+func set_time_mult(m: float) -> void:
+	_time_mult = clampf(m, 1.0, 500.0)
 
 func toggle_vertical() -> void:
 	_vertical = not _vertical
@@ -229,7 +234,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(audio):
 		audio.evening = world.evening()   # cırcır kanalı geceyle nefes alır
 		audio.weather_rain = world.rain_amount()   # yağmurda rain kanalı hafif kendiliğinden
-	_accum += delta
+	_accum += delta * _time_mult   # dev modunda sim hızlanır (determinizm/save aynen — sadece çok tick)
 	while _accum >= TICK_DT:
 		world.step_world()
 		_accum -= TICK_DT

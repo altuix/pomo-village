@@ -662,6 +662,19 @@ func _build_menu() -> void:
 	srow.add_child(vbtn)
 	vb.add_child(srow)
 
+	# DEV hız modu (yalnız debug build — end-game'i canlı izlemek için; release'te görünmez)
+	if OS.is_debug_build():
+		var drow := HBoxContainer.new()
+		drow.add_theme_constant_override("separation", 8)
+		drow.alignment = BoxContainer.ALIGNMENT_CENTER
+		drow.add_child(_label("⏩ dev hız:", 11, MUTED))
+		for m in [1, 50, 500]:
+			var db := _button("×%d" % m)
+			var mm: float = float(m)
+			db.pressed.connect(func(): if main != null and main.has_method("set_time_mult"): main.set_time_mult(mm))
+			drow.add_child(db)
+		vb.add_child(drow)
+
 	_quick_cb = CheckBox.new()
 	_quick_cb.text = "açılışta menüyü atla, doğrudan kasabaya gel"
 	_quick_cb.add_theme_font_size_override("font_size", 10)
