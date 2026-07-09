@@ -11,6 +11,21 @@ const SEASONS := [
 	{ "name": "sonbahar", "grass": Color8(124,96,58),   "tree": Color8(200,120,56), "flowers": [Color8(224,128,64), Color8(208,160,64), Color8(192,80,48)],    "road": Color8(118,98,84),   "snow": false },
 	{ "name": "kış",      "grass": Color8(168,176,186), "tree": Color8(164,180,190),"flowers": [Color8(255,255,255), Color8(224,232,240), Color8(208,218,232)], "road": Color8(150,150,160), "snow": true },
 ]
+# Sezon geçişi yumuşatma (G3): son %15 dilimde mevcut→sonraki mevsim smoothstep karışımı.
+# u = season_tick / SEASON_TICKS (0..1). Sezon kimliği korunur; yalnız devir anı yumuşar
+# (playtest: "sezon geçişi bam diye oluyor"). Anahtar renk döndürür (grass/tree/road/flowers[i]).
+const SEASON_BLEND_START := 0.85
+static func season_mix(season: int, u: float, key: String, fi: int = 0) -> Color:
+	var cur: Dictionary = SEASONS[season]
+	var c0: Color = cur.flowers[fi] if key == "flowers" else cur[key]
+	if u < SEASON_BLEND_START:
+		return c0
+	var nxt: Dictionary = SEASONS[(season + 1) % 4]
+	var c1: Color = nxt.flowers[fi] if key == "flowers" else nxt[key]
+	var t := (u - SEASON_BLEND_START) / (1.0 - SEASON_BLEND_START)
+	t = t * t * (3.0 - 2.0 * t)   # smoothstep
+	return c0.lerp(c1, t)
+
 const ROOF_COLS := [
 	[Color8(194,90,74), Color8(168,72,58)],    # c25a4a
 	[Color8(201,155,70), Color8(168,130,58)],  # c99b46

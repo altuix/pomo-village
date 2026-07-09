@@ -20,6 +20,7 @@ const PCOL := Palette.PCOL
 # --- kozmetik durum (render-only; determinizmi etkilemez) ---
 var _t := 0.0
 var _wind := 0.5
+var _snow := 0.0   # kar örtüsü (G3): çatı/zemin karlanma miktarı, _draw başında güncellenir
 var birds: Array = []
 var clouds: Array = []
 var snow: Array = []
@@ -135,6 +136,10 @@ func _draw() -> void:
 		return
 	var S: Dictionary = SEASONS[world.season]
 	var ev := world.evening()
+	# kar örtüsü (G3): kışta 1.0, sonbahar/kış geçişlerinde ramp (town_bg._snow_cover ile aynı ritim)
+	var su := float(world.season_tick) / float(World.SEASON_TICKS)
+	var sblend := clampf((su - Palette.SEASON_BLEND_START) / (1.0 - Palette.SEASON_BLEND_START), 0.0, 1.0)
+	_snow = (1.0 if su < Palette.SEASON_BLEND_START else 1.0 - sblend) if world.season == 3 else (sblend if world.season == 2 else 0.0)
 	var fr := world.frontier
 	# J10: gölge yönü güne göre kayar (sabah sola, öğlen kısa, akşam sağa; gece ay — zayıf).
 	# Bedava zaman sinyali; ışık kaynağı değil, bütçeye dokunmaz.
@@ -156,10 +161,25 @@ func _draw() -> void:
 		draw_circle(Vector2(cl.x, cl.y), cl.w / 4.0, cc)
 		draw_circle(Vector2(cl.x + cl.w * 0.3, cl.y - 3.0), cl.w / 5.0, cc)
 
-	# ---- NEHİR IŞILTISI (taban _bg'de; canlı su çizgisi burada) ----
-	for rc in world.river:
-		var rp := sin(rc.x * 0.5 + _t * 2.4) * sin(rc.y * 0.7 - _t * 1.8)
-		draw_rect(Rect2(rc.x * CW, rc.y * CH + rp * 2.0, CW + 1.0, 1.5), Color(0.86, 0.92, 1.0, 0.05 + 0.04 * rp + ev * 0.05))
+	# ---- NEHİR AKIŞI (taban _bg'de; AKAN su çizgileri burada) ----
+	# playtest: "dere kare olarak akıyor bu ne" — hücre başına zıplayan draw_rect yerine
+	# satır-merkezinden geçen DİKEY sürekli polyline'lar; nehir listesi satır-içi zig-zag
+	# sıralı olduğundan y'ye göre gruplayıp merkez-x'ten akış çizgisi kurulur (2 faz kaydırık, AA)
+	if world.river.size() >= 4:
+		var row_cx := {}   # y -> ortalama x (satır merkezi)
+		for rc in world.river:
+			row_cx[rc.y] = row_cx.get(rc.y, rc.x + 0.5)   # ilk kolon + 0.5 ≈ 2-hücreli şeridin sol yakını
+		var ys := row_cx.keys()
+		ys.sort()
+		for lane in range(2):
+			var pts := PackedVector2Array()
+			var ph := lane * 1.9
+			for y in ys:
+				var wobble := sin(y * 0.8 + _t * 2.2 + ph) * 1.4
+				var lx := (float(row_cx[y]) + 0.5) * CW + wobble + lane * CW * 0.5
+				var ly := (float(y) + 0.5) * CH
+				pts.append(Vector2(lx, ly))
+			draw_polyline(pts, Color(0.86, 0.92, 1.0, 0.10 + ev * 0.06 + lane * 0.02), 1.3, true)
 
 	# ---- ÇEŞMELER ----
 	for f in world.fountains:
@@ -425,6 +445,16 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 		draw_rect(Rect2(X + 1.0, Y, 1.6, H), Palette.CREAM * Color(1, 1, 1, 0.45))
 		draw_rect(Rect2(X + W - 0.6, Y, 1.6, H), Palette.CREAM * Color(1, 1, 1, 0.45))
 		draw_rect(Rect2(X + W * 0.7, Y - CH * 0.45, 2.2, CH * 0.45), Color8(120, 100, 110))
+	# G3: çatıda KAR BİRİKİMİ (playtest: "kar şehre yağmıyor gibi") — kışta çatı sırtı beyazlar
+	if _snow > 0.0 and stage != 0:
+		var snow_c := Color(0.92, 0.94, 0.98, 0.85 * _snow)
+		if b.roof_type == 1 or b.type == "rasathane" or b.type == "hamam":
+			draw_line(Vector2(X + 1.0, Y - CH * 0.02), Vector2(X + W / 2.0 + 1.0, y_top + 1.0), snow_c, 1.6)
+			draw_line(Vector2(X + W / 2.0 + 1.0, y_top + 1.0), Vector2(X + W, Y - CH * 0.02), snow_c, 1.6)
+		elif b.roof_type == 2:
+			draw_rect(Rect2(X + W * 0.25, y_top - 0.5, W * 0.5, 1.6), snow_c)
+		else:
+			draw_rect(Rect2(X, Y - CH * 0.3, W + 1.0, 1.8), snow_c)
 	# pencereler (bazıları yanar, evening ölçekli)
 	for r2 in range(2):
 		var wy: float = Y + CH * 0.25 + r2 * (H - CH * 0.7) / 2.0
