@@ -574,6 +574,9 @@ func _build_menu() -> void:
 	srow.add_theme_constant_override("separation", 8)
 	srow.alignment = BoxContainer.ALIGNMENT_CENTER
 	srow.add_child(_label("pencere ölçeği:", 11, MUTED))
+	var fitb := _button("⛶ sığdır")
+	fitb.pressed.connect(func(): if main != null and main.has_method("set_window_scale"): main.set_window_scale(0))
+	srow.add_child(fitb)
 	for n in [1, 2, 3]:
 		var sbtn := _button("%d×" % n)
 		var nn: int = n

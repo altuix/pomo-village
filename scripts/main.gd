@@ -76,14 +76,15 @@ var _cam_base_zoom := Vector2.ONE       # dikeyde kamera kasaba çekirdeğine ya
 func _setup_window() -> void:
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, true)
-	# ölçek: kayıtlı tercih; yoksa ekrandan otomatik tahmin (yüksek çözünürlükte 1× minicik kalıyordu)
-	var auto := 2 if DisplayServer.screen_get_size().y >= 1300 else 1
-	_scale = clampi(Settings.get_int("scale", auto), 1, 3)
+	# ölçek: kayıtlı tercih; VARSAYILAN = EKRANA SIĞDIR (0) — sabit 1× MacBook mantıksal
+	# çözünürlüğünde minicik kalıyordu ("hâlâ çok küçük" geri bildirimi)
+	_scale = clampi(Settings.get_int("scale", 0), 0, 3)
 	_apply_layout()
 
-## Menüden ölçek seçimi (canvas_items stretch → pixel-art tam sayı katda bulanıksız büyür).
+## Menüden ölçek seçimi. 0 = EKRANA SIĞDIR (ekran genişliğinin ~%94'ü, kesirli içerik ölçeği);
+## 1-3 = tam sayı katlar (pixel-art bulanıksız).
 func set_window_scale(n: int) -> void:
-	_scale = clampi(n, 1, 3)
+	_scale = clampi(n, 0, 3)
 	Settings.set_int("scale", _scale)
 	if not _is_capture:
 		_apply_layout()
@@ -100,9 +101,14 @@ func _apply_layout() -> void:
 	var win := get_window()
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	var scr_sz := DisplayServer.screen_get_size()
 	if _vertical:
 		win.content_scale_size = VERT_SIZE
-		DisplayServer.window_set_size(VERT_SIZE * _scale)
+		if _scale == 0:   # sığdır: ekran yüksekliğinin %90'ı
+			var h := int(scr_sz.y * 0.90)
+			DisplayServer.window_set_size(Vector2i(int(h * float(VERT_SIZE.x) / float(VERT_SIZE.y)), h))
+		else:
+			DisplayServer.window_set_size(VERT_SIZE * _scale)
 		var z := float(VERT_SIZE.x) / 480.0
 		_cam_base_zoom = Vector2(z, z)
 		if is_instance_valid(camera):
@@ -110,7 +116,11 @@ func _apply_layout() -> void:
 			camera.position = Vector2(240.0, float(VERT_SIZE.y) / z / 2.0)   # dünya y=0 pencere üstünde
 	else:
 		win.content_scale_size = STRIP_SIZE
-		DisplayServer.window_set_size(STRIP_SIZE * _scale)
+		if _scale == 0:   # sığdır: ekran genişliğinin %94'ü (oran korunur)
+			var w := int(scr_sz.x * 0.94)
+			DisplayServer.window_set_size(Vector2i(w, int(w * float(STRIP_SIZE.y) / float(STRIP_SIZE.x))))
+		else:
+			DisplayServer.window_set_size(STRIP_SIZE * _scale)
 		_cam_base_zoom = Vector2.ONE
 		if is_instance_valid(camera):
 			camera.zoom = Vector2.ONE
