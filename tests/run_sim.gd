@@ -1,6 +1,7 @@
 extends SceneTree
 # NEFES sim hızlı-ileri testi (headless — saf sim, GPU yok).
-# Anayasa kuralı: 30 günde nüfus 20-90 bandında dalgalanmalı; çökme(=0) veya patlama(>150) = regresyon.
+# G1 kuralı: kasaba BÜYÜR — gün-30 nüfusu gün-3'ten +20 yüksek ve 60-130 bandında;
+# çökme(=0), patlama(>380 — POP_SOFT_CAP 320 + pay) ya da ani çöküş (tepe'nin %60 altı) = regresyon.
 # Ayrıca determinizm: aynı tohum → N adım sonra özdeş nüfus.
 #
 # Kullanım: tools/godot.sh --headless --script tests/run_sim.gd -- [days=30] [seed=20260707]
@@ -29,14 +30,11 @@ func _init() -> void:
 		print("run_sim: world.gd API eksik (gen/step_world/population) — SKIP.")
 		quit(0); return
 
-	# --- pop-band testi ---
-	# İlk WARMUP_DAYS gün başlangıç rampasıdır (kasaba 4'ten uyanır) → denge-durumu bandından hariç.
-	# Denge bandı 20-90; ayrıca HİÇBİR anda çökme(=0) veya patlama(>150) olmamalı.
+	# --- büyüme testi (G1: "20-90 dengesi" yerine görünür büyüme) ---
+	# İlk WARMUP_DAYS gün başlangıç rampası (kasaba 4'ten uyanır) → trend kıyası gün-3'ten.
 	const WARMUP_DAYS := 3
 	w.gen(seed_val)
 	var total := days * TICKS_PER_DAY
-	var pmin := 9999
-	var pmax := 0
 	var ever_zero := false
 	var ever_explode := false
 	var samples: Array[int] = []
@@ -44,20 +42,24 @@ func _init() -> void:
 		w.step_world()
 		var pnow: int = w.population()
 		if pnow <= 0: ever_zero = true
-		if pnow > 150: ever_explode = true
+		if pnow > 380: ever_explode = true
 		if t % TICKS_PER_DAY == 0:
 			samples.append(pnow)
-			var day := t / TICKS_PER_DAY
-			if day >= WARMUP_DAYS:
-				pmin = min(pmin, pnow)
-				pmax = max(pmax, pnow)
 	var pend: int = w.population()
-	print("== pop-band (%d gün, tohum %d) ==" % [days, seed_val])
+	# ani çöküş: hiçbir günlük örnek o ana dek görülen tepenin %60 altına düşmez (kuşak dalgası regresyonu)
+	var peak := 0
+	var drawdown_ok := true
+	for i in range(WARMUP_DAYS, samples.size()):
+		peak = maxi(peak, samples[i])
+		if samples[i] < int(peak * 0.6):
+			drawdown_ok = false
+	var p3: int = samples[WARMUP_DAYS]
+	print("== büyüme (%d gün, tohum %d) ==" % [days, seed_val])
 	print("  günlük örnekler: ", samples)
-	print("  denge (gün %d+): min=%d  max=%d  son=%d" % [WARMUP_DAYS, pmin, pmax, pend])
+	print("  gün-%d=%d → son=%d (hedef: +20 ve 60-130)  ani-çöküş=%s" % [WARMUP_DAYS, p3, pend, str(not drawdown_ok)])
 	print("  çökme=%s  patlama=%s" % [str(ever_zero), str(ever_explode)])
-	var band_ok: bool = pmin >= 20 and pmax <= 90 and pend > 0 and not ever_zero and not ever_explode
-	print("  20-90 bandı (denge): %s" % ("OK" if band_ok else "FAIL"))
+	var band_ok: bool = pend >= p3 + 20 and pend >= 60 and pend <= 130 and drawdown_ok and not ever_zero and not ever_explode
+	print("  büyüme bandı: %s" % ("OK" if band_ok else "FAIL"))
 
 	# --- determinizm testi ---
 	var a = WorldScript.new(); a.gen(seed_val)

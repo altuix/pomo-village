@@ -82,8 +82,8 @@ func _test_milestone_buildings() -> bool:
 			if b.type == "shop": shop_b = b
 			if b.type == "rasathane": ras_b = b
 	var collision_ok: bool = shop_b != null and ras_b != null and shop_b != ras_b
-	# ikisi de zamanla TAMAMLANIR (sahipsiz inşaat sahiplenilir)
-	for t in range(400): w.step_world()
+	# ikisi de zamanla TAMAMLANIR (sahipsiz inşaat sahiplenilir; G1: bina 200 tick, tek slot → sıralı)
+	for t in range(900): w.step_world()
 	var both_done: bool = shop_b.built == 1 and ras_b.built == 1
 	# zincirin kalanı
 	w.sessions = 19
@@ -255,11 +255,11 @@ func _test_endgame_design() -> bool:
 	var w2 = W.new()
 	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
 	var rt: bool = w2.town_complete and w2.buildings[0].get("bloom", false)
-	# PLATO TAŞMASI: goal şişmiş + growth eşiği aşmış → çiçek (sabit maliyet), goal SABİT
+	# PLATO TAŞMASI: inşaat kapısı kapalıyken (basınç düşük) goal+FLOWER_COST aşımı → çiçek, goal SABİT
 	var w3 = W.new(); w3.gen(0)
-	w3.goal = 8000.0              # plato koşulu: goal > FLOWER_OVERFLOW
+	w3.goal = W.GOAL_CAP          # geç-oyun temposu (üstel fren tavanı)
 	var g3: float = w3.goal
-	w3.growth = 7500.0
+	w3.growth = W.GOAL_CAP + W.FLOWER_COST + 100.0
 	w3.step_world()
 	var overflow_bloom := 0
 	for b in w3.buildings:
@@ -275,6 +275,11 @@ func _test_endgame_design() -> bool:
 func _test_letters_depth() -> bool:
 	var W := load("res://scripts/world.gd")
 	var w = W.new(); w.gen(0)
+	# G1: ömürler uzadı (12.5-24.5 gün) — 10 günlük koşuda doğal veda oluşmaz; kurucular
+	# deterministik yaşlandırılır (bilge + eşiğe yakın) → vedalar doğal _life_cycle akışından gelir
+	for p in w.people:
+		p.stage = 2
+		p.age_t = p.span_c - 200 - (p.seed % 400)
 	for t in range(24000): w.step_world()   # 10 gün: vedalar + taşınmalar birikir
 	# veda metinleri havuzdan mı + çeşitlilik var mı (tek şablon değil)
 	var veda_texts := {}

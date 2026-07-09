@@ -103,7 +103,10 @@ const WISH_TYPES := [
 
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
 const FLOWER_COST := 2400.0       # bir çiçeğin emeği (~3 oyun-günü growth; plato ödül temposu)
-const FLOWER_OVERFLOW := 7200.0   # taşma kanalı yalnız goal bunu aşınca (plato) açılır
+const GOAL_CAP := 7200.0          # inşaat maliyeti tavanı: üstel fren burada durur → geç oyunda
+								  # ~7.8 gün pasif emek/bina SÜREKLİ tempo (playtest: "büyüme hissi yok" çözümü)
+const PRESSURE_BUILD := 0.72      # inşaat kapısı; göç < 0.85 — örtüşme penceresi eski 0.75/0.75 sınır kilidini çözer
+const POP_SOFT_CAP := 320         # perf tavanı (offline sarma + render kişi-döngüleri); doğumu lojistik frenler, ceza değil
 var rain_was := false             # yağmur geçiş olayı için (save'e girmez; tek sahte geçiş zararsız)
 var festival_t := 0.0             # festival nabzı 1→0 (render gözlemler; chime_t deseni)
 var fest_done := false            # bu mevsim festivali oldu mu (mevsim dönünce sıfırlanır)
@@ -344,8 +347,8 @@ func _add_person(gx: int, gy: int, home, stage: int) -> Dictionary:
 		"col": _h(seed * 31) % 6, "seed": seed, "moving": false,
 		"home": home, "name": Names.at(name_idx), "stage": stage, "age_t": 0,
 		"span_a": 2000 + _h(seed) % 900,          # çocuk→yetişkin (~1 gün)
-		"span_b": 7000 + _h(seed * 3) % 9000,     # yetişkin→bilge (~3-6.5 gün, geniş varyans)
-		"span_c": 4500 + _h(seed * 7) % 2500,     # bilge→veda (~2-3 gün)
+		"span_b": 30000 + _h(seed * 3) % 28800,   # yetişkin→bilge (12.5-24.5 gün; kısa ömür devri nüfusu platoda tutuyordu)
+		"span_c": 9600 + _h(seed * 7) % 7200,     # bilge→veda (4-7 gün)
 		"wants_home": false, "steps": 0, "scarf": false,
 	}
 	people.append(p)
@@ -353,6 +356,12 @@ func _add_person(gx: int, gy: int, home, stage: int) -> Dictionary:
 	return p
 
 # ============================================================ HANE YARDIMCILARI
+func _adopt_orphan_build() -> void:
+	for b in buildings:
+		if b.built == 0 and b.build_prog > 0.0:
+			building_now = b
+			return
+
 func total_cap() -> int:
 	var c := 0
 	for b in buildings:
@@ -399,16 +408,17 @@ func step_world() -> void:
 
 	# yükselen bina; sahipsiz yarım inşaat varsa sahiplen (çoklu ödül dönüşümü / eski save iyileşmesi)
 	if building_now == null:
-		for b in buildings:
-			if b.built == 0 and b.build_prog > 0.0:
-				building_now = b
-				break
+		_adopt_orphan_build()
 	if building_now != null:
-		building_now.build_prog = minf(1.0, building_now.build_prog + 0.02)
+		# 0.005: bina ~200 tick'te (2.5 gerçek dk) yükselir — inşaat İZLENEBİLİR bir sahne (Rusty dersi)
+		building_now.build_prog = minf(1.0, building_now.build_prog + 0.005)
 		if building_now.build_prog >= 1.0:
 			building_now.built = 1
 			_queue_move_in(building_now)
 			building_now = null
+			# tamamlanır tamamlanmaz sahiplen: growth aynı tick'te yeni doğal inşaat başlatıp
+			# söz verilmiş (milestone/ödül) binaları 0.01'de açlıkta bırakıyordu
+			_adopt_orphan_build()
 
 	# taşınanlar yürür
 	for m in movers.duplicate():
@@ -421,26 +431,24 @@ func step_world() -> void:
 		if p.wants_home and not p.moving:
 			homeless = true
 			break
-	# KURAL: inşaat yalnız konut sıkışıklığında (Banished dersi). goal ×1.18 KORUNUR:
-	# yumuşak eğri (×1.10) denendi — harita doluyor ama nüfus kapasiteyi takip edip 94-104'e
-	# taşıyor (20-90 bandı kırılıyor). Çözüm bant dengesine dokunmaz: platoda biriken fazla
-	# emek ÇİÇEĞE akar (aşağıda taşma kanalı) — "growth boşa akar" şikâyeti görünür ödüle döner.
-	# PLATO TAŞMASI: goal üstel şişmişken (aktif büyüme bitti) biriken emek çiçeğe akar —
-	# sabit maliyet (goal'e bağlı değil; 3×goal eşiği denendi: 365 günde hiç tetiklenmiyordu).
-	# Plato ~gün 100'de başlar → ~3 günde bir çiçek; aktif büyüme fazı etkilenmez (goal küçükken kapalı).
-	if goal > FLOWER_OVERFLOW and growth >= FLOWER_OVERFLOW and not town_complete:
-		growth -= FLOWER_COST
-		_beautify()
+	# KURAL: inşaat konut sıkışıklığında (Banished dersi). goal ×1.18 üstel ama GOAL_CAP'te durur:
+	# eski sınırsız üstel ~40 evde inşaatı fiilen bitiriyordu (playtest: "70'i geçmedi, büyümüyor").
+	# Artık ilk ~38 bina hızlı açılış, sonrası sabit ~7.8 gün/bina tempo — kasaba YILLARCA büyür;
+	# nüfus tavanı POP_SOFT_CAP lojistik freniyle (doğum/göç yavaşlar, asla ceza yok).
 	if growth >= goal:
 		if town_complete:
 			# END-GAME (Faz D): kasaba bütünlendi — emek güzelleştirmeye akar (cozy: bitiş duvarı yok)
 			growth -= goal
-			goal *= 1.10
+			goal = minf(GOAL_CAP, goal * 1.10)
 			_beautify()
-		elif building_now == null and (housing_pressure() >= 0.75 or (homeless and empty_houses().is_empty())):
+		elif building_now == null and (housing_pressure() >= PRESSURE_BUILD or (homeless and empty_houses().is_empty())):
 			growth -= goal
-			goal *= 1.18
+			goal = minf(GOAL_CAP, goal * 1.18)
 			_start_construction()
+		elif growth >= goal + FLOWER_COST:
+			# inşaat kapısı kapalıyken biriken fazla emek çiçeğe akar (HER platoda — yalnız uç platoda değil)
+			growth -= FLOWER_COST
+			_beautify()
 
 
 	_move_people()
@@ -824,7 +832,7 @@ func _queue_move_in(b: Dictionary) -> void:
 		return   # sahibini bekliyor
 	for k in range(2):
 		var p := _add_person(landmark.x, landmark.y, b, 1)
-		p.age_t = _h(p.seed * 11) % 3000
+		p.age_t = _h(p.seed * 11) % 15000   # geniş yaş dağılımı: kuşak dalgası (toplu veda çöküşü) yayılır
 		p.tx = b.gx
 		p.ty = b.gy
 		p.moving = true
@@ -950,39 +958,58 @@ func _life_cycle() -> void:
 		elif p.stage == 2 and p.age_t > p.span_c:
 			_pass_away(p)
 
-	# KUŞAK: büyüyen çocuk boş bir eve taşınır → yeni hane
+	# KUŞAK: büyüyen gençler yuva kurar — MÜMKÜNSE ÇİFT OLARAK (💍). Bekâr tek başına boş evi
+	# kapatınca doğum şartını (2 yetişkin) hiç sağlamıyordu — nüfusu platoda tutan demografik çıkmaz.
 	if tick % 40 == 0:
-		var seeker = null
+		var seekers := []
 		for p in people:
 			if p.wants_home and not p.moving and p.stage == 1:
-				seeker = p
-				break
-		if seeker != null:
-			var eh := empty_houses()
-			if not eh.is_empty():
-				var nb: Dictionary = eh[0]
-				if seeker.home != null:
-					seeker.home.members.erase(seeker)
-				seeker.home = nb
-				nb.members.append(seeker)
-				seeker.tx = nb.gx
-				seeker.ty = nb.gy
-				seeker.moving = true
-				seeker.steps = 0
-				movers.append(seeker)
-				seeker.wants_home = false
-				_push_event("🏡 %s kendi yuvasına taşındı" % seeker.name)
-				_maybe_move_letter(seeker, seeker.seed * 41 + tick)
+				seekers.append(p)
+				if seekers.size() == 2:
+					break
+		if not seekers.is_empty():
+			var nb = null
+			if seekers.size() == 1:
+				# tek genç: yalnız yaşayan bir gencin yanına katılır (yeni çift kurulur)
+				for b in buildings:
+					if b.built == 1 and b.type == "house" and b.members.size() == 1 \
+							and int(b.cap) >= 2 and b.members[0].stage == 1 and b.members[0] != seekers[0]:
+						nb = b
+						break
+			if nb == null:
+				var eh := empty_houses()
+				if not eh.is_empty():
+					nb = eh[0]
+			if nb != null:
+				for i in seekers.size():
+					var s: Dictionary = seekers[i]
+					if s.home != null:
+						s.home.members.erase(s)
+					s.home = nb
+					nb.members.append(s)
+					s.tx = nb.gx
+					s.ty = nb.gy
+					s.moving = true
+					s.steps = i * 2
+					movers.append(s)
+					s.wants_home = false
+				if nb.members.size() >= 2:
+					_push_event("💍 %s ve %s birlikte yuva kurdu" % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
+				else:
+					_push_event("🏡 %s kendi yuvasına taşındı" % seekers[0].name)
+				_maybe_move_letter(seekers[0], seekers[0].seed * 41 + tick)
 
-	# GÖÇ: boş ev + gevşek nüfus → yeni aile (kasaba asla ölmez; boşsa hızlanır)
-	var mig_every := 400 if housing_pressure() < 0.45 else 800
-	if tick % mig_every == 0 and housing_pressure() < 0.75:
+	# GÖÇ: boş ev + gevşek nüfus → yeni aile (kasaba asla ölmez; boşsa hızlanır).
+	# < 0.85: inşaat kapısı (0.72) ile örtüşen pencere — eski 0.75/0.75 tam-tamamlayıcı
+	# eşikler sistemi sınırda kilitliyordu (ne inşaat ne göç). POP_SOFT_CAP'te nazikçe durur.
+	var mig_every := 400 if housing_pressure() < 0.45 else 500
+	if tick % mig_every == 0 and housing_pressure() < 0.85 and population() < POP_SOFT_CAP - 20:
 		var eh := empty_houses()
-		if not eh.is_empty() and _hf(tick * 13) < 0.5:
+		if not eh.is_empty() and _hf(tick * 13) < 0.7:
 			var nb: Dictionary = eh[0]
-			for k in range(2):
+			for k in range(2 + _h(tick * 3) % 2):
 				var p := _add_person(0, int(floor(GH * 0.5)), nb, 1)
-				p.age_t = _h(p.seed * 11) % 3000
+				p.age_t = _h(p.seed * 11) % 15000   # geniş yaş dağılımı: kuşak dalgası (toplu veda çöküşü) yayılır
 				p.tx = nb.gx
 				p.ty = nb.gy
 				p.moving = true
@@ -994,8 +1021,10 @@ func _life_cycle() -> void:
 			if not nb.members.is_empty():
 				_maybe_move_letter(nb.members[0], nb.seed * 29 + tick)
 
-	# DOĞUM (Banished): 2+ yetişkinli, yeri olan evde yavaş şans; tek doğum/kontrol
+	# DOĞUM (Banished): 2+ yetişkinli, yeri olan evde yavaş şans; tek doğum/kontrol.
+	# Lojistik fren: POP_SOFT_CAP'e yaklaştıkça şans düşer (taban 0.15× — kasaba asla kısırlaşmaz)
 	if tick % 40 == 0:
+		var birth_chance := 0.14 * maxf(0.15, 1.0 - population() / float(POP_SOFT_CAP))
 		for b in buildings:
 			if b.built != 1 or b.type != "house":
 				continue
@@ -1003,7 +1032,7 @@ func _life_cycle() -> void:
 			for m in b.members:
 				if m.stage == 1:
 					adults += 1
-			if adults >= 2 and b.members.size() < int(b.cap) and _hf(b.seed + tick) < 0.10:
+			if adults >= 2 and b.members.size() < int(b.cap) and _hf(b.seed + tick) < birth_chance:
 				var c := _add_person(b.gx, b.gy, b, 0)
 				b.members.append(c)
 				stat_births += 1
