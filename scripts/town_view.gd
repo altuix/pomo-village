@@ -41,10 +41,21 @@ var _prev_fest := 0.0             # festival nabzı tespiti
 var _season_t := 0.0
 
 var _bg: Node2D = null            # statik katman (perf: yalnız imza değişince redraw)
+# pixel-art sprite'lar (tools/make_sprites.gd üretir; DEĞER-haritalı → renk modulate ile paletten).
+# Dosya yoksa null kalır ve eski prosedürel çizime düşülür (güvenli yol).
+var _tex_wall: Texture2D = null
+var _tex_roof := {}
+var _tex_tree: Texture2D = null
 var _sorted_b: Array = []         # gy-sıralı bina önbelleği (her karede sort ETME)
 var _sorted_count := -1
 
 func _ready() -> void:
+	_tex_wall = load("res://assets/sprites/wall.png") if ResourceLoader.exists("res://assets/sprites/wall.png") else null
+	_tex_tree = load("res://assets/sprites/tree.png") if ResourceLoader.exists("res://assets/sprites/tree.png") else null
+	for rt in [[0, "roof_flat"], [1, "roof_peak"], [2, "roof_hip"]]:
+		var pth: String = "res://assets/sprites/%s.png" % rt[1]
+		if ResourceLoader.exists(pth):
+			_tex_roof[rt[0]] = load(pth)
 	_bg = load("res://scripts/town_bg.gd").new()
 	_bg.view = self
 	_bg.z_index = -1
@@ -197,7 +208,10 @@ func _draw() -> void:
 		var sw := sin(_t * 0.6 + tr.sway * 6.0) * 1.2
 		draw_circle(Vector2(X + sun_dx, Y + 3.0), CW * 0.4, Color(0.12, 0.16, 0.12, 0.4))
 		draw_rect(Rect2(X - 1.0, Y - 1.0, 2.0, CH * 0.4), Color8(90,122,82))
-		draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, tree_col)
+		if _tex_tree != null:
+			draw_texture_rect(_tex_tree, Rect2(X - CW * 0.5 + sw, Y - CH * 0.68, CW, CH * 0.92), false, tree_col * Color(1.06, 1.06, 1.06, 1.0))
+		else:
+			draw_circle(Vector2(X + sw, Y - 2.0), CW * 0.32, tree_col)
 
 	# ---- BİNALAR (geri→ön; sıralama önbelleği — binalar yer değiştirmez, her karede sort ETME) ----
 	if world.buildings.size() != _sorted_count:
@@ -308,7 +322,10 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 	draw_rect(Rect2(X + 2.0, Yb - 3.0, W, 3.0), Color(0.17, 0.12, 0.18, 0.4))
 	var awake: bool = b.awake
 	var wall: Color = _mix(Color8(201,168,146), Color8(150,120,120), ev * 0.4) if awake else _mix(Color8(120,100,110), Color8(70,58,72), ev * 0.5)
-	draw_rect(Rect2(X + 1.0, Y, W, H), wall)
+	if _tex_wall != null:
+		draw_texture_rect(_tex_wall, Rect2(X + 1.0, Y, W, H), false, wall * Color(1.06, 1.06, 1.06, 1.0))
+	else:
+		draw_rect(Rect2(X + 1.0, Y, W, H), wall)
 	if b.type == "sera":   # camsı cephe + filizler (kışın bile yeşil)
 		draw_rect(Rect2(X + 1.0, Y, W, H), Color(0.78, 0.9, 0.88, 0.35))
 		for k in range(3):
@@ -331,6 +348,10 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 		for k in range(2):   # süzülen buhar
 			var st := fmod(_t * 0.4 + k * 0.5, 1.0)
 			draw_circle(Vector2(X + W * 0.34 + k * W * 0.4, Y - 3.0 - st * 8.0), 1.2 + st * 1.5, Color(0.92, 0.92, 0.95, 0.25 * (1.0 - st)))
+	elif _tex_roof.has(b.roof_type):
+		var rtex: Texture2D = _tex_roof[b.roof_type]
+		var rh: float = CH * (0.62 if b.roof_type == 1 else (0.48 if b.roof_type == 2 else 0.34))
+		draw_texture_rect(rtex, Rect2(X - 1.0, Y - rh, W + 3.0, rh + 1.0), false, r_hi * Color(1.05, 1.05, 1.05, 1.0))
 	elif b.roof_type == 1:
 		draw_colored_polygon([Vector2(X, Y), Vector2(X + W / 2.0 + 1.0, y_top), Vector2(X + W + 1.0, Y)], r_lo)
 		draw_colored_polygon([Vector2(X, Y), Vector2(X + W / 2.0 + 1.0, y_top), Vector2(X + W / 2.0 + 1.0, Y)], r_hi)
