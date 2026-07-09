@@ -72,6 +72,25 @@ const MILESTONE_BUILDINGS := [
 	  "txt": "Otuz beş seans... Emeğin şerefine kasabaya bir HAMAM yapıyoruz. Yorgunluk artık misafir, ev sahibi değil." },
 ]
 var best_streak := 0
+var tower_gilded := false        # 200-seans ödülü: kule yaldızı (render bayrağı, G1.7)
+# kümülatif seans ödülleri (G1.7 — Forest deseni): TOPLAM sayaç, zincir-kırılma kavramı YOK.
+# İlk 3 basamak MILESTONE_BUILDINGS'te (bina); bunlar kalıcı süs/anıt olarak devam eder.
+const SESSION_REWARDS := [
+	{ "at": 50, "kind": "heykel", "ev": "🗿 50. seans — meydana minik bir heykel dikildi",
+	  "txt": "Elli seans! Meydana küçük bir heykel diktik; kaidesinde tek kelime var: 'Emeğe.'" },
+	{ "at": 75, "kind": "kameriye", "ev": "⛩ 75. seans — çayıra bir kameriye kuruldu",
+	  "txt": "Yetmiş beş seans... Çayıra sarmaşıklı bir kameriye kurduk. En güzel gölge artık orada." },
+	{ "at": 100, "kind": "yuzyil_mesesi", "ev": "🌳 100. seans — Yüzyıl Meşesi dikildi",
+	  "txt": "YÜZ seans. Çayırın ortasına bir meşe fidanı diktik ve adını şimdiden koyduk: Yüzyıl Meşesi. Senin gibi sabırla büyüyecek." },
+	{ "at": 150, "kind": "fener_dizisi", "ev": "🏮 150. seans — meydana fener dizisi asıldı",
+	  "txt": "Yüz elli seans! Meydanın etrafına el yapımı fenerler astık. Akşamları hepsi senin için yanıyor." },
+	{ "at": 200, "kind": "kule_yaldizi", "ev": "✨ 200. seans — kulenin kenarları yaldızlandı",
+	  "txt": "İki yüz seans... Ustalar kulenin kenarlarına ince bir yaldız işledi. Güneş vurunca bütün kasaba parlıyor." },
+	{ "at": 300, "kind": "zafer_bahcesi", "ev": "🌷 300. seans — Zafer Bahçesi açıldı",
+	  "txt": "Üç yüz seans! Meydanın yanına küçük bir bahçe yaptık: Zafer Bahçesi. Her çiçeği bir seansın anısı." },
+	{ "at": 500, "kind": "ebedi_alev", "ev": "🔥 500. seans — meydanda Ebedi Alev yakıldı",
+	  "txt": "BEŞ YÜZ seans. Meydanda küçük, nazik bir alev yaktık; hiç sönmeyecek. Bu kasaba var oldukça emeğin anılacak." },
+]
 var stat_focus_min := 0          # toplam odak dakikası
 var today_focus_min := 0
 var focus_day := -1              # YYYYMMDD; SERİ TANIMI: aynı gün art arda, gün değişince nazik sıfır (kazanılan kalır)
@@ -215,6 +234,7 @@ func gen(seed_val: int = 0) -> void:
 	milestones = {}
 	density_level = 0
 	tier = 0
+	tower_gilded = false
 	town_complete = false
 	streak = 0
 	sessions = 0
@@ -638,6 +658,7 @@ func to_save() -> Dictionary:
 		"town_complete": town_complete,
 		"density_level": density_level,
 		"tier": tier,
+		"tower_gilded": tower_gilded,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -689,6 +710,7 @@ func from_save(d: Dictionary) -> void:
 	town_complete = bool(d.get("town_complete", false))
 	density_level = int(d.get("density_level", 0))
 	tier = clampi(int(d.get("tier", 0)), 0, TIERS.size() - 1)
+	tower_gilded = bool(d.get("tower_gilded", false))
 	var lm: Array = d.get("landmark", [11, 13])
 	landmark = Vector2i(int(lm[0]), int(lm[1]))
 	road_list = _to_vec_list(d.get("road_list", []))
@@ -1291,11 +1313,42 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 		focus_day = day
 	stat_focus_min += minutes
 	today_focus_min += minutes
-	growth += goal                       # ödül: bir inşaat hemen
+	growth += goal
 	sessions += 1
 	streak += 1
 	best_streak = maxi(best_streak, streak)
 	var res := { "atolye": false, "kutuphane": false }
+	# GARANTİLİ GÖRÜNÜR SONUÇ (G1.7): eski kod yalnız growth eklerdi; basınç kapısına
+	# takılıp çoğu zaman HİÇBİR görünür şey olmuyordu ("pomodoro yaptım, kasaba büyümedi").
+	# Zincir: inşaat başlat (kapı atlanır) → olmuyorsa ev terfisi → o da olmuyorsa çiçek.
+	var vis := ""
+	if building_now == null:
+		_start_construction()
+		if building_now != null:
+			growth -= goal   # eklenen emek bu inşaata harcandı (bedava çifte inşaat olmasın)
+			vis = "insaat"
+			_push_event("🔨 seansının şerefine yeni bir yapı yükseliyor")
+	if vis == "":
+		for b in buildings:
+			if b.type == "house" and b.built == 1 and int(b.get("stage", 1)) < 2 \
+					and (tick - int(b.get("built_at", -1))) >= 3 * TICKS_PER_DAY:
+				b.stage = int(b.get("stage", 1)) + 1   # seans ödülü servisi beklemez (yaş yeter)
+				vis = "terfi"
+				_push_event("🏠 emeğinle bir ev güzelleşti")
+				break
+	if vis == "":
+		_beautify()
+		vis = "cicek"
+	res["visible"] = vis
+	# seri = kutlama yoğunluğu (ceza YOK — gün dönünce nazik sıfır, kazanılan kalır):
+	# 2+ anında bir çiçek; 3+ sakinler meydana toplanır (festival toplanma deseni)
+	if streak >= 2:
+		_beautify()
+	if streak >= 3:
+		for p in people:
+			if not p.moving and _hf(p.seed + tick) < 0.35:
+				p.x = clampf(landmark.x + float(_h(p.seed) % 7) - 3.0, 0.0, float(GW - 1))
+				p.y = clampf(landmark.y + float(_h(p.seed * 3) % 7) - 3.0, 0.0, float(GH - 1))
 	if streak >= 3 and not unlocked.atolye:
 		unlocked.atolye = true
 		res.atolye = true
@@ -1318,10 +1371,31 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 			_convert_unbuilt(mb.key)
 			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false, "text": mb.txt })
 			_push_event(mb.ev)
+	# kümülatif seans anıtları (G1.7): 50→500 — tek seferlik, milestones anahtarıyla
+	for sr in SESSION_REWARDS:
+		if sessions >= sr.at and not milestones.get("ses%d" % int(sr.at), false):
+			milestones["ses%d" % int(sr.at)] = true
+			_apply_session_reward(sr)
+			res["special"] = true
 	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
 		"text": Letters.pick(Letters.ODAK, _h(sessions * 97 + tick)) })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
 	return res
+
+## Seans anıtını kur (G1.7): süsler meydan/çayır çevresine deterministik yerleşir.
+func _apply_session_reward(sr: Dictionary) -> void:
+	festival_t = 1.0
+	if sr.kind == "kule_yaldizi":
+		tower_gilded = true
+	elif sr.kind == "fener_dizisi":
+		# 3 fener meydan çevresine — ışık bütçesi: lamba havuzuna girer, bloom min(1,14/n) zaten böler
+		for k in range(3):
+			lamps.append({ "gx": landmark.x - 2 + k * 2, "gy": landmark.y + 2, "ph": _hf(k * 71) * TAU })
+	else:
+		var off: int = int(sr.at) % 5
+		decor.append({ "gx": clampi(landmark.x - 3 + off, 1, GW - 2), "gy": clampi(landmark.y + 1 + (off % 3), 1, GH - 2), "kind": sr.kind })
+	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false, "text": sr.txt })
+	_push_event(sr.ev)
 
 # ============================================================ DİLEK + MEKTUP (A4)
 ## Dileği gerçekleştir: obje sakinin evinin yanına kurulur + teşekkür mektubu. Grid pos döner (juice için).

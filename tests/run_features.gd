@@ -20,6 +20,7 @@ func _init() -> void:
 	ok = _test_tiers() and ok
 	ok = _test_needs() and ok
 	ok = _test_stages() and ok
+	ok = _test_focus_reward() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
@@ -161,6 +162,54 @@ func _test_stages() -> bool:
 	print("G1 evre: çekirdek=%s kulübe=%s damla=%s ikisi=%s tier-kapı=%s taş=%s roundtrip=%s" % [str(core_ok), str(born_hut), str(one_per_drip), str(both_now), str(gated), str(stone), str(rt)])
 	var pass_ok: bool = core_ok and born_hut and one_per_drip and both_now and gated and stone and rt
 	print("Gs: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+# G1.7 odak ödülü: HER seans garantili görünür sonuç (inşaat→terfi→çiçek zinciri) +
+# kümülatif seans anıtları (50→500, tek seferlik) + kule yaldızı roundtrip.
+func _test_focus_reward() -> bool:
+	var W := load("res://scripts/world.gd")
+	# dal 1: inşasız slot var → inşaat hemen başlar
+	var w = W.new(); w.gen(0)
+	var r1: Dictionary = w.finish_focus_reward()
+	var vis1: bool = r1.get("visible", "") == "insaat" and w.building_now != null
+	# dal 2: slot yok → yaşlı ev terfi eder
+	var w2 = W.new(); w2.gen(0)
+	w2.frontier = W.GW - 6
+	w2.density_level = 3
+	for b in w2.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+		b.built_at = -30000
+	var r2: Dictionary = w2.finish_focus_reward()
+	var vis2: bool = r2.get("visible", "") == "terfi"
+	# dal 3: terfi edecek ev de yok → çiçek
+	var w3 = W.new(); w3.gen(0)
+	w3.frontier = W.GW - 6
+	w3.density_level = 3
+	for b in w3.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+		if b.type == "house":
+			b.stage = 2
+	var r3: Dictionary = w3.finish_focus_reward()
+	var vis3: bool = r3.get("visible", "") == "cicek"
+	# seans anıtları: 50. seans heykel diker, tekrar etmez; 200 kule yaldızı; roundtrip
+	var w4 = W.new(); w4.gen(0)
+	w4.sessions = 49
+	var d0: int = w4.decor.size()
+	w4.finish_focus_reward()
+	var statue: bool = w4.decor.size() == d0 + 1 and w4.milestones.get("ses50", false)
+	w4.finish_focus_reward()
+	var once: bool = w4.decor.size() == d0 + 1
+	w4.sessions = 199
+	w4.finish_focus_reward()
+	var gild: bool = w4.tower_gilded and w4.milestones.get("ses200", false)
+	var w5 = W.new()
+	w5.from_save(JSON.parse_string(JSON.stringify(w4.to_save())))
+	var rt: bool = w5.tower_gilded and w5.milestones.get("ses50", false)
+	print("G1 odak-ödül: inşaat=%s terfi=%s çiçek=%s heykel=%s tek=%s yaldız=%s roundtrip=%s" % [str(vis1), str(vis2), str(vis3), str(statue), str(once), str(gild), str(rt)])
+	var pass_ok: bool = vis1 and vis2 and vis3 and statue and once and gild and rt
+	print("Gf: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).

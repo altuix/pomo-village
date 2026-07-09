@@ -190,6 +190,29 @@ func _draw() -> void:
 				var wa := _t * (1.5 + _wind * 2.0)
 				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) + Vector2(cos(wa), sin(wa)) * 3.0, Color8(232, 220, 200), 1.0)
 				draw_line(Vector2(X, Y - 6.0), Vector2(X, Y - 6.0) - Vector2(cos(wa), sin(wa)) * 3.0, Color8(201, 155, 70), 1.0)
+			# G1.7 seans anıtları (50→500 kümülatif ödüller)
+			"heykel":
+				draw_rect(Rect2(X - 2.0, Y - 1.5, 4.0, 1.5), Color8(120, 110, 120))
+				draw_rect(Rect2(X - 1.2, Y - 5.5, 2.4, 4.0), Color8(150, 140, 150))
+				draw_circle(Vector2(X, Y - 6.3), 1.3, Color8(150, 140, 150))
+			"kameriye":
+				draw_rect(Rect2(X - 3.5, Y - 5.0, 1.0, 5.0), Color8(120, 104, 92))
+				draw_rect(Rect2(X + 2.5, Y - 5.0, 1.0, 5.0), Color8(120, 104, 92))
+				draw_colored_polygon([Vector2(X - 4.5, Y - 5.0), Vector2(X, Y - 7.5), Vector2(X + 4.5, Y - 5.0)], Color8(122, 155, 106))
+			"yuzyil_mesesi":
+				draw_rect(Rect2(X - 1.0, Y - 4.0, 2.0, 4.0), Color8(110, 88, 70))
+				draw_circle(Vector2(X, Y - 6.5), 4.5, SEASONS[world.season].tree)
+				draw_circle(Vector2(X - 2.5, Y - 5.0), 3.0, SEASONS[world.season].tree.darkened(0.12))
+			"zafer_bahcesi":
+				for k in range(4):
+					draw_circle(Vector2(X - 3.0 + k * 2.0, Y - 0.5 - (k % 2)), 1.1, SEASONS[world.season].flowers[k % 3])
+				draw_rect(Rect2(X - 4.0, Y + 0.8, 8.0, 0.8), Color8(120, 104, 92))
+			"ebedi_alev":
+				draw_rect(Rect2(X - 1.5, Y - 1.5, 3.0, 1.5), Color8(120, 110, 120))
+				var fl := 0.8 + 0.2 * sin(_t * 5.0)
+				var abud := minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
+				draw_circle(Vector2(X, Y - 2.8), 2.6 * fl, Color(1.0, 0.75, 0.43, 0.20 * abud))
+				draw_circle(Vector2(X, Y - 2.8), 1.2 * fl, Palette.HONEY)
 
 	# ---- ÖN PLAN ÇİÇEKLERİ (J2: sağ çayırda rüzgârla salınan yaşam; bg çiçekleri statik kalır) ----
 	var meadow_w := maxf(1.0, VW - (fr + 6) * CW)
@@ -481,6 +504,9 @@ func _draw_landmark(ev: float) -> void:
 	draw_rect(Rect2(LX, LY - th + CH, tw, th), _mix(Color8(216,188,160), Color8(150,120,120), ev * 0.4))
 	draw_rect(Rect2(LX + tw * 0.62, LY - th + CH, tw * 0.38, th), Color(0.17, 0.12, 0.18, 0.2))
 	draw_rect(Rect2(LX, LY - th + CH, tw * 0.18, th), Color(1.0, 0.94, 0.82, 0.22))
+	if world.tower_gilded:   # 200-seans anıtı: kule kenarlarında ince yaldız
+		draw_rect(Rect2(LX - 1.2, LY - th + CH, 1.2, th), Palette.HONEY * Color(1, 1, 1, 0.7))
+		draw_rect(Rect2(LX + tw, LY - th + CH, 1.2, th), Palette.HONEY * Color(1, 1, 1, 0.7))
 	# kadran
 	var cf_y := LY - th + CH * 1.5
 	var cr := tw * 0.42
