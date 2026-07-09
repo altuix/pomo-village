@@ -8,14 +8,19 @@ extends SceneTree
 const OUT := "res://assets/sprites/"
 const INK := Color(0.168, 0.118, 0.180)   # 2b1e2e — kontur (palet)
 
+## 2× süper-örnekleme (G3): sprite'lar 2× çözünürlükte üretilir, oyunda aynı fiziksel boyuta
+## küçültülür → linear filtre kenarları yumuşatır (playtest: "pixel art keskin/köşeli, modern
+## yumuşak yap"). Desenler w,h parametrik olduğundan ölçek bozulmaz; dither daha ince okunur.
+const SS := 2
+
 func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
-	_save(_gen_wall(13, 22), "wall")
-	_save(_gen_roof_peak(15, 9), "roof_peak")
-	_save(_gen_roof_hip(15, 8), "roof_hip")
-	_save(_gen_roof_flat(15, 6), "roof_flat")
-	_save(_gen_tree(15, 13), "tree")
-	print("sprite'lar üretildi → ", OUT)
+	_save(_gen_wall(13 * SS, 22 * SS), "wall")
+	_save(_gen_roof_peak(15 * SS, 9 * SS), "roof_peak")
+	_save(_gen_roof_hip(15 * SS, 8 * SS), "roof_hip")
+	_save(_gen_roof_flat(15 * SS, 6 * SS), "roof_flat")
+	_save(_gen_tree(15 * SS, 13 * SS), "tree")
+	print("sprite'lar üretildi (2× süper-örnekleme) → ", OUT)
 	quit(0)
 
 func _save(img: Image, name: String) -> void:
@@ -42,13 +47,16 @@ func _gen_wall(w: int, h: int) -> Image:
 			elif (x + y * 3) % 11 == 0:
 				c = _v(0.88)                  # hafif sıva dokusu
 			img.set_pixel(x, y, c)
-	# kapı: alt-orta 5 geniş kemer (ink çerçeve + koyu iç)
-	var dx0 := w / 2 - 2
-	for y in range(h - 8, h - 1):
-		for x in range(dx0, dx0 + 5):
-			var edge := (x == dx0 or x == dx0 + 4 or y == h - 8)
+	# kapı: alt-orta kemer (ink çerçeve + koyu iç) — oransal (2× süper-örneklemede bozulmasın)
+	var dw := maxi(5, int(w * 0.38))
+	var dh := maxi(7, int(h * 0.34))
+	var dx0 := w / 2 - dw / 2
+	var dy0 := h - 1 - dh
+	for y in range(dy0, h - 1):
+		for x in range(dx0, dx0 + dw):
+			var edge := (x == dx0 or x == dx0 + dw - 1 or y == dy0)
 			img.set_pixel(x, y, INK if edge else _v(0.42))
-	img.set_pixel(dx0 + 3, h - 5, _v(0.95))   # kapı tokmağı parıltısı
+	img.set_pixel(dx0 + dw - 2, h - 1 - dh / 2, _v(0.95))   # kapı tokmağı parıltısı
 	return img
 
 ## Sivri çatı: üçgen, iki yüz (aydınlık/gölge) + kiremit dither + ink kontur
