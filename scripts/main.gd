@@ -324,9 +324,8 @@ func take_postcard(dir_override: String = "") -> void:
 		dir_path = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
 	if dir_path == "" or not DirAccess.dir_exists_absolute(dir_path):
 		dir_path = OS.get_user_data_dir()
-	var day: int = world.tick / World.TICKS_PER_DAY + 1
 	# tohum dosya adında: arkadaşın aynı tohumla aynı kasabayı kurabilir (deterministik paylaşım)
-	last_postcard_path = "%s/NEFES_tohum%d_gun%d_%s.png" % [dir_path, world.town_seed(), day, world.clock_string().replace(":", "")]
+	last_postcard_path = "%s/NEFES_tohum%d_gun%d_%s.png" % [dir_path, world.town_seed(), world.day(), world.clock_string().replace(":", "")]
 	var e := img.save_png(last_postcard_path)
 	if e == OK:
 		world._push_event("📷 kartpostal kaydedildi (Resimler klasörü)")

@@ -62,6 +62,11 @@ const T := {
 	"tt_mute": { "tr": "Sesi sustur / aç", "en": "Mute / unmute" },
 	"tt_mail": { "tr": "Sakinlerden gelen mektuplar", "en": "Letters from your residents" },
 	"tt_close": { "tr": "Kapat (Esc)", "en": "Close (Esc)" },
+	"date_fmt": { "tr": "%d. yıl · gün %d", "en": "year %d · day %d" },
+	"season0": { "tr": "ilkbahar", "en": "spring" },
+	"season1": { "tr": "yaz", "en": "summer" },
+	"season2": { "tr": "sonbahar", "en": "autumn" },
+	"season3": { "tr": "kış", "en": "winter" },
 	"mode0": { "tr": "Pomodoro 25/5", "en": "Pomodoro 25/5" },
 	"mode1": { "tr": "Derin 50/10", "en": "Deep Work 50/10" },
 }

@@ -165,13 +165,13 @@ func _test_wish_variety() -> bool:
 func _test_festival() -> bool:
 	var W := load("res://scripts/world.gd")
 	var w = W.new(); w.gen(0)
-	w.season_tick = 599
+	w.season_tick = w.SEASON_TICKS / 2 - 1
 	w.step_world()
 	var fired: bool = w.fest_done and w.festival_t > 0.9
 	var ev_ok: bool = not w.event_log.is_empty() and "🌸" in w.event_log.back()
 	w.step_world()   # ikinci adım yeniden tetiklememeli (festival_t azalır)
 	var once: bool = w.festival_t < 1.0
-	w.season_tick = 1199
+	w.season_tick = w.SEASON_TICKS - 1
 	w.step_world()   # mevsim döner → bayrak sıfırlanır
 	var reset_ok: bool = w.season == 1 and not w.fest_done
 	# save roundtrip yeni alanları taşır
@@ -328,6 +328,9 @@ func _test_atomic_save() -> bool:
 			var fk := FileAccess.open(pth, FileAccess.READ)
 			keep[pth] = fk.get_as_text()
 			fk.close()
+	# temiz zemin: save_audio mevcut cfg üstüne MERGE eder — oyuncunun gerçek slider değerleri
+	# (pad≠default) kalırsa default-assert yanlış FAIL verir (ortam-bağımlı test kazası)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://settings.cfg"))
 	var W := load("res://scripts/world.gd")
 	var S := load("res://scripts/save.gd")
 	var w = W.new(); w.gen(0)

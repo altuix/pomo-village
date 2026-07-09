@@ -8,6 +8,8 @@ extends RefCounted
 const GW := 64
 const GH := 26
 const TICKS_PER_DAY := 2400
+const SEASON_TICKS := 7 * TICKS_PER_DAY   # 1 mevsim = 7 gün → 1 yıl = 28 gün (yıl sayacı görünür hızda)
+const DAYS_PER_YEAR := 28
 
 # --- tohum (salt): aynı tohum = aynı kasaba. salt=0 → HTML-özdeş ayar davranışı. ---
 var _salt := 0
@@ -113,6 +115,12 @@ func population() -> int:
 
 func town_seed() -> int:
 	return _salt   # kartpostal/paylaşım: aynı tohum = aynı kasaba
+
+func day() -> int:
+	return tick / TICKS_PER_DAY + 1
+
+func year() -> int:
+	return (day() - 1) / DAYS_PER_YEAR + 1
 
 func clock_string() -> String:
 	var hh := int(floor(time_of_day))
@@ -375,7 +383,7 @@ func step_world() -> void:
 	tick += 1
 	time_of_day = fmod(17.2 + float(tick) / TICKS_PER_DAY * 24.0, 24.0)
 	season_tick += 1
-	if season_tick >= 1200:
+	if season_tick >= SEASON_TICKS:
 		season_tick = 0
 		season = (season + 1) % 4
 		fest_done = false
@@ -450,12 +458,12 @@ func step_world() -> void:
 			_push_event("💭 %s bir dilek tuttu" % who.name)
 
 	# MEVSİM FESTİVALİ (Faz D): mevsim ortasında küçük şenlik — sakinler meydana, olay + seyrek mektup.
-	# Mevsimler hızlı döner (1200 tick) → mektup %15 şansla (spam değil, sürpriz kalsın).
-	if season_tick >= 600 and not fest_done:   # >=: yüklenen save 600'ü geçmişse festival kaçmasın
+	# Mevsim artık 7 gün → festival seyrek bir an; mektup şansı %50 (spam değil, hatıra).
+	if season_tick >= SEASON_TICKS / 2 and not fest_done:   # >=: yüklenen save eşiği geçmişse festival kaçmasın
 		fest_done = true
 		festival_t = 1.0
 		_push_event(FEST_EVENTS[season])
-		if _hf(tick * 43) < 0.15:
+		if _hf(tick * 43) < 0.5:
 			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "festival", "replied": false,
 				"text": Letters.FESTIVAL[season] })
 		for p in people:
@@ -743,11 +751,11 @@ func _lit_target(ev: float, sleep: float) -> float:
 func rain_amount() -> float:
 	if season == 3:
 		return 0.0
-	var day := tick / TICKS_PER_DAY
-	if _hf(day * 67 + 5) > 0.28:
+	var d := day() - 1   # 0-tabanlı gün: hash tuzları eski davranışla özdeş (determinizm)
+	if _hf(d * 67 + 5) > 0.28:
 		return 0.0
-	var h0 := 6.0 + float(_h(day * 13) % 12)
-	var dur := 3.0 + float(_h(day * 29) % 4)
+	var h0 := 6.0 + float(_h(d * 13) % 12)
+	var dur := 3.0 + float(_h(d * 29) % 4)
 	var dt_in := time_of_day - h0
 	if dt_in < 0.0 or dt_in > dur:
 		return 0.0
