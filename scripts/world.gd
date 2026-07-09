@@ -152,6 +152,28 @@ const GOAL_CAP := 7200.0          # inşaat maliyeti tavanı: üstel fren burada
 const PRESSURE_BUILD := 0.72      # inşaat kapısı; göç < 0.85 — örtüşme penceresi eski 0.75/0.75 sınır kilidini çözer
 const POP_SOFT_CAP := 320         # perf tavanı (offline sarma + render kişi-döngüleri); doğumu lojistik frenler, ceza değil
 var rain_was := false             # yağmur geçiş olayı için (save'e girmez; tek sahte geçiş zararsız)
+
+# --- rastgele gün olayları (G1.8): günde en çok bir, HEPSİ HEDİYE (savaş/ceza yok — cozy) ---
+var last_event_day := -1          # save'de; aynı gün ikinci olay yok
+var recent_events: Array = []     # son 3 olay kimliği (tekrar önleme; save'de)
+var pending_family := 0           # göçebe mektubu: ertesi gün garantili göç (save'de)
+# görsel nabızlar (rain_was gibi save'e girmez; render gözlemler)
+var rainbow_t := 0.0
+var balloon_t := 0.0
+var kite_t := 0.0
+var starfall_t := 0.0
+const DAY_EVENTS := [
+	{ "id": 0, "w": 14, "k": "tuccar" },
+	{ "id": 1, "w": 10, "k": "dugun" },
+	{ "id": 2, "w": 8,  "k": "hasat" },
+	{ "id": 3, "w": 10, "k": "gokkusagi" },
+	{ "id": 4, "w": 8,  "k": "balon" },
+	{ "id": 5, "w": 10, "k": "gocebe" },
+	{ "id": 6, "w": 10, "k": "kus_surusu" },
+	{ "id": 7, "w": 8,  "k": "ucurtma" },
+	{ "id": 8, "w": 8,  "k": "yildiz" },
+	{ "id": 9, "w": 4,  "k": "ziyaretci" },
+]
 var festival_t := 0.0             # festival nabzı 1→0 (render gözlemler; chime_t deseni)
 var fest_done := false            # bu mevsim festivali oldu mu (mevsim dönünce sıfırlanır)
 const FEST_EVENTS := ["🌸 Çiçek Günü — meydan taçyaprağı içinde", "💧 Dere Şenliği — kâğıt kayıklar yarışıyor",
@@ -235,6 +257,13 @@ func gen(seed_val: int = 0) -> void:
 	density_level = 0
 	tier = 0
 	tower_gilded = false
+	last_event_day = -1
+	recent_events = []
+	pending_family = 0
+	rainbow_t = 0.0
+	balloon_t = 0.0
+	kite_t = 0.0
+	starfall_t = 0.0
 	town_complete = false
 	streak = 0
 	sessions = 0
@@ -567,6 +596,19 @@ func step_world() -> void:
 		festival_t = 1.0   # meydan şenliği nabzı (mevcut festival deseni yeniden kullanılır)
 		_milestone(TIERS[tier].key, "🪧 tabela yenilendi — artık bir %s'yiz! Meydanda kutlama var" % str(TIERS[tier].name).to_upper())
 
+	# GÜNLÜK OLAY (G1.8): ~%35 gün olaylı; saat 10-19 arası deterministik pencere (100 tick).
+	# gökkuşağı yağmurlu güne, hasat sonbahara, uçurtma ilkbahar/yaza koşullu (_event_ok).
+	var dnum := day() - 1
+	if dnum != last_event_day and _hf(dnum * 211 + 7) < 0.35:
+		var ev_hour := 10.0 + float(_h(dnum * 13 + 3) % 10)
+		if time_of_day >= ev_hour and time_of_day < ev_hour + 1.0:
+			last_event_day = dnum
+			_fire_day_event(dnum)
+	rainbow_t = maxf(0.0, rainbow_t - 0.002)
+	balloon_t = maxf(0.0, balloon_t - 0.0015)
+	kite_t = maxf(0.0, kite_t - 0.002)
+	starfall_t = maxf(0.0, starfall_t - 0.003)
+
 	# uzun-vade anları (Faz D): tek seferlik kutlamalar
 	if tick >= 30 * TICKS_PER_DAY and not milestones.get("gun30", false):
 		_milestone("gun30", "🕯 kasabanın 30. günü — meydanda mum ışığı")
@@ -659,6 +701,7 @@ func to_save() -> Dictionary:
 		"density_level": density_level,
 		"tier": tier,
 		"tower_gilded": tower_gilded,
+		"last_event_day": last_event_day, "recent_events": recent_events, "pending_family": pending_family,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -711,6 +754,11 @@ func from_save(d: Dictionary) -> void:
 	density_level = int(d.get("density_level", 0))
 	tier = clampi(int(d.get("tier", 0)), 0, TIERS.size() - 1)
 	tower_gilded = bool(d.get("tower_gilded", false))
+	last_event_day = int(d.get("last_event_day", -1))
+	recent_events = []
+	for re in d.get("recent_events", []):
+		recent_events.append(int(re))
+	pending_family = int(d.get("pending_family", 0))
 	var lm: Array = d.get("landmark", [11, 13])
 	landmark = Vector2i(int(lm[0]), int(lm[1]))
 	road_list = _to_vec_list(d.get("road_list", []))
@@ -1170,6 +1218,25 @@ func _life_cycle() -> void:
 					_push_event("🏡 %s kendi yuvasına taşındı" % seekers[0].name)
 				_maybe_move_letter(seekers[0], seekers[0].seed * 41 + tick)
 
+	# GÖÇEBE MEKTUBU (G1.8): söz verilen aile ilk boş evde gelir — basınç kapısı
+	# beklemez (mektup bir SÖZ; cozy: verilen söz tutulur), yalnız boş ev bekler
+	if pending_family > 0 and tick % 200 == 0:
+		var ph := empty_houses()
+		if not ph.is_empty():
+			var pnb: Dictionary = ph[0]
+			for k in range(pending_family):
+				var pp := _add_person(0, int(floor(GH * 0.5)), pnb, 1)
+				pp.age_t = _h(pp.seed * 11) % 15000
+				pp.tx = pnb.gx
+				pp.ty = pnb.gy
+				pp.moving = true
+				pp.steps = k * 2
+				pnb.members.append(pp)
+				movers.append(pp)
+			pending_family = 0
+			stat_arrivals += 1
+			_push_event("🧳 mektuptaki aile geldi — kapıda sıcak çorba bekliyordu")
+
 	# GÖÇ: boş ev + gevşek nüfus → yeni aile (kasaba asla ölmez; boşsa hızlanır).
 	# < 0.85: inşaat kapısı (0.72) ile örtüşen pencere — eski 0.75/0.75 tam-tamamlayıcı
 	# eşikler sistemi sınırda kilitliyordu (ne inşaat ne göç). POP_SOFT_CAP'te nazikçe durur.
@@ -1381,6 +1448,99 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 		"text": Letters.pick(Letters.ODAK, _h(sessions * 97 + tick)) })
 	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
 	return res
+
+# ============================================================ GÜN OLAYLARI (G1.8)
+## Olay uygulanabilir mi (koşullu olaylar; koşulsuzlar hep true)
+func _event_ok(id: int) -> bool:
+	match id:
+		1:   # düğün: boş ev şart
+			return not empty_houses().is_empty()
+		2:   # hasat şenliği: sonbahar
+			return season == 2
+		3:   # gökkuşağı: o gün yağmurlu (rain_amount'un gün hash'i) ve kış değil
+			return season != 3 and _hf((day() - 1) * 67 + 5) <= 0.28
+		5:   # göçebe aile: nüfus tavana yakın değil ve bekleyen yok
+			return population() < POP_SOFT_CAP - 30 and pending_family == 0
+		7:   # uçurtma: ilkbahar/yaz
+			return season <= 1
+		9:   # ışık toplayıcısı: melodin kaydedilmiş olmalı (ortam-koşullu nadir ziyaretçi)
+			return melody_saved
+	return true
+
+func _fire_day_event(d: int) -> void:
+	var total := 0
+	for e in DAY_EVENTS:
+		total += int(e.w)
+	var pick := -1
+	for attempt in range(3):   # son-3 tekrarını kaydır; 3 denemede olmadıysa o gün sessiz (zararsız)
+		var roll := _h(d * 101 + 11 + attempt * 977) % total
+		var cand := -1
+		for e in DAY_EVENTS:
+			roll -= int(e.w)
+			if roll < 0:
+				cand = int(e.id)
+				break
+		if not recent_events.has(cand) and _event_ok(cand):
+			pick = cand
+			break
+	if pick == -1:
+		return
+	recent_events.append(pick)
+	while recent_events.size() > 3:
+		recent_events.pop_front()
+	match pick:
+		0:   # gezgin tüccar: handa konaklar, meydana bir hediye bırakır (dilek objesi havuzundan)
+			var gift: Dictionary = WISH_TYPES[_h(d * 31) % WISH_TYPES.size()]
+			decor.append({ "gx": clampi(landmark.x + 2 + _h(d) % 3, 1, GW - 2), "gy": clampi(landmark.y + 2, 1, GH - 2), "kind": gift.k })
+			_push_event("🐴 gezgin tüccar uğradı — meydana bir %s hediye bıraktı" % gift.k)
+			if _hf(d * 43 + 1) < 0.3:
+				_push_letter({ "from": "Gezgin tüccar", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.tuccar })
+		1:   # düğün: çift boş eve taşınır (büyümeye gerçek katkı) + şenlik
+			var eh := empty_houses()
+			var nb: Dictionary = eh[0]
+			for k in range(2):
+				var p := _add_person(landmark.x, landmark.y, nb, 1)
+				p.age_t = _h(p.seed * 11) % 15000
+				p.tx = nb.gx
+				p.ty = nb.gy
+				p.moving = true
+				p.steps = k * 2
+				nb.members.append(p)
+				movers.append(p)
+			festival_t = maxf(festival_t, 0.6)
+			_push_event("💒 bugün düğün var — %s ve %s yeni yuvalarına taşınıyor" % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
+			if _hf(d * 43 + 2) < 0.5:
+				_push_letter({ "from": "Yeni evli çift", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.dugun })
+		2:   # hasat şenliği: meydan sofrası + çiçekler
+			festival_t = 1.0
+			_beautify()
+			_beautify()
+			_push_event("🌾 hasat şenliği — meydanda uzun sofra, herkes davetli")
+		3:
+			rainbow_t = 1.0
+			_push_event("🌈 yağmurun ardından gökkuşağı çıktı — herkes başını kaldırdı")
+		4:
+			balloon_t = 1.0
+			_push_event("🎈 gökyüzünden bir balon geçiyor — çocuklar el sallıyor")
+		5:
+			pending_family = 2 + _h(d * 17) % 2
+			_push_letter({ "from": "Uzaktan bir aile", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.gocebe })
+			_push_event("📮 uzaktan bir mektup: 'yarın geliyoruz' — bir aile katılmak istiyor")
+		6:
+			_push_event("🕊 bir kuş sürüsü kasabanın üstünden geçti — kule bir kez selam çaldı")
+		7:
+			kite_t = 1.0
+			_push_event("🪁 uçurtma günü — çocuklar çayırda, gökyüzü rengârenk")
+		8:   # yıldız yağmuru: bedava dilek belirir
+			starfall_t = 1.0
+			_push_event("🌠 gece yıldız yağmuru — herkes bir dilek tuttu")
+			if wish == null and not people.is_empty():
+				var who = people[_h(d * 7) % people.size()]
+				if who.stage == 1:
+					wish = { "who": who, "type": _h(d * 3) % WISH_TYPES.size() }
+		9:
+			_push_event("🏮 nadir bir konuk: Işık Toplayıcısı melodini dinlemeye geldi")
+			_push_letter({ "from": "Işık Toplayıcısı", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.ziyaretci })
 
 ## Seans anıtını kur (G1.7): süsler meydan/çayır çevresine deterministik yerleşir.
 func _apply_session_reward(sr: Dictionary) -> void:

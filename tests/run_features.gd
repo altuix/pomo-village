@@ -21,6 +21,7 @@ func _init() -> void:
 	ok = _test_needs() and ok
 	ok = _test_stages() and ok
 	ok = _test_focus_reward() and ok
+	ok = _test_day_events() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
@@ -210,6 +211,50 @@ func _test_focus_reward() -> bool:
 	print("G1 odak-ödül: inşaat=%s terfi=%s çiçek=%s heykel=%s tek=%s yaldız=%s roundtrip=%s" % [str(vis1), str(vis2), str(vis3), str(statue), str(once), str(gild), str(rt)])
 	var pass_ok: bool = vis1 and vis2 and vis3 and statue and once and gild and rt
 	print("Gf: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+# G1.8 gün olayları: çeşitlilik + son-3 tekrar penceresi + determinizm + göçebe sözü + roundtrip.
+func _test_day_events() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	var ids := {}
+	var window_ok := true
+	for d in range(200):
+		w._fire_day_event(d)
+		if w.recent_events.size() > 3:
+			window_ok = false
+		var seen := {}
+		for e in w.recent_events:   # pencere içinde kopya olmamalı
+			if seen.has(e):
+				window_ok = false
+			seen[e] = true
+		if not w.recent_events.is_empty():
+			ids[w.recent_events.back()] = true
+	var variety: bool = ids.size() >= 6
+	var w2 = W.new(); w2.gen(0)
+	for d in range(200):
+		w2._fire_day_event(d)
+	var det: bool = str(w2.recent_events) == str(w.recent_events) and w2.population() == w.population()
+	# göçebe sözü: pending_family gün sınırında boş eve yerleşir (basınç beklemez)
+	var w3 = W.new(); w3.gen(0)
+	w3._add_building(15, 12, false)
+	var gh: Dictionary = w3.buildings[w3.buildings.size() - 1]
+	gh.built = 1
+	gh.build_prog = 1.0   # garantili boş ev (determinist kurulum)
+	w3.pending_family = 2
+	var arr0: int = w3.stat_arrivals
+	for t in range(401):
+		w3.step_world()
+	var promise: bool = w3.pending_family == 0 and w3.stat_arrivals > arr0
+	# roundtrip
+	w.pending_family = 1
+	w.last_event_day = 42
+	var w4 = W.new()
+	w4.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w4.last_event_day == 42 and w4.pending_family == 1 and str(w4.recent_events) == str(w.recent_events)
+	print("G1 olaylar: çeşit=%d pencere=%s determinizm=%s söz=%s roundtrip=%s" % [ids.size(), str(window_ok), str(det), str(promise), str(rt)])
+	var pass_ok: bool = variety and window_ok and det and promise and rt
+	print("Ge: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).

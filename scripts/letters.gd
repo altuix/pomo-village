@@ -130,6 +130,14 @@ const AN := {
 	"tier_sehir": "İki yüz yirmi komşu. Resmî haritada adımızın yanına ŞEHİR yazıldı — ama biz aramızda hâlâ 'bizim kasaba' diyoruz. Bazı şeyler hiç değişmesin, değil mi?",
 }
 
+# ---- GÜN OLAYLARI (G1.8 — hediye olayların mektupları) ----
+const OLAY := {
+	"tuccar": "Yollardan geçen bir tüccarım. Kasabanızda bir gece konakladım; kulenizin melodisi ve insanların güleryüzü için meydana küçük bir hediye bıraktım. Yolum yine düşer.",
+	"dugun": "Bugün evlendik! Bütün kasaba meydandaydı; kule bizim için fazladan bir kez çaldı. Yeni evimizin penceresinden ilk baktığımız şey senin ışığındı. Mutluluğumuzda payın var.",
+	"gocebe": "Merhaba. Uzaktan yazıyoruz — kasabanızın ışıklarını tepelerden gördük, insanların birbirine iyi davrandığını duyduk. Yarın geliyoruz. Bize küçük bir yer var mı? Not: taze reçel getiriyoruz.",
+	"ziyaretci": "Ben Işık Toplayıcısı'yım. Kasabaların ışıklarını ve melodilerini toplarım. Seninki... seninki farklıydı. Fenerimde artık senin kulendin ezgisi de var. Bir gün yine geleceğim — o zamana dek ışığın hiç sönmesin.",
+}
+
 # ---- MEVSİM FESTİVALLERİ (her mevsim ortasında bir; kasaba halkından davet mektubu) ----
 const FESTIVAL := [
 	"Bugün Çiçek Günü! Meydan taçyaprağı içinde; çocuklar birbirinin saçına çiçek takıyor. En güzel taç senin masana bırakıldı.",

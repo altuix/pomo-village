@@ -304,6 +304,33 @@ func _draw() -> void:
 		var wing := sin(bd.ph) * 3.0
 		draw_polyline([Vector2(bd.x - 4.0, bd.y + wing), Vector2(bd.x, bd.y), Vector2(bd.x + 4.0, bd.y + wing)], Color(0.24, 0.18, 0.22, 0.55), 1.5)
 
+	# ---- GÜN OLAYI NABIZLARI (G1.8: sim bayrak azaltır, render gözler) ----
+	if world.rainbow_t > 0.0:
+		var ra: float = 0.30 * world.rainbow_t
+		var arc_cols := [Color8(194, 90, 74), Color8(201, 155, 70), Color8(122, 155, 106)]
+		for k in range(3):
+			draw_arc(Vector2(VW * 0.32, VH * 1.05), VH * (0.72 - k * 0.035), PI, TAU, 48,
+				Color(arc_cols[k].r, arc_cols[k].g, arc_cols[k].b, ra), 2.5, true)
+	if world.balloon_t > 0.0:
+		var bx: float = (1.0 - world.balloon_t) * (VW + 80.0) - 40.0
+		var by: float = VH * 0.15 + sin(_t * 0.8) * 5.0
+		draw_circle(Vector2(bx, by), 7.0, PCOL[1])
+		draw_circle(Vector2(bx - 2.0, by - 2.5), 2.6, Color(1, 1, 1, 0.25))
+		draw_line(Vector2(bx - 3.0, by + 6.0), Vector2(bx - 2.0, by + 12.0), Color8(90, 76, 84), 1.0)
+		draw_line(Vector2(bx + 3.0, by + 6.0), Vector2(bx + 2.0, by + 12.0), Color8(90, 76, 84), 1.0)
+		draw_rect(Rect2(bx - 3.0, by + 12.0, 6.0, 4.0), Color8(120, 104, 92))
+	if world.kite_t > 0.0:
+		var kx: float = (world.frontier + 9) * CW + sin(_t * 0.9) * 14.0
+		var ky: float = VH * 0.30 + cos(_t * 0.7) * 9.0
+		draw_colored_polygon([Vector2(kx, ky - 5.0), Vector2(kx + 4.0, ky), Vector2(kx, ky + 5.0), Vector2(kx - 4.0, ky)], PCOL[4])
+		draw_line(Vector2(kx, ky + 5.0), Vector2(kx - 12.0, VH * 0.72), Color(0.9, 0.9, 0.9, 0.3), 1.0)
+	if world.starfall_t > 0.0 and ev > 0.4:
+		for k in range(3):
+			var sp := fmod(_t * 0.35 + k * 0.37, 1.0)
+			var sx: float = VW * (0.15 + 0.3 * k) + sp * 60.0
+			var sy: float = VH * 0.08 + sp * 42.0
+			draw_line(Vector2(sx, sy), Vector2(sx - 7.0, sy - 5.0), Color(1.0, 0.94, 0.8, 0.7 * (1.0 - sp) * world.starfall_t), 1.2)
+
 	# ---- BACA DUMANI ----
 	for b in world.buildings:
 		if not b.awake or not b.chimney or b.build_prog < 1.0: continue
