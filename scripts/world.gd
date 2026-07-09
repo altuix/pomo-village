@@ -88,6 +88,7 @@ var concert_done := false
 # --- dilek + bond (A4) ---
 var wish = null                        # {"who": person, "type": idx} ya da null
 var bond := 0
+var density_level := 0                 # iç yoğunlaşma (G1.3): frontier dolunca kasaba içe sıklaşır (0-3)
 var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50/butunlendi — tek seferlik)
 var town_complete := false             # harita doldu: growth artık güzelleştirmeye akar (end-game, Faz D)
 # teşekkür metinleri Letters.DILEK havuzunda (tek kaynak; Faz D çeşitlilik)
@@ -185,6 +186,7 @@ func gen(seed_val: int = 0) -> void:
 	wish = null
 	bond = 0
 	milestones = {}
+	density_level = 0
 	town_complete = false
 	streak = 0
 	sessions = 0
@@ -578,6 +580,7 @@ func to_save() -> Dictionary:
 		"pending_special": pending_special.duplicate(),
 		"milestones": milestones.duplicate(),
 		"town_complete": town_complete,
+		"density_level": density_level,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -627,6 +630,7 @@ func from_save(d: Dictionary) -> void:
 	stat_wishes = int(d.get("stat_wishes", 0))
 	milestones = (d.get("milestones", {}) as Dictionary).duplicate()
 	town_complete = bool(d.get("town_complete", false))
+	density_level = int(d.get("density_level", 0))
 	var lm: Array = d.get("landmark", [11, 13])
 	landmark = Vector2i(int(lm[0]), int(lm[1]))
 	road_list = _to_vec_list(d.get("road_list", []))
@@ -774,9 +778,9 @@ func is_asleep() -> bool:
 	return _sleep_amount(time_of_day) > 0.0
 
 func _start_construction() -> void:
-	# 2 deneme: aday yoksa frontier genişletilip TEKRAR denenir — çağıran growth/goal'i çoktan
-	# harcadı; genişletme dalında bina başlatmamak bir döngünün emeğini boşa akıtıyordu
-	for attempt in range(2):
+	# 3 deneme: aday yoksa önce frontier genişletilir, o da doluysa kasaba İÇE SIKLAŞIR (G1.3) —
+	# çağıran growth/goal'i çoktan harcadı; boş dal bir döngünün emeğini boşa akıtır
+	for attempt in range(3):
 		var cand := []
 		for b in buildings:
 			if b.built == 0 and b.build_prog <= 0.0:
@@ -789,11 +793,52 @@ func _start_construction() -> void:
 		if attempt == 0 and frontier < GW - 8:
 			_expand_frontier()
 			continue
+		if density_level < 3:
+			_densify(density_level + 1)
+			continue
 		if not town_complete:
-			# harita doldu + inşasız bina yok → KASABA BÜTÜNLENDİ (bir kez; growth güzelleştirmeye döner)
+			# harita doldu + yoğunlaşma bitti + inşasız yok → KASABA BÜTÜNLENDİ (bir kez)
 			town_complete = true
 			_milestone("butunlendi", "🎊 KASABA BÜTÜNLENDİ — son ev de yuvasını buldu")
 		return
+
+## İç yoğunlaşma (G1.3): frontier tükendiğinde mevcut doku ARASINA yeni sokak+parseller.
+## Yalnız EKLER (gx-mutlak, seviye-tuzlu hash + _add_road dedupe → mevcut yollar/binalar
+## bozulmaz, determinizm korunur). Her seviye ~30-50 yeni parsel.
+func _densify(level: int) -> void:
+	density_level = level
+	var spine_y := int(floor(GH * 0.5))
+	var bx := 5 + level * 2
+	while bx < frontier:
+		var length := 3 + _h(bx * 7 + level * 1013) % 5
+		var dir := 1 if (_h(bx + level * 131) % 2) else -1
+		var x := bx
+		var y := spine_y
+		for s in range(length):
+			y += dir
+			if y < 2 or y >= GH - 2:
+				break
+			x += (_h(bx * 13 + s + level * 977) % 3) - 1
+			_add_road(x, y)
+		bx += 8 + (_h(bx + level) % 4)
+	var occ := {}
+	for b in buildings:
+		occ[Vector2i(b.gx, b.gy)] = true
+	for r in road_list:
+		if r.x >= frontier:
+			continue
+		for d in [Vector2i(0, -1), Vector2i(0, 1)]:
+			var c: Vector2i = r + d
+			if c.x < 5 or c.y < 1 or c.x >= frontier or c.y >= GH - 1:
+				continue
+			if road_set.has(c) or river_set.has(c) or occ.has(c):
+				continue
+			if _hf(c.x * 97 + c.y * 61 + level * 419) < 0.72:
+				continue
+			occ[c] = true
+			_add_building(c.x, c.y, _hf(c.x * 3 + c.y * 7 + level) < 0.18)
+	_drain_pending_special()   # yeni inşasız binalar açıldı — bekleyen özel binalar kurulsun
+	_push_event("🏘 kasaba içe doğru sıklaşıyor — yeni sokaklar açıldı")
 
 func _dist(b: Dictionary) -> int:
 	return abs(b.gx - landmark.x) + abs(b.gy - landmark.y)

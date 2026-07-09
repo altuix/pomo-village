@@ -16,9 +16,45 @@ func _init() -> void:
 	ok = _test_festival() and ok
 	ok = _test_wish_variety() and ok
 	ok = _test_milestone_buildings() and ok
+	ok = _test_densify() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
+
+# G1.3 iç yoğunlaşma: frontier dolunca _start_construction sıklaştırır; yalnız-ekleme
+# determinizmi korur; density_level save'de taşınır; bütünlenme ancak seviye 3'te.
+func _test_densify() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	w.frontier = W.GW - 6
+	var roads0: int = w.road_list.size()
+	var blds0: int = w.buildings.size()
+	for b in w.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+	w._start_construction()   # aday yok + frontier maks → densify(1) + yeni parselden inşaat
+	var densified: bool = w.density_level == 1 and w.buildings.size() > blds0 and w.road_list.size() > roads0
+	var started: bool = w.building_now != null and not w.town_complete
+	# yalnız-ekleme determinizmi: aynı tohum + aynı akış → özdeş yol/bina dizilimi
+	var w2 = W.new(); w2.gen(0)
+	w2.frontier = W.GW - 6
+	for b in w2.buildings:
+		b.built = 1
+		b.build_prog = 1.0
+	w2._start_construction()
+	var det: bool = w2.road_list.size() == w.road_list.size() and w2.buildings.size() == w.buildings.size()
+	if det:
+		for i in range(w.road_list.size()):
+			if w.road_list[i] != w2.road_list[i]:
+				det = false
+	# roundtrip: density_level taşınır
+	var w3 = W.new()
+	w3.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w3.density_level == 1
+	print("G1 yoğunlaşma: sıklaştı=%s inşaat=%s determinizm=%s roundtrip=%s" % [str(densified), str(started), str(det), str(rt)])
+	var pass_ok: bool = densified and started and det and rt
+	print("Gd: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).
 func _test_hardening() -> bool:
@@ -220,12 +256,13 @@ func _test_weather() -> bool:
 func _test_endgame_design() -> bool:
 	var W := load("res://scripts/world.gd")
 	var w = W.new(); w.gen(0)
-	# doluluk koşullarını kur: frontier maks + tüm binalar inşa edilmiş
+	# doluluk koşullarını kur: frontier maks + yoğunlaşma bitmiş + tüm binalar inşa edilmiş
 	w.frontier = W.GW - 6
+	w.density_level = 3
 	for b in w.buildings:
 		b.built = 1
 		b.build_prog = 1.0
-	w._start_construction()   # aday yok + frontier maks → bütünlenme
+	w._start_construction()   # aday yok + frontier maks + yoğunluk 3 → bütünlenme
 	var complete: bool = w.town_complete and w.milestones.get("butunlendi", false)
 	var has_letter := false
 	for l in w.letters:
