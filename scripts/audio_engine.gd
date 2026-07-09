@@ -28,7 +28,7 @@ const CHIME_PERIOD := 27.7
 # kanal-başına drift periyotları (ortak-katsız — asla hizalanmaz; playtest "loop hissi" isteği)
 const DRIFT_PERIODS := { "rain": 23.3, "stream": 31.7, "pad": 41.9, "cricket": 17.1 }
 
-var gains := { "rain": 0.0, "stream": 0.0, "pad": 0.0, "cricket": 0.0, "master": 0.7 }
+var gains := { "rain": 0.0, "stream": 0.0, "pad": 0.0, "cricket": 0.0, "music": 0.0, "master": 0.7 }
 var evening := 0.0
 var weather_rain := 0.0
 var focus_active := false
@@ -71,6 +71,11 @@ var _ev_lp := 0.0
 var _voices: Array = []
 # CC0 ambient yuvası (dosya varsa sentez yerine)
 var _amb := {}   # kanal -> AudioStreamPlayer
+# CC0 lofi müzik kanalı (G5): assets/music/ altındaki parçalar sırayla; arada sessiz nefes
+var _music: AudioStreamPlayer = null
+var _music_tracks: Array = []
+var _music_i := -1
+var _music_gap_until := 6.0     # ilk parça birkaç sn sonra başlar (açılışta sessizlik)
 
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
@@ -94,6 +99,25 @@ func _ready() -> void:
 			add_child(p)
 			p.play()
 			_amb[ch] = p
+	# CC0 lofi müzik: assets/music/ altındaki tüm .ogg/.mp3'leri yükle (sıralı çalınır)
+	var mdir := DirAccess.open("res://assets/music")
+	if mdir != null:
+		var names := mdir.get_files()
+		names.sort()   # 01_.. 02_.. deterministik sıra
+		for fn in names:
+			if fn.ends_with(".ogg") or fn.ends_with(".mp3"):
+				var st := load("res://assets/music/" + fn)
+				if st != null:
+					_music_tracks.append(st)
+	if not _music_tracks.is_empty():
+		_music = AudioStreamPlayer.new()
+		_music.volume_db = -80.0
+		add_child(_music)
+		_music.finished.connect(_on_music_finished)
+
+func _on_music_finished() -> void:
+	# parça bitti → 20-40sn sessiz nefes, sonra sıradaki (loop hissi kırılır — playtest)
+	_music_gap_until = _t + 20.0 + 20.0 * Rng.hf(_music_i * 131 + 7)
 
 func _noise() -> float:
 	_rng = (_rng * 1103515245 + 12345) & 0x7fffffff
@@ -132,6 +156,23 @@ func _process(_d: float) -> void:
 	if _amb.has("stream"):
 		_amb.stream.volume_db = linear_to_db(clampf(stream_gain * gains.master, 0.0001, 1.0))
 		stream_gain = 0.0
+	# CC0 LOFI MÜZİK (G5): sıradaki parça sessiz nefesten sonra başlar; müzik çalarken pad kısılır
+	var music_on := false
+	if _music != null:
+		if gains.music > 0.001:
+			if not _music.playing and _t >= _music_gap_until:
+				_music_i = (_music_i + 1) % _music_tracks.size()
+				_music.stream = _music_tracks[_music_i]
+				_music.play()
+			if _music.playing:
+				music_on = true
+				# gain drift'i müziğe de uygulanır (ortak-katsız pad periyodu — hafif nefes)
+				var mg: float = gains.music * gains.master * (0.9 + 0.1 * _drift.pad)
+				_music.volume_db = linear_to_db(clampf(mg, 0.0001, 1.0))
+		elif _music.playing:
+			_music.stop()
+	if music_on:
+		pad_gain *= 0.3   # ducking: müzik varken sentez pad geri çekilir (çamurlaşmasın)
 	# katman parametreleri: env/amp'ler blok başına (yavaş değişirler)
 	var lay_amp := []
 	var lay_a2 := []

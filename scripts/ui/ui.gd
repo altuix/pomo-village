@@ -502,7 +502,7 @@ var _sound_sliders := {}   # kanal -> HSlider (sync_from_world ayarlardan doldur
 func _fill_sound() -> void:
 	var vb := sound_box.get_node("VB")
 	var rows := [
-		["🌧 yağmur", "rain"], ["💧 dere", "stream"],
+		["🎵 müzik", "music"], ["🌧 yağmur", "rain"], ["💧 dere", "stream"],
 		["🎹 lo-fi pad", "pad"], ["🦗 gece", "cricket"], ["🔊 ana", "master"],
 	]
 	for row in rows:

@@ -49,8 +49,11 @@ sana mektup yazar, kule senin melodini çalar." Rain City evreni, solo geliştir
 
 ## Ses
 
-- %100 sentez (telif yok): AudioStreamGenerator ya da numpy→ogg stem render.
-- Kanallar (yağmur/dere/pad/cırcır) kullanıcı slider'lı; cırcır × evening.
+- Sentez öncelikli (telif yok): AudioStreamGenerator ya da numpy→ogg stem render.
+  **CC0 istisnası (kullanıcı onaylı, G tur):** belgelenmiş CC0/telifsiz dış ses (ambient loop,
+  lofi müzik) eklenebilir — kaynak+lisans+indirme tarihi ZORUNLU olarak `ASSETS.md`'ye yazılır.
+  Sentez motoru fallback olarak korunur (dosya yoksa/kapalıysa sentez sürer).
+- Kanallar (müzik/yağmur/dere/pad/cırcır) kullanıcı slider'lı; cırcır × evening; müzik çalarken pad ducking.
 - Olay sesleri ödüldür: odak arpeji, seri fanfarı, lamba tıkı, mektup hışırtısı,
   veda çift notası. Yeni özellik = yeni minik ses düşün.
 - Kule melodisi: pentatonik (C-D-E-G-A-C) — kullanıcı ne yaparsa yapsın uyumlu.

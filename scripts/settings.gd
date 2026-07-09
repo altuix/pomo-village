@@ -5,7 +5,7 @@ extends RefCounted
 ## oyun sessiz açılınca ses motoru hiç fark edilmiyordu).
 
 const PATH := "user://settings.cfg"
-const AUDIO_DEFAULTS := { "rain": 0.0, "stream": 0.20, "pad": 0.25, "cricket": 0.20, "master": 0.7 }
+const AUDIO_DEFAULTS := { "rain": 0.0, "stream": 0.20, "pad": 0.25, "cricket": 0.20, "music": 0.45, "master": 0.7 }
 
 static func load_audio() -> Dictionary:
 	var cfg := ConfigFile.new()
