@@ -23,6 +23,19 @@ static func save_audio(gains: Dictionary) -> void:
 	if cfg.save(PATH) != OK:
 		push_warning("[settings] settings.cfg yazılamadı")
 
+static func get_str(key: String, def: String = "") -> String:
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		return def
+	return String(cfg.get_value("display", key, def))
+
+static func set_str(key: String, val: String) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)
+	cfg.set_value("display", key, val)
+	if cfg.save(PATH) != OK:
+		push_warning("[settings] settings.cfg yazılamadı")
+
 static func get_int(key: String, def: int = 0) -> int:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:

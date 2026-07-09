@@ -52,8 +52,22 @@ var _melody: Array = [0, 2, 4, 2, -1, 3, 1, 0]
 var _mel_cells: Array = []
 var _mel_note: Label
 
+var _bar: HBoxContainer = null
+
 func _ready() -> void:
+	Loc.boot()
 	_build()
+
+## Dil değişimi (S3): UI komple yeniden kurulur — kayıtlı melodi/slider'lar senkronlanır, menü yeniden açılır.
+func rebuild_ui() -> void:
+	for c in get_children():
+		c.queue_free()
+	menu_screen = null
+	_mel_cells = []
+	_sound_sliders = {}
+	_build()
+	sync_from_world()
+	show_menu()
 
 ## main._wire çağırır: kayıtlı melodiyi ızgaraya + ses slider'larını ayarlardan yansıt.
 func sync_from_world() -> void:
@@ -75,11 +89,31 @@ func _label(txt: String, size: int, col: Color) -> Label:
 	l.add_theme_constant_override("outline_size", 4)
 	return l
 
+## S2: butonlar GERÇEK buton — normal/hover/pressed StyleBox (dolgusuz link-görünümü playtest
+## şikâyetiydi); pressed'de 1px içeri (bastım hissi).
+func _btn_style(bg: Color, border: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(6)
+	sb.content_margin_left = 10.0
+	sb.content_margin_right = 10.0
+	sb.content_margin_top = 5.0
+	sb.content_margin_bottom = 5.0
+	return sb
+
 func _button(txt: String) -> Button:
 	var b := Button.new()
 	b.text = txt
 	b.add_theme_font_size_override("font_size", 12)
 	b.add_theme_color_override("font_color", CREAM)
+	b.add_theme_stylebox_override("normal", _btn_style(Color(Palette.PANEL_BG, 0.85), Palette.PANEL_BORDER))
+	b.add_theme_stylebox_override("hover", _btn_style(Color(Palette.PANEL_BORDER, 0.85), HONEY))
+	var pr := _btn_style(Color(Palette.PANEL_BG, 1.0), HONEY)
+	pr.content_margin_top = 6.0
+	pr.content_margin_bottom = 4.0
+	b.add_theme_stylebox_override("pressed", pr)
 	b.focus_mode = Control.FOCUS_NONE
 	# hover ısınması (juice #8): imleç gelince bal tonuna yumuşak geçiş
 	b.mouse_entered.connect(func():
@@ -110,7 +144,7 @@ func _panel(title: String) -> PanelContainer:
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(t)
 	var xb := _button("✕")
-	xb.tooltip_text = "Kapat (Esc)"
+	xb.tooltip_text = Loc.t("tt_close")
 	xb.pressed.connect(func(): if p.visible: _toggle(p))
 	hb.add_child(xb)
 	vb.add_child(hb)
@@ -161,28 +195,29 @@ func _build() -> void:
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	bar.position = Vector2(10, -30)
 	root.add_child(bar)
+	_bar = bar
 
 	_mode_opt = OptionButton.new()
-	_mode_opt.add_item("Pomodoro 25/5")
-	_mode_opt.add_item("Derin 50/10")
+	_mode_opt.add_item(Loc.t("mode0"))
+	_mode_opt.add_item(Loc.t("mode1"))
 	_mode_opt.add_theme_font_size_override("font_size", 11)
 	_mode_opt.focus_mode = Control.FOCUS_NONE
 	bar.add_child(_mode_opt)
 
-	_focus_btn = _button("🎯 Başlat")
-	_focus_btn.tooltip_text = "Odak seansı: sen çalışırken kasaba ×1.5 büyür"
+	_focus_btn = _button(Loc.t("start"))
+	_focus_btn.tooltip_text = Loc.t("tt_focus")
 	_focus_btn.pressed.connect(_on_focus)
 	bar.add_child(_focus_btn)
 
-	_streak_btn = _button("seri 0")
-	_streak_btn.tooltip_text = "Bugünkü seri · emek istatistikleri"
+	_streak_btn = _button(Loc.t("series") % 0)
+	_streak_btn.tooltip_text = Loc.t("tt_series")
 	_streak_btn.add_theme_color_override("font_color", SAGE)
 	_streak_btn.pressed.connect(func(): _toggle(stats_box); _refresh_stats())
 	bar.add_child(_streak_btn)
 
 	# tek sakin menü (#18): paneller ☰ altında toplanır; çekirdek etkileşimler barda kalır (kural 5)
-	var menu_btn := _button("☰ Kasaba")
-	menu_btn.tooltip_text = "Ses · Melodi · Albüm · Kartpostal"
+	var menu_btn := _button(Loc.t("town_menu"))
+	menu_btn.tooltip_text = Loc.t("tt_town")
 	_menu_btn = menu_btn
 	menu_btn.pressed.connect(func(): _toggle(menu_box))
 	bar.add_child(menu_btn)
@@ -194,29 +229,29 @@ func _build() -> void:
 	bar.add_child(_wish_btn)
 
 	_mute_btn = _button("🔊")
-	_mute_btn.tooltip_text = "Sesi sustur / aç"
+	_mute_btn.tooltip_text = Loc.t("tt_mute")
 	_mute_btn.pressed.connect(_on_mute)
 	bar.add_child(_mute_btn)
 
-	_mail_btn = _button("✉ Mektuplar 0")
-	_mail_btn.tooltip_text = "Sakinlerden gelen mektuplar"
+	_mail_btn = _button(Loc.t("letters_btn") % 0)
+	_mail_btn.tooltip_text = Loc.t("tt_mail")
 	_mail_btn.pressed.connect(_toggle_mail)
 	bar.add_child(_mail_btn)
 
 	# ---- paneller (boş; A3-A6 doldurur) ----
-	sound_box = _panel("SES ATMOSFERİ  (tamamı sentez, telifsiz)")
+	sound_box = _panel(Loc.t("p_sound"))
 	sound_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	sound_box.position = Vector2(20, -190)
 	root.add_child(sound_box)
 	_fill_sound()
 
-	melody_box = _panel("KULE MELODİN")
+	melody_box = _panel(Loc.t("p_melody"))
 	melody_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	melody_box.position = Vector2(20, 60)
 	root.add_child(melody_box)
 	_fill_melody()
 
-	stats_box = _panel("EMEĞİN")
+	stats_box = _panel(Loc.t("p_stats"))
 	stats_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	stats_box.position = Vector2(150, -150)
 	root.add_child(stats_box)
@@ -224,15 +259,15 @@ func _build() -> void:
 	stats_box.get_node("VB").add_child(_stats_body)
 
 	# tek sakin menü kutusu: Ses / Melodi / Albüm / Kartpostal (her biri menüyü kapatıp hedefi açar)
-	menu_box = _panel("KASABA")
+	menu_box = _panel(Loc.t("p_town"))
 	menu_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	menu_box.position = Vector2(150, -186)
 	var mvb: VBoxContainer = menu_box.get_node("VB")
 	var entries := [
-		["🔊 Ses atmosferi", func(): _open_from_menu(sound_box)],
-		["🎼 Kule melodisi", func(): _open_from_menu(melody_box)],
-		["📖 Albüm", func(): _open_from_menu(album_box); _refresh_album()],
-		["📷 Kartpostal", func():
+		[Loc.t("snd_row"), func(): _open_from_menu(sound_box)],
+		[Loc.t("mel_row"), func(): _open_from_menu(melody_box)],
+		[Loc.t("alb_row"), func(): _open_from_menu(album_box); _refresh_album()],
+		[Loc.t("cam_row"), func():
 			menu_box.visible = false
 			if main != null and main.has_method("take_postcard"):
 				main.take_postcard()],
@@ -245,7 +280,7 @@ func _build() -> void:
 	root.add_child(menu_box)
 
 	# albüm (Faz C #17): sakin koleksiyonu + anı ağaçları + kasabanın hikâyesi (retention çekirdeği)
-	album_box = _panel("ALBÜM")
+	album_box = _panel(Loc.t("p_album"))
 	album_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	album_box.position = Vector2(-360, 8)
 	album_box.custom_minimum_size = Vector2(340, 0)
@@ -273,7 +308,7 @@ func _build() -> void:
 	_person_card.add_child(_person_body)
 	root.add_child(_person_card)
 
-	mail_box = _panel("MEKTUPLAR")
+	mail_box = _panel(Loc.t("p_mail"))
 	mail_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	mail_box.position = Vector2(-360, -320)
 	mail_box.custom_minimum_size = Vector2(340, 0)
@@ -566,37 +601,40 @@ func _letter_card(l: Dictionary) -> PanelContainer:
 	vb.add_child(from)
 	if l.replied:
 		var r := Label.new()
-		r.text = "✓ yanıtladın · bağ +1"
+		r.text = Loc.t("replied")
 		r.add_theme_font_size_override("font_size", 10)
 		r.add_theme_color_override("font_color", SAGE.darkened(0.25))
 		vb.add_child(r)
 	else:
-		var rb := _button("İçtenlikle yanıtla")
+		var rb := _button(Loc.t("reply"))
 		rb.add_theme_color_override("font_color", Palette.MINT)
 		var lid := int(l.get("lid", -1))
 		rb.pressed.connect(func(): if main != null and main.has_method("reply_letter"): main.reply_letter(lid))
 		vb.add_child(rb)
 	return card
 
-# ---- ANA MENÜ (Faz C): canlı sim arka planda, yarı saydam perde; Esc de bunu açar ----
+# ---- ANA MENÜ v2 (S2 yeniden tasarım): birincil eylem hiyerarşisi + ⚙ Ayarlar bloğu +
+# dil seçici + sürüm/ipucu satırı; menü açıkken alt bar gizlenir (çift-katman karmaşası bitti) ----
 var menu_screen: PanelContainer = null
 var _menu_msg: Label
 var _confirm_new := false
 var _quick_cb: CheckBox
 
-const CREDITS := "NEFES — Rain City evreni.\nGodot Engine ile yapıldı (MIT lisansı, © Godot Engine katkıcıları).\nTüm görseller prosedürel, tüm sesler %100 sentez.\nSolo geliştirici + Claude."
-
 func show_menu() -> void:
 	if menu_screen == null:
 		_build_menu()
 	_confirm_new = false
-	_menu_msg.text = "ekranının altında, sen çalışırken uyanan minyatür bir kasaba"
+	_menu_msg.text = Loc.t("identity")
 	_quick_cb.set_pressed_no_signal(Settings.get_flag("quick_start"))
+	if _bar != null:
+		_bar.visible = false
 	menu_screen.visible = true
 	menu_screen.modulate.a = 0.0
-	create_tween().tween_property(menu_screen, "modulate:a", 1.0, 0.3)   # yumuşak giriş (fade)
+	create_tween().tween_property(menu_screen, "modulate:a", 1.0, 0.3)
 
 func hide_menu() -> void:
+	if _bar != null:
+		_bar.visible = true
 	if menu_screen != null:
 		var tw := create_tween()
 		tw.tween_property(menu_screen, "modulate:a", 0.0, 0.25)
@@ -605,10 +643,23 @@ func hide_menu() -> void:
 func menu_visible() -> bool:
 	return menu_screen != null and menu_screen.visible
 
+## Birincil eylem butonu: HONEY dolgu + ink metin (S2: hiyerarşi — göz önce buraya)
+func _primary_button(txt: String) -> Button:
+	var b := _button(txt)
+	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_color_override("font_color", INK)
+	b.add_theme_stylebox_override("normal", _btn_style(HONEY, HONEY.darkened(0.2)))
+	b.add_theme_stylebox_override("hover", _btn_style(Color(1.0, 0.94, 0.75), HONEY))
+	var pr := _btn_style(HONEY.darkened(0.08), HONEY.darkened(0.3))
+	pr.content_margin_top = 7.0
+	pr.content_margin_bottom = 3.0
+	b.add_theme_stylebox_override("pressed", pr)
+	return b
+
 func _build_menu() -> void:
 	menu_screen = PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(Palette.PANEL_BG, 0.82)   # panel-zemin perdesi — canlı kasaba altta seçilir
+	sb.bg_color = Color(Palette.PANEL_BG, 0.92)   # 0.82 idi — metin okunmuyordu (S2)
 	menu_screen.add_theme_stylebox_override("panel", sb)
 	menu_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_screen.visible = false
@@ -616,40 +667,53 @@ func _build_menu() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	menu_screen.add_child(center)
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
+	vb.add_theme_constant_override("separation", 12)
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(vb)
-	var title := _label("N E F E S", 34, HONEY)
+	var title := _label("N E F E S", 36, HONEY)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(title)
-	_menu_msg = _label("", 11, MUTED)
+	_menu_msg = _label("", 12, MUTED)
 	_menu_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_menu_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_menu_msg.custom_minimum_size = Vector2(420, 0)
+	_menu_msg.custom_minimum_size = Vector2(440, 0)
 	vb.add_child(_menu_msg)
+	# birincil: Devam Et (tam genişlik, HONEY) — S2 hiyerarşi
+	var bresume := _primary_button(Loc.t("resume"))
+	bresume.custom_minimum_size = Vector2(440, 0)
+	bresume.pressed.connect(func(): hide_menu())
+	vb.add_child(bresume)
+	# ikincil satır
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vb.add_child(row)
-	var bresume := _button("▶ Devam Et")
-	bresume.add_theme_color_override("font_color", Palette.MINT)
-	bresume.pressed.connect(func(): hide_menu())
-	row.add_child(bresume)
-	var bnew := _button("🌱 Yeni Kasaba")
+	var bnew := _button(Loc.t("new_town"))
 	bnew.pressed.connect(_on_new_town)
 	row.add_child(bnew)
-	var bcred := _button("ℹ Krediler")
-	bcred.pressed.connect(func(): _confirm_new = false; _menu_msg.text = CREDITS)
+	var bcred := _button(Loc.t("credits"))
+	bcred.pressed.connect(func(): _confirm_new = false; _menu_msg.text = Loc.t("credits_body"))
 	row.add_child(bcred)
-	var bquit := _button("✕ Kaydet ve Çık")
+	var bquit := _button(Loc.t("quit"))
 	bquit.pressed.connect(func(): if main != null: main.quit_game())
 	row.add_child(bquit)
-	# AYARLAR satırı (kullanıcı: "960×360 minicik açılıyor" + "ayar yapabileceğimiz bir şey yok")
+	# ⚙ AYARLAR — çerçeveli blok (playtest: "ayar göremedim" — artık görünür bir grup)
+	var spanel := PanelContainer.new()
+	var ssb := StyleBoxFlat.new()
+	ssb.bg_color = Color(Palette.PANEL_BG, 0.6)
+	ssb.border_color = Palette.PANEL_BORDER
+	ssb.set_border_width_all(1)
+	ssb.set_corner_radius_all(8)
+	ssb.set_content_margin_all(12)
+	spanel.add_theme_stylebox_override("panel", ssb)
+	var svb := VBoxContainer.new()
+	svb.add_theme_constant_override("separation", 8)
+	spanel.add_child(svb)
+	svb.add_child(_label(Loc.t("settings"), 13, HONEY))
 	var srow := HBoxContainer.new()
 	srow.add_theme_constant_override("separation", 8)
-	srow.alignment = BoxContainer.ALIGNMENT_CENTER
-	srow.add_child(_label("pencere ölçeği:", 11, MUTED))
-	var fitb := _button("⛶ sığdır")
+	srow.add_child(_label(Loc.t("scale") + ":", 11, MUTED))
+	var fitb := _button(Loc.t("fit"))
 	fitb.pressed.connect(func(): if main != null and main.has_method("set_window_scale"): main.set_window_scale(0))
 	srow.add_child(fitb)
 	for n in [1, 2, 3]:
@@ -657,41 +721,54 @@ func _build_menu() -> void:
 		var nn: int = n
 		sbtn.pressed.connect(func(): if main != null and main.has_method("set_window_scale"): main.set_window_scale(nn))
 		srow.add_child(sbtn)
-	var vbtn := _button("↕ dikey/yatay")
+	var vbtn := _button(Loc.t("vertical"))
 	vbtn.pressed.connect(func(): if main != null and main.has_method("toggle_vertical"): main.toggle_vertical())
 	srow.add_child(vbtn)
-	vb.add_child(srow)
-
-	# DEV hız modu (yalnız debug build — end-game'i canlı izlemek için; release'te görünmez)
+	svb.add_child(srow)
+	# dil seçici (S3 — playtest: "dil seçimi bulamadım")
+	var lrow := HBoxContainer.new()
+	lrow.add_theme_constant_override("separation", 8)
+	lrow.add_child(_label(Loc.t("language") + ":", 11, MUTED))
+	for lg in [["tr", "Türkçe"], ["en", "English"]]:
+		var lb := _button(lg[1])
+		var code: String = lg[0]
+		if Loc.lang == code:
+			lb.add_theme_color_override("font_color", HONEY)
+		lb.pressed.connect(func():
+			Loc.set_lang(code)
+			rebuild_ui())
+		lrow.add_child(lb)
+	svb.add_child(lrow)
+	# DEV hız (yalnız debug build)
 	if OS.is_debug_build():
 		var drow := HBoxContainer.new()
 		drow.add_theme_constant_override("separation", 8)
-		drow.alignment = BoxContainer.ALIGNMENT_CENTER
-		drow.add_child(_label("⏩ dev hız:", 11, MUTED))
+		drow.add_child(_label(Loc.t("dev_speed") + ":", 11, MUTED))
 		for m in [1, 50, 500]:
 			var db := _button("×%d" % m)
 			var mm: float = float(m)
 			db.pressed.connect(func(): if main != null and main.has_method("set_time_mult"): main.set_time_mult(mm))
 			drow.add_child(db)
-		vb.add_child(drow)
-
+		svb.add_child(drow)
 	_quick_cb = CheckBox.new()
-	_quick_cb.text = "açılışta menüyü atla, doğrudan kasabaya gel"
+	_quick_cb.text = Loc.t("quick")
 	_quick_cb.add_theme_font_size_override("font_size", 10)
 	_quick_cb.add_theme_color_override("font_color", MUTED)
 	_quick_cb.focus_mode = Control.FOCUS_NONE
 	_quick_cb.toggled.connect(func(v): Settings.set_flag("quick_start", v))
-	var qrow := HBoxContainer.new()
-	qrow.alignment = BoxContainer.ALIGNMENT_CENTER
-	qrow.add_child(_quick_cb)
-	vb.add_child(qrow)
+	svb.add_child(_quick_cb)
+	vb.add_child(spanel)
+	# sürüm + kısayol ipuçları (S2: cilasız/yönlendirmesiz his)
+	var vinfo := _label("v%s · %s" % [ProjectSettings.get_setting("application/config/version", "dev"), Loc.t("hint")], 10, Palette.FADED)
+	vinfo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(vinfo)
 	add_child(menu_screen)   # CanvasLayer'a — her şeyin üstünde
 
 ## Yeni Kasaba: iki aşamalı NAZİK onay (cozy: yanlışlıkla kayıp yok; mevcut kayıt .bak'a alınır).
 func _on_new_town() -> void:
 	if not _confirm_new:
 		_confirm_new = true
-		_menu_msg.text = "Emin misin? Mevcut kasaban güvenle yedeklenecek (save.json.bak) ve bugünün tohumuyla yepyeni bir kasaba uyanacak. Bir daha dokunursan başlıyoruz."
+		_menu_msg.text = Loc.t("confirm_new")
 		return
 	_confirm_new = false
 	if main != null and main.has_method("new_town"):
@@ -705,7 +782,7 @@ func _process(delta: float) -> void:
 	_clock.text = world.clock_string()
 	_sub.text = "%s · %s" % [World.SEASON_NAMES[world.season], world.status_text()]
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
-	_streak_btn.text = "seri %d" % world.streak
+	_streak_btn.text = Loc.t("series") % world.streak
 	_refresh_focus_button()
 	_refresh_person_card()
 	if stats_box != null and stats_box.visible:
@@ -722,7 +799,7 @@ func _process(delta: float) -> void:
 			tw.tween_property(_events, "modulate:a", 1.0, 0.35)
 		_events.text = "   ·   ".join(world.event_log)
 	var unreplied := world.unreplied_letters()
-	_mail_btn.text = ("✉ %d" if _compact else "✉ Mektuplar %d") % unreplied
+	_mail_btn.text = (Loc.t("letters_btn_s") if _compact else Loc.t("letters_btn")) % unreplied
 	# zarf salınımı YALNIZ yeni mektup gelince ~10sn (sürekli sallanma bunaltıcıydı — playtest)
 	if unreplied > _mail_seen:
 		_sway_until = _t + 10.0
@@ -807,11 +884,11 @@ func _refresh_focus_button() -> void:
 	var rem: int = int(ceil(float(fs.remaining)))
 	match fs.phase:
 		"work":
-			_focus_btn.text = "🎯 %02d:%02d · bırak" % [rem / 60, rem % 60]
+			_focus_btn.text = Loc.t("work_fmt") % [rem / 60, rem % 60]
 			_mode_opt.disabled = true
 		"break":
-			_focus_btn.text = "☕ mola %02d:%02d · yeni seans" % [rem / 60, rem % 60]
+			_focus_btn.text = Loc.t("break_skip") % [rem / 60, rem % 60]
 			_mode_opt.disabled = false
 		_:
-			_focus_btn.text = "🎯 Başlat"
+			_focus_btn.text = Loc.t("start")
 			_mode_opt.disabled = false

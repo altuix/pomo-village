@@ -62,7 +62,7 @@ func _run_tests() -> void:
 	ui._on_focus()
 	var f1: bool = main.focus_state().phase == "work"
 	ui._refresh_focus_button()
-	var f2: bool = "bırak" in ui._focus_btn.text
+	var f2: bool = Loc.t("leave") in ui._focus_btn.text   # dil-bağımsız (S3: makine EN olabilir)
 	ui._on_focus()
 	var f3: bool = main.focus_state().phase == ""
 	print("UI odak akışı: başlat=%s sayaç-metni=%s bırak=%s" % [str(f1), str(f2), str(f3)])
