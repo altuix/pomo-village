@@ -145,12 +145,32 @@ func _input(e: InputEvent) -> void:
 	# InputMap aksiyonları (denetim #24: hardcoded keycode kalktı — ileride remap edilebilir)
 	if e.is_action_pressed("nefes_menu"):
 		if is_instance_valid(ui):
-			if ui.menu_visible():
+			# Esc ÖNCELİĞİ (playtest): önce açık paneli kapat; panel yoksa menü aç/kapa
+			if ui.has_method("close_open_panels") and ui.close_open_panels():
+				pass
+			elif ui.menu_visible():
 				ui.hide_menu()
 			else:
 				ui.show_menu()
 	elif e.is_action_pressed("nefes_vertical"):
 		toggle_vertical()
+
+# ---- pencere sürükleme (playtest: borderless şerit TAŞINAMIYORDU — masaüstü temel beklentisi).
+# _unhandled_input: UI butonları olayı tükettikten SONRA gelir → yalnız boş alandan sürüklenir.
+var _dragging := false
+var _drag_off := Vector2i.ZERO
+
+func _unhandled_input(e: InputEvent) -> void:
+	if _is_capture:
+		return
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed:
+			_dragging = true
+			_drag_off = DisplayServer.mouse_get_position() - DisplayServer.window_get_position()
+		else:
+			_dragging = false
+	elif e is InputEventMouseMotion and _dragging:
+		DisplayServer.window_set_position(DisplayServer.mouse_get_position() - _drag_off)
 
 func _save() -> void:
 	if world != null and not _frozen and not _is_capture:
@@ -316,6 +336,8 @@ func _on_focus_timeout() -> void:
 		if world != null:
 			world.growth_mult = 1.0
 			var res := world.finish_focus_reward(_daily_seed(), int(MODES[_focus_mode].work_min))
+			if not _is_capture:
+				DisplayServer.window_request_attention()   # Pomodoro bitti — kullanıcı başka penceredeyse haber ver
 			if is_instance_valid(town_view) and town_view.has_method("celebrate"):
 				town_view.celebrate(world.landmark.x, world.landmark.y - 3)
 			if is_instance_valid(audio):

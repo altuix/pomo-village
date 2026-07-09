@@ -97,6 +97,24 @@ func _run_tests() -> void:
 	print("UI yeni-kasaba: onay-bekledi=%s yenilendi=%s taze=%s" % [str(confirm_ok), str(new_ok), str(fresh)])
 	ok = confirm_ok and fresh and ok
 
+	# S1: panel kapatma UX — tek-drawer politikası + close_open_panels + ✕ butonu
+	ui.hide_menu()
+	ui._toggle(ui.sound_box)
+	var one1: bool = ui.sound_box.visible
+	ui._toggle(ui.album_box)   # açılınca sound kapanmalı (hedef-durum meta)
+	var one2: bool = not ui.sound_box.get_meta("open_target", true) and ui.album_box.get_meta("open_target", false)
+	var closed_any: bool = ui.close_open_panels()
+	var one3: bool = not ui.album_box.get_meta("open_target", true)
+	var xbtn: Button = null
+	for c in ui.mail_box.get_node("VB").get_child(0).get_children():
+		if c is Button:
+			xbtn = c
+	ui._toggle(ui.mail_box)
+	xbtn.pressed.emit()   # ✕ kapatır
+	var one4: bool = not ui.mail_box.get_meta("open_target", true)
+	print("UI panel-UX: tek-drawer=%s/%s esc-kapat=%s ✕=%s" % [str(one1), str(one2), str(closed_any and one3), str(one4)])
+	ok = one1 and one2 and closed_any and one3 and one4 and ok
+
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 

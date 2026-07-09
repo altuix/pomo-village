@@ -34,6 +34,10 @@ var _t := 0.0            # juice zamanı (zarf sallanması)
 var _last_event := ""    # olay satırı kayma tetiği
 var _compact := false    # dikey mod: dar bar (mod seçici gizli, kısa etiketler)
 var _menu_btn: Button
+var _mute_btn: Button
+var _premute := 0.7      # sustur öncesi master (geri açınca dönülecek seviye)
+var _mail_seen := 0      # zarf salınımı yalnız YENİ mektupta (playtest: sürekli sallanma bunaltıcı)
+var _sway_until := 0.0
 
 const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
 
@@ -99,15 +103,36 @@ func _panel(title: String) -> PanelContainer:
 	var vb := VBoxContainer.new()
 	vb.name = "VB"
 	p.add_child(vb)
+	# başlık satırı: sol başlık + sağ ✕ (playtest: "paneller kolay kapanmıyor" — kapatma
+	# affordance'ı HİÇ yoktu; ✕ tek noktadan tüm panellere gelir)
+	var hb := HBoxContainer.new()
 	var t := _label(title, 12, HONEY)
-	vb.add_child(t)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hb.add_child(t)
+	var xb := _button("✕")
+	xb.tooltip_text = "Kapat (Esc)"
+	xb.pressed.connect(func(): if p.visible: _toggle(p))
+	hb.add_child(xb)
+	vb.add_child(hb)
 	return p
+
+var _click_catcher: Control = null
 
 func _build() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+
+	# dış-tık yakalayıcı (panellerden ÖNCE eklenir → arkalarında kalır): boşluğa tık = paneli kapat
+	_click_catcher = Control.new()
+	_click_catcher.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_click_catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	_click_catcher.visible = false
+	_click_catcher.gui_input.connect(func(e):
+		if e is InputEventMouseButton and e.pressed:
+			close_open_panels())
+	root.add_child(_click_catcher)
 
 	# ---- HUD üst ----
 	_clock = _label("18:30", 20, HONEY)
@@ -126,7 +151,7 @@ func _build() -> void:
 	# ---- olay akışı (alt, buton şeridinin üstü) ----
 	_events = _label("Kasaba yaşıyor…", 11, SAGE)
 	_events.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_events.position = Vector2(14, -46)
+	_events.position = Vector2(14, -52)   # bar ile çakışmasın (S1)
 	_events.size = Vector2(VW() - 28, 18)
 	root.add_child(_events)
 
@@ -145,16 +170,19 @@ func _build() -> void:
 	bar.add_child(_mode_opt)
 
 	_focus_btn = _button("🎯 Başlat")
+	_focus_btn.tooltip_text = "Odak seansı: sen çalışırken kasaba ×1.5 büyür"
 	_focus_btn.pressed.connect(_on_focus)
 	bar.add_child(_focus_btn)
 
 	_streak_btn = _button("seri 0")
+	_streak_btn.tooltip_text = "Bugünkü seri · emek istatistikleri"
 	_streak_btn.add_theme_color_override("font_color", SAGE)
 	_streak_btn.pressed.connect(func(): _toggle(stats_box); _refresh_stats())
 	bar.add_child(_streak_btn)
 
 	# tek sakin menü (#18): paneller ☰ altında toplanır; çekirdek etkileşimler barda kalır (kural 5)
 	var menu_btn := _button("☰ Kasaba")
+	menu_btn.tooltip_text = "Ses · Melodi · Albüm · Kartpostal"
 	_menu_btn = menu_btn
 	menu_btn.pressed.connect(func(): _toggle(menu_box))
 	bar.add_child(menu_btn)
@@ -165,7 +193,13 @@ func _build() -> void:
 	_wish_btn.pressed.connect(_on_wish)
 	bar.add_child(_wish_btn)
 
+	_mute_btn = _button("🔊")
+	_mute_btn.tooltip_text = "Sesi sustur / aç"
+	_mute_btn.pressed.connect(_on_mute)
+	bar.add_child(_mute_btn)
+
 	_mail_btn = _button("✉ Mektuplar 0")
+	_mail_btn.tooltip_text = "Sakinlerden gelen mektuplar"
 	_mail_btn.pressed.connect(_toggle_mail)
 	bar.add_child(_mail_btn)
 
@@ -255,11 +289,30 @@ func _build() -> void:
 func VW() -> float:
 	return 960.0
 
+## Açık drawer listesi (tek-drawer politikası + Esc/dış-tık kapatma bu listeyi gezer)
+func _drawers() -> Array:
+	return [sound_box, melody_box, mail_box, album_box, stats_box, menu_box]
+
+## Esc/dış-tık: açık paneli kapat; kapattıysa true (main Esc önceliği için — menü sonra gelir)
+func close_open_panels() -> bool:
+	var closed := false
+	for p in _drawers():
+		if p != null and p.visible:
+			_toggle(p)
+			closed = true
+	return closed
+
 # J4: paneller anlık aç/kapa yerine çekmece hissi — 12px kenar-kayması + fade (0.18s).
 # base_pos meta'da tutulur (tween pozisyonu bozmasın); hızlı çift-tık eski tween'i öldürür.
+# S1: açılırken DİĞER drawer'lar kapanır (üst üste 6 panel lapası playtest şikâyetiydi);
+# dış-tık yakalayıcı panel açıkken belirir.
 func _toggle(p: Control) -> void:
 	if p == null:
 		return
+	if not p.visible:
+		for other in _drawers():
+			if other != null and other != p and other.visible:
+				_toggle(other)
 	if not p.has_meta("base_pos"):
 		p.set_meta("base_pos", p.position)
 	var base: Vector2 = p.get_meta("base_pos")
@@ -268,18 +321,27 @@ func _toggle(p: Control) -> void:
 	var tw := create_tween().set_parallel(true)
 	p.set_meta("tw", tw)
 	if not p.visible:
+		p.set_meta("open_target", true)
 		p.visible = true
 		p.position = base + Vector2(-12, 0)
 		p.modulate.a = 0.0
 		tw.tween_property(p, "position", base, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.tween_property(p, "modulate:a", 1.0, 0.15)
 	else:
+		p.set_meta("open_target", false)
 		tw.tween_property(p, "position", base + Vector2(-12, 0), 0.13)
 		tw.tween_property(p, "modulate:a", 0.0, 0.13)
 		tw.chain().tween_callback(func():
 			p.visible = false
 			p.position = base
 			p.modulate.a = 1.0)
+	# dış-tık yakalayıcı: herhangi bir drawer hedef-açıkken belirir (boşluğa tık = kapat)
+	if _click_catcher != null:
+		var any_open := false
+		for d in _drawers():
+			if d != null and d.get_meta("open_target", false):
+				any_open = true
+		_click_catcher.visible = any_open
 
 func _open_from_menu(p: Control) -> void:
 	menu_box.visible = false
@@ -299,6 +361,19 @@ func _refresh_stats() -> void:
 		return
 	_stats_body.text = "bugün %d dk · toplam %d dk\nseri %d · en uzun seri %d · %d seans" % [
 		world.today_focus_min, world.stat_focus_min, world.streak, world.best_streak, world.sessions]
+
+## Hızlı sustur (playtest: ses 3 tık uzaktaydı — always-on şeritte tek tık şart)
+func _on_mute() -> void:
+	if audio == null:
+		return
+	if audio.gains.master > 0.001:
+		_premute = audio.gains.master
+		audio.set_gain("master", 0.0)
+		_mute_btn.text = "🔇"
+	else:
+		audio.set_gain("master", _premute if _premute > 0.001 else 0.7)
+		_mute_btn.text = "🔊"
+	sync_from_world()   # ses panelindeki master slider'ı da güncellensin
 
 func _on_wish() -> void:
 	if main != null and main.has_method("grant_wish"):
@@ -635,9 +710,12 @@ func _process(delta: float) -> void:
 		_events.text = "   ·   ".join(world.event_log)
 	var unreplied := world.unreplied_letters()
 	_mail_btn.text = ("✉ %d" if _compact else "✉ Mektuplar %d") % unreplied
-	# zarf sallanması: yanıtsız mektup bekliyorken nazik hatırlatma (bildirim spam'i DEĞİL — sessiz salınım)
+	# zarf salınımı YALNIZ yeni mektup gelince ~10sn (sürekli sallanma bunaltıcıydı — playtest)
+	if unreplied > _mail_seen:
+		_sway_until = _t + 10.0
+	_mail_seen = unreplied
 	_mail_btn.pivot_offset = _mail_btn.size / 2.0
-	_mail_btn.rotation = (sin(_t * 2.4) * 0.045) if unreplied > 0 else 0.0
+	_mail_btn.rotation = (sin(_t * 2.4) * 0.045) if (unreplied > 0 and _t < _sway_until) else 0.0
 	var wt := world.wish_text()
 	if wt != "":
 		_wish_btn.text = wt if not _compact else "💭 dilek"
@@ -702,7 +780,8 @@ func _refresh_person_card() -> void:
 			line += " · 🌿 yuva arıyor"
 		_person_body.text = "%s\n%s" % [p.name, line]
 		var px: Vector2 = hp.px
-		_person_card.position = Vector2(clampf(px.x + 10.0, 4.0, VW() - 170.0), clampf(px.y - 46.0, 4.0, 310.0))
+		var dw := 380.0 if _compact else VW()
+		_person_card.position = Vector2(clampf(px.x + 10.0, 4.0, dw - 170.0), clampf(px.y - 46.0, 4.0, 310.0))
 		_person_card.visible = true
 	else:
 		_person_card.visible = false
