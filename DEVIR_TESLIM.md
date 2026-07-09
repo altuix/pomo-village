@@ -509,3 +509,22 @@ STEAM_ROADMAP.md'deki satır-satır kod denetiminin 7 gerçek bug'ı düzeltildi
   ad sözleşmesi; run_ui MAIN_CONTRACT'a set_window_scale/toggle_vertical eklendi.
 - KALAN (sonraki tur): T3 audiosmoke aracı + verify.sh audio, T6 soak komutu, taze-göz
   YENİDEN-KRİTİK (juice "ürün" okunuyor mu), Faz E i18n/Windows, Steam fazı.
+
+# PLAYTEST TURU S1-S5 (tamamlandı; S3-devam bekliyor)
+- S1 PANEL UX: her panelde ✕; dış-tık kapatma katmanı; Esc önce paneli kapatır; tek-drawer
+  politikası; pencere boş alandan SÜRÜKLENİR (_unhandled_input — UI etkilenmez); bara 🔇;
+  tooltip'ler; seans bitince window_request_attention; zarf salınımı yalnız yeni mektupta 10sn.
+- S5 DEV HIZ: menü Ayarlar ⏩ ×1/×50/×500 (yalnız debug build) — _accum çarpanı; determinizm/save aynen.
+- S4 SES v2: Rhodes-vari pad (temel+2f+6f-tine, one-pole LP fc≈800) + PENTATONİK-UYUMLU AKORLAR
+  (C6/9, Am7, Dsus2, Em-add; 61.3s rotasyon) + %25 olasılıksal sus; vinyl crackle+hiss; tape
+  wobble; 3-comb lowpass-feedback reverb (asal 1687/1861/2053, yalnız pad+olay send'i); KANAL
+  BAŞINA GAIN DRIFT ±%25 (23.3/31.7/41.9/17.1s ortak-katsız — loop hissi kırma, playtest isteği);
+  olaylar oktav↓+smoothstep atak+alt-oktav+LP. %CPU 21.1 (eski 27'den düşük — kanal kapıları).
+  CC0 AMBIENT YUVASI: assets/ambient/rain.ogg|stream.ogg bırakılırsa otomatik loop (kaynak+lisans
+  ASSETS.md şart; öneri: FreePD=CC0, HoliznaCC0=CC0; Pixabay kendi lisansı; Incompetech CC-BY atıflı).
+- S2 MENÜ v2: birincil buton hiyerarşisi + StyleBox'lı gerçek butonlar + ⚙ Ayarlar bloğu +
+  sürüm/ipucu satırı + menüde bar gizleme.
+- S3 ÇEKİRDEK: scripts/loc.gd (Loc.t, TR/EN ~40 yüzey anahtarı), dil Settings+OS-tahmini,
+  menüde seçici (rebuild_ui anında), Names.POOL_EN. KALAN: olay şablonları + 93 mektup EN.
+- DERSLER: yerleşik gölgeleme (set_scale) ve dizi-elemanından := Variant çıkarımı check-only'de
+  GÖRÜNMEZ — runtime/görsel ölçüm şart. OS locale EN ise oyun EN açılır (test dil-bağımsız yazıldı).
