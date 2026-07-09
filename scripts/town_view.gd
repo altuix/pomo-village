@@ -414,6 +414,15 @@ func _draw_landmark(ev: float) -> void:
 	draw_line(fb, fb + Vector2(0, -6.0), Color8(90, 76, 84), 1.0)
 	var wav := sin(_t * 3.0 + _wind * 2.0) * 2.0
 	draw_colored_polygon([fb + Vector2(0.5, -6.0), fb + Vector2(7.0, -5.0 + wav), fb + Vector2(0.5, -3.2)], Color8(194, 90, 74))
+	# G1.4: kasaba ÜNVAN TABELASI — kule dibinde; tier atladıkça yazı değişir (görünür ilerleme)
+	var sx := LX + tw + 5.0
+	var sy := LY + CH - 3.0
+	draw_line(Vector2(sx + 2.0, sy), Vector2(sx + 2.0, sy - 10.0), Palette.PANEL_BORDER, 2.0)
+	var sign_w := 12.0 + world.tier_name().length() * 4.6
+	draw_rect(Rect2(sx - 3.0, sy - 18.0, sign_w, 9.0), Palette.CREAM * Color(1, 1, 1, 0.92))
+	draw_rect(Rect2(sx - 3.0, sy - 18.0, sign_w, 9.0), Palette.PANEL_BORDER, false, 1.0)
+	draw_string(ThemeDB.fallback_font, Vector2(sx, sy - 11.0), world.tier_name(),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Palette.INK)
 
 func _ease_out_back(t: float) -> float:
 	var c := 1.70158

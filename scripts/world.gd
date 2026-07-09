@@ -89,6 +89,17 @@ var concert_done := false
 var wish = null                        # {"who": person, "type": idx} ya da null
 var bond := 0
 var density_level := 0                 # iç yoğunlaşma (G1.3): frontier dolunca kasaba içe sıklaşır (0-3)
+
+# --- kasaba ünvanı (G1.4): nüfus eşikleri — asla düşmez, her atlama tek seferlik kutlama ---
+var tier := 0
+const TIERS := [
+	{ "name": "Mezra", "pop": 0, "key": "" },
+	{ "name": "Köy", "pop": 25, "key": "tier_koy" },
+	{ "name": "Büyük Köy", "pop": 60, "key": "tier_buyuk_koy" },
+	{ "name": "Kasaba", "pop": 110, "key": "tier_kasaba" },
+	{ "name": "Küçük Şehir", "pop": 180, "key": "tier_kucuk_sehir" },
+	{ "name": "Şehir", "pop": 260, "key": "tier_sehir" },
+]
 var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50/butunlendi — tek seferlik)
 var town_complete := false             # harita doldu: growth artık güzelleştirmeye akar (end-game, Faz D)
 # teşekkür metinleri Letters.DILEK havuzunda (tek kaynak; Faz D çeşitlilik)
@@ -125,6 +136,9 @@ func day() -> int:
 
 func year() -> int:
 	return (day() - 1) / DAYS_PER_YEAR + 1
+
+func tier_name() -> String:
+	return TIERS[tier].name
 
 func clock_string() -> String:
 	var hh := int(floor(time_of_day))
@@ -187,6 +201,7 @@ func gen(seed_val: int = 0) -> void:
 	bond = 0
 	milestones = {}
 	density_level = 0
+	tier = 0
 	town_complete = false
 	streak = 0
 	sessions = 0
@@ -491,6 +506,13 @@ func step_world() -> void:
 		_push_event("🌦 yağmur dindi — toprak kokusu")
 	rain_was = raining
 
+	# KASABA ÜNVANI (G1.4): eşik aşımı → tabela + kutlama + mektup. 40 tick'te bir kontrol:
+	# eski save 0'dan başlayıp kademeli yakalar (her atlama ayrı kutlanır — hoş yeniden karşılama)
+	if tick % 40 == 0 and tier < TIERS.size() - 1 and population() >= TIERS[tier + 1].pop:
+		tier += 1
+		festival_t = 1.0   # meydan şenliği nabzı (mevcut festival deseni yeniden kullanılır)
+		_milestone(TIERS[tier].key, "🪧 tabela yenilendi — artık bir %s'yiz! Meydanda kutlama var" % str(TIERS[tier].name).to_upper())
+
 	# uzun-vade anları (Faz D): tek seferlik kutlamalar
 	if tick >= 30 * TICKS_PER_DAY and not milestones.get("gun30", false):
 		_milestone("gun30", "🕯 kasabanın 30. günü — meydanda mum ışığı")
@@ -581,6 +603,7 @@ func to_save() -> Dictionary:
 		"milestones": milestones.duplicate(),
 		"town_complete": town_complete,
 		"density_level": density_level,
+		"tier": tier,
 		"last_exit": Time.get_unix_time_from_system(),
 	}
 
@@ -631,6 +654,7 @@ func from_save(d: Dictionary) -> void:
 	milestones = (d.get("milestones", {}) as Dictionary).duplicate()
 	town_complete = bool(d.get("town_complete", false))
 	density_level = int(d.get("density_level", 0))
+	tier = clampi(int(d.get("tier", 0)), 0, TIERS.size() - 1)
 	var lm: Array = d.get("landmark", [11, 13])
 	landmark = Vector2i(int(lm[0]), int(lm[1]))
 	road_list = _to_vec_list(d.get("road_list", []))

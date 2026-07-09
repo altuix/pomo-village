@@ -780,7 +780,8 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_clock.text = world.clock_string()
-	_sub.text = "%s · %s · %s" % [Loc.t("date_fmt") % [world.year(), world.day()],
+	_sub.text = "%s · %s · %s · %s" % [Loc.t("tier%d" % world.tier),
+		Loc.t("date_fmt") % [world.year(), world.day()],
 		Loc.t("season%d" % world.season), world.status_text()]
 	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
 	_streak_btn.text = Loc.t("series") % world.streak

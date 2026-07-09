@@ -17,6 +17,7 @@ func _init() -> void:
 	ok = _test_wish_variety() and ok
 	ok = _test_milestone_buildings() and ok
 	ok = _test_densify() and ok
+	ok = _test_tiers() and ok
 	ok = _test_hardening() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
@@ -54,6 +55,39 @@ func _test_densify() -> bool:
 	print("G1 yoğunlaşma: sıklaştı=%s inşaat=%s determinizm=%s roundtrip=%s" % [str(densified), str(started), str(det), str(rt)])
 	var pass_ok: bool = densified and started and det and rt
 	print("Gd: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+# G1.4 kasaba ünvanı: nüfus eşiği → tier + tek seferlik kutlama mektubu; kademeli yakalama;
+# tier asla düşmez (kod yalnız artırır); save roundtrip.
+func _test_tiers() -> bool:
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	while w.population() < 25:
+		w._add_person(6, 13, null, 1)
+	w.tick = 39
+	w.step_world()   # 40. tick: kontrol anı
+	var t1: bool = w.tier == 1 and w.milestones.get("tier_koy", false) and w.festival_t > 0.9
+	# kademeli yakalama: nüfus 120'yken kademeler TEK TEK atlanır (her biri ayrı kutlama)
+	while w.population() < 120:
+		w._add_person(6, 13, null, 1)
+	w.tick = 79
+	w.step_world()
+	var t2: bool = w.tier == 2
+	w.tick = 119
+	w.step_world()
+	var t3: bool = w.tier == 3
+	# tek seferlik: milestone anahtarı ikinci mektubu engeller
+	var an_koy := 0
+	for l in w.letters:
+		if l.kind == "an" and "KÖY" in l.text.to_upper().left(40):
+			an_koy += 1
+	var once: bool = an_koy <= 2   # tier_koy + tier_buyuk_koy metinleri "KÖY" içerir; tekrar yok
+	var w2 = W.new()
+	w2.from_save(JSON.parse_string(JSON.stringify(w.to_save())))
+	var rt: bool = w2.tier == 3 and w2.tier_name() == "Kasaba"
+	print("G1 ünvan: köy=%s büyük-köy=%s kasaba=%s tek-sefer=%s roundtrip=%s" % [str(t1), str(t2), str(t3), str(once), str(rt)])
+	var pass_ok: bool = t1 and t2 and t3 and once and rt
+	print("Gt: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
 
 # Q4: bozuk settings.cfg default'a düşer (T2); offline gerçek-zaman cap (T4); kartpostal adı (T5).

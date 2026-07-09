@@ -122,6 +122,12 @@ const AN := {
 	"sakin100": "Bugün aramıza katılan 100. komşumuzu karşıladık. Yüz isim, yüz hikâye, tek kasaba. Defterin ilk sayfasına senin adını yazdık: 'Kuran kişi.'",
 	"veda50": "Bugün 50. anı ağacımızı diktik. Çayır artık bir koru — her ağaç bir hayat, her yaprak bir hatıra. Onları unutmadığın için teşekkür ederiz.",
 	"butunlendi": "Kasaba bütünlendi. Son evin bacası bu akşam ilk dumanını tüttürdü. Artık kimse 'keşke bir evimiz olsa' demiyor. Bundan sonrası süsleme, şenlik ve keyif: kasaba senin emeğinle TAMAM. Sağ ol.",
+	# kasaba ünvan atlamaları (G1.4 — nüfus eşikleri; tabela değişir, meydan şenlenir)
+	"tier_koy": "Duydun mu? Artık resmen bir KÖY'üz! Yirmi beş kişi olduk; girişe tabela astık, altına herkes adını kazıdı. En üste de seninkini — kuran kişi.",
+	"tier_buyuk_koy": "Altmış kişiyi geçtik — haritacılar artık bize BÜYÜK KÖY diyor. Fırıncı 'ekmek yetişmiyor' diye tatlı tatlı söyleniyor. Büyüdük, ama meydandaki akşam sohbetleri hâlâ aynı sıcak.",
+	"tier_kasaba": "Bugün nüfus defterine 110. adı yazdık: artık bir KASABA'yız! Kule öğlen fazladan bir kez çaldı, çocuklar bunun ne demek olduğunu sordu. 'Birlikte büyüdük demek' dedik.",
+	"tier_kucuk_sehir": "Yüz seksen kişi... Gezginler artık yol tariflerinde bizi 'o KÜÇÜK ŞEHİR' diye anlatıyormuş. Sokak isimlerimiz oldu, bir de akşamları köşede saz çalan biri. Hepsi senin sabrınla.",
+	"tier_sehir": "İki yüz altmış komşu. Resmî haritada adımızın yanına ŞEHİR yazıldı — ama biz aramızda hâlâ 'bizim kasaba' diyoruz. Bazı şeyler hiç değişmesin, değil mi?",
 }
 
 # ---- MEVSİM FESTİVALLERİ (her mevsim ortasında bir; kasaba halkından davet mektubu) ----
