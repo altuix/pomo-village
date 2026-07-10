@@ -582,3 +582,26 @@ keyif vermiyor — projeyi bırakmayı düşünüyorum". 3 araştırma ajanı + 
 - S3-devam: 93 mektup + olay şablonlarının EN çevirisi (büyük yaratıcı iş).
 - TAD parçaları CC0 ama GarageBand loop kütüphanesinden türetilme — pür-CC0 tercih edilirse
   omfgdude tek başına yeterli; ASSETS.md'de not düşüldü.
+
+# H TURU — BUG PASS + i18n TAMAMLAMA + STEAM HAZIRLIĞI (tamamlandı, 2026-07-11)
+- H0 BUG PASS: Palette.snow_cover tek kaynak (town_bg/town_view kopyası birleşti);
+  _bloom_budget kare başına bir kez; 30sn canlı koşu SIFIR hata; kullanıcının gerçek
+  save'i salt-okuma yüklendi (pop 94, Kasaba, roundtrip OK).
+- H1 i18n TAM: letters.gd havuzları {tr,en} (95+ şablon, cozy EN yeniden yazım);
+  world ~46 olay + tablolar Loc.t("ev_*"); ui/main kalan metinler; loc.gd 183 anahtar;
+  _test_i18n kabul testi. Mektup üretim anındaki dilde save'e girer (bilinçli).
+- H2 PLATFORM: programatik ikon (tools/make_icon.gd → icon.png+1024/512/128);
+  export_presets.cfg (macOS universal + Windows + Windows Demo); 4.7 template'leri
+  kurulu; İLK BUILD'LER: NEFES.exe 128MB + NEFES.app zip 79MB (ETC2 ASTC açıldı —
+  universal şartı). Çerçeveli pencere, konum/monitör hafızası, ilk-açılış oto-ölçek,
+  pil modu (20fps). Sürüm 0.5.0.
+- H3 STEAM İSKELETİ: GodotSteam GDExtension 4.20 (addons/); SteamBridge güvenli-yokluk
+  (ClassDB koşullu — Steam yoksa no-op, headless kanıtlı); 18 achievement
+  (docs/ACHIEVEMENTS.md) + main'de 2sn saf-gözlem kancası; steam_appid 480 (test).
+- H4 MAĞAZA+DEMO: store/STORE_PAGE.md (EN/TR metin, $6.99 önerisi, tag'ler);
+  5 screenshot 1920×720 + capsule taslağı; demo modu ("demo" feature → gün 7 nazik
+  duruş, save korunur) + Windows Demo preset + run_ui kabul testi.
+- KULLANICI-TARAFLI kalanlar: docs/KULLANICI_YAPILACAKLAR.md (Steam $100/App ID/panel,
+  Windows donanım testi, V-dikey denemesi, fiyat/ikon/font/Açık Karar 1-6, trailer).
+- DERS: zsh'de değişkene koyulmuş çok-kelimeli komut ($G out=...) kelime bölünmez —
+  sessiz no-op; komutları açık yaz (capture screenshot seti bir tur boşa koştu).

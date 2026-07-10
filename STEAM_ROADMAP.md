@@ -1,5 +1,15 @@
 # NEFES (pomo-village) — Steam'e Hazır Oyun Roadmap'i
 
+> **GÜNCEL DURUM (H turu, 2026-07-11):** Bu dosyanın checkbox'ları 07-08'de donduruldu;
+> fiilî durum DEVIR_TESLIM.md'dedir. Faz B+/0/C/D + Q + S + G + H turları TAMAM:
+> i18n TR/EN eksiksiz, Windows/macOS/Demo build'leri üretiliyor (export_presets.cfg),
+> uygulama ikonu var, GodotSteam iskeleti + 18 achievement hazır, mağaza metni +
+> screenshot'lar store/ altında. Kalan işler kullanıcı-taraflı:
+> docs/KULLANICI_YAPILACAKLAR.md. Kod-taraflı açık kalanlar: web senaryo rig'i (Faz 0,
+> opsiyonel), native ışıklar (opsiyonel), şerit genişliği/UI metin ölçeği/test matrisi
+> (Windows makinesi ister), pixel font (lisans seçimi kullanıcıda).
+
+
 > Bu doküman repoya kural/yol haritası olarak eklenir. Kod yazılmadan önce ilgili faz maddesi
 > buradan okunur; her faz kapanışında bu dosyadaki madde işaretlenir. Kaynaklar:
 > DEVIR_TESLIM.md (mevcut durum), JUICE_YAPILACAKLAR.md (ertelenen işler),
