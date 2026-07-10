@@ -26,16 +26,6 @@ func _process(_d: float) -> void:
 		_sig = sig
 		queue_redraw()
 
-# Kar örtüsü miktarı (G3): kış boyunca 1.0; sonbahar sonunda birikir, kış sonunda erir —
-# season_mix'in geçiş penceresiyle aynı ritim, "bam" yerine yumuşak.
-func _snow_cover(su: float) -> float:
-	var blend := clampf((su - Palette.SEASON_BLEND_START) / (1.0 - Palette.SEASON_BLEND_START), 0.0, 1.0)
-	if world.season == 3:
-		return 1.0 if su < Palette.SEASON_BLEND_START else 1.0 - blend   # kış: dolu, sonunda erir
-	if world.season == 2:
-		return blend   # sonbahar sonu: kar birikmeye başlar
-	return 0.0
-
 func _draw() -> void:
 	if world == null:
 		return
@@ -74,7 +64,7 @@ func _draw() -> void:
 
 	# ---- ZEMİN (opak kolon şeritleri — grid çizgisi yok; sanat cilası kararı) ----
 	# kışta ŞEHİR zemini de karlanır (playtest: "kar sadece ormana yağıyor, şehre değil").
-	var snow_amt := _snow_cover(su)
+	var snow_amt := Palette.snow_cover(world.season, su)
 	var snow_col: Color = view._dusk(Color8(196,202,212), ev * 0.55)   # kar örtüsü (gece hafif koyulur)
 	var town_base: Color = view._mix(Color8(132,108,104), Color8(46,34,52), ev * 0.85)
 	town_base = view._mix(town_base, town_base.darkened(0.22), rain)   # ıslak zemin

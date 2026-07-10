@@ -20,7 +20,8 @@ const PCOL := Palette.PCOL
 # --- kozmetik durum (render-only; determinizmi etkilemez) ---
 var _t := 0.0
 var _wind := 0.5
-var _snow := 0.0   # kar örtüsü (G3): çatı/zemin karlanma miktarı, _draw başında güncellenir
+var _snow := 0.0          # kar örtüsü (G3): çatı/zemin karlanma miktarı, _draw başında güncellenir
+var _bloom_budget := 1.0  # ışık bütçesi min(1, 14/ışık) — _draw başında bir kez (H0)
 var birds: Array = []
 var clouds: Array = []
 var snow: Array = []
@@ -136,10 +137,10 @@ func _draw() -> void:
 		return
 	var S: Dictionary = SEASONS[world.season]
 	var ev := world.evening()
-	# kar örtüsü (G3): kışta 1.0, sonbahar/kış geçişlerinde ramp (town_bg._snow_cover ile aynı ritim)
-	var su := float(world.season_tick) / float(World.SEASON_TICKS)
-	var sblend := clampf((su - Palette.SEASON_BLEND_START) / (1.0 - Palette.SEASON_BLEND_START), 0.0, 1.0)
-	_snow = (1.0 if su < Palette.SEASON_BLEND_START else 1.0 - sblend) if world.season == 3 else (sblend if world.season == 2 else 0.0)
+	# kar örtüsü tek kaynaktan (H0): town_bg zemin/yol ile çatı karı asla ayrışmasın
+	_snow = Palette.snow_cover(world.season, float(world.season_tick) / float(World.SEASON_TICKS))
+	# ışık bütçesi kare başına BİR kez (H0): decor/bloom/aksan fenerleri lit_count'u ayrı ayrı tarıyordu
+	_bloom_budget = minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
 	var fr := world.frontier
 	# J10: gölge yönü güne göre kayar (sabah sola, öğlen kısa, akşam sağa; gece ay — zayıf).
 	# Bedava zaman sinyali; ışık kaynağı değil, bütçeye dokunmaz.
@@ -230,8 +231,7 @@ func _draw() -> void:
 			"ebedi_alev":
 				draw_rect(Rect2(X - 1.5, Y - 1.5, 3.0, 1.5), Color8(120, 110, 120))
 				var fl := 0.8 + 0.2 * sin(_t * 5.0)
-				var abud := minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
-				draw_circle(Vector2(X, Y - 2.8), 2.6 * fl, Color(1.0, 0.75, 0.43, 0.20 * abud))
+				draw_circle(Vector2(X, Y - 2.8), 2.6 * fl, Color(1.0, 0.75, 0.43, 0.20 * _bloom_budget))
 				draw_circle(Vector2(X, Y - 2.8), 1.2 * fl, Palette.HONEY)
 
 	# ---- ÖN PLAN ÇİÇEKLERİ (J2: sağ çayırda rüzgârla salınan yaşam; bg çiçekleri statik kalır) ----
@@ -311,7 +311,7 @@ func _draw() -> void:
 			draw_circle(Vector2(X, Y - CH * 0.35), 1.6, Color8(120,110,120))
 
 	# ---- PENCERE BLOOM (bütçeli, temel daire; native glow B2) ----
-	var bloom_budget := minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
+	var bloom_budget := _bloom_budget
 	for b in world.buildings:
 		if not b.awake or b.build_prog < 1.0 or ev < 0.15: continue
 		if b.lit_frac < 0.1: continue
@@ -482,7 +482,7 @@ func _draw_building(b: Dictionary, ev: float) -> void:
 ## "sadece bina bina" — gelişme hissi görünür detaylardan gelir). Fener ışıkları
 ## bloom bütçesine tabidir (lit_count zaten bu binaları sayıyor).
 func _draw_need_accents(b: Dictionary, X: float, Y: float, W: float, H: float, Yb: float, ev: float) -> void:
-	var bud := minf(1.0, 14.0 / float(maxi(1, world.lit_count())))
+	var bud := _bloom_budget
 	match b.type:
 		"kuyu":
 			# önde taş bilezik + makara; kova ışıltısı sakin uğradıkça (periyodik parıltı)

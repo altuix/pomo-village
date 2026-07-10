@@ -26,6 +26,17 @@ static func season_mix(season: int, u: float, key: String, fi: int = 0) -> Color
 	t = t * t * (3.0 - 2.0 * t)   # smoothstep
 	return c0.lerp(c1, t)
 
+# Kar örtüsü miktarı (G3/H0 tek kaynak): kış boyunca 1.0; sonbahar sonunda birikir,
+# kış sonunda erir — season_mix'in geçiş penceresiyle aynı ritim. town_bg (zemin/yol)
+# ve town_view (çatı) İKİSİ DE buradan okur (kopya formül sessizce ayrışıyordu — kural 3).
+static func snow_cover(season: int, su: float) -> float:
+	var blend := clampf((su - SEASON_BLEND_START) / (1.0 - SEASON_BLEND_START), 0.0, 1.0)
+	if season == 3:
+		return 1.0 if su < SEASON_BLEND_START else 1.0 - blend
+	if season == 2:
+		return blend
+	return 0.0
+
 const ROOF_COLS := [
 	[Color8(194,90,74), Color8(168,72,58)],    # c25a4a
 	[Color8(201,155,70), Color8(168,130,58)],  # c99b46
