@@ -124,6 +124,19 @@ func _run_tests() -> void:
 	print("UI panel-UX: tek-drawer=%s/%s esc-kapat=%s ✕=%s" % [str(one1), str(one2), str(closed_any and one3), str(one4)])
 	ok = one1 and one2 and closed_any and one3 and one4 and ok
 
+	# H4: demo kapısı — gün 7 aşımında sim durur + kart görünür; bayrak yokken sim sürer
+	var wd = main.get("world")
+	wd.tick = 8 * 2400
+	main.set("_demo_force", true)
+	var t0: int = wd.tick
+	main._process(0.9)   # tick işleyecek kadar delta — ama demo kapısı sim'e girmeden döner
+	var demo_stop: bool = wd.tick == t0 and main.get("_demo_shown")
+	main.set("_demo_force", false)
+	main._process(0.9)
+	var demo_off: bool = wd.tick > t0
+	print("UI demo: durdu=%s bayraksız-sürer=%s" % [str(demo_stop), str(demo_off)])
+	ok = demo_stop and demo_off and ok
+
 	# G4: dikey mod — set_vertical kompakt bayrağı + bar dar pencereye (380) sığar
 	main.toggle_vertical()
 	var compact_ok: bool = ui._compact and ui.VW() <= 400.0

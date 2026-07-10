@@ -458,6 +458,29 @@ func show_offline(s: Dictionary) -> void:
 	vb.add_child(ok)
 	get_node(".").add_child(card)   # CanvasLayer'a ekle (root Control mouse_filter IGNORE)
 
+## Demo sonu kartı (H4 — Faz H): gün 7 dolunca nazik teşekkür; save KORUNUR, tam sürümde devam.
+func show_demo_end() -> void:
+	var card := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Palette.PANEL_BG
+	sb.border_color = HONEY
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(10)
+	sb.set_content_margin_all(18)
+	card.add_theme_stylebox_override("panel", sb)
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.position = Vector2(-190, -80)
+	card.custom_minimum_size = Vector2(380, 0)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	card.add_child(vb)
+	vb.add_child(_label(Loc.t("demo_title"), 14, HONEY))
+	var bl := _label(Loc.t("demo_body"), 12, CREAM)
+	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bl.custom_minimum_size = Vector2(344, 0)
+	vb.add_child(bl)
+	add_child(card)   # kalıcı kart (demo bitti — kapanmaz; kasaba arkada nefes almaya devam eder)
+
 func _toggle_mail() -> void:
 	_toggle(mail_box)   # çekmece animasyonu (J4)
 	if mail_box.visible:

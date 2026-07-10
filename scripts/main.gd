@@ -280,9 +280,23 @@ func _daily_seed() -> int:
 	return d.year * 10000 + d.month * 100 + d.day   # YYYYMMDD
 
 var _ach_accum := 0.0
+var _demo_force := false   # test kancası: export feature'sız demo kapısı (run_ui)
+var _demo_shown := false
+
+## Demo sınırı (Faz H): export preset'i "demo" feature'ıyla derlenirse gün 7'de sim durur —
+## save KORUNUR (tam sürüm kaldığı yerden açar), kart nazik teşekkür eder (ceza/baskı yok)
+func _demo_limit_reached() -> bool:
+	return (OS.has_feature("demo") or _demo_force) and world != null and world.day() > 7
 
 func _process(delta: float) -> void:
 	if _frozen or world == null:
+		return
+	if _demo_limit_reached():
+		if not _demo_shown:
+			_demo_shown = true
+			_save()
+			if is_instance_valid(ui) and ui.has_method("show_demo_end"):
+				ui.show_demo_end()
 		return
 	SteamBridge.tick()
 	_ach_accum += delta
