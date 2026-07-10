@@ -18,3 +18,4 @@ mono_crash.*.json
 
 # NEFES doğrulama çıktıları (verify.sh üretir)
 .verify_out/
+build/
