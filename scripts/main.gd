@@ -328,11 +328,11 @@ func take_postcard(dir_override: String = "") -> void:
 	last_postcard_path = "%s/NEFES_tohum%d_gun%d_%s.png" % [dir_path, world.town_seed(), world.day(), world.clock_string().replace(":", "")]
 	var e := img.save_png(last_postcard_path)
 	if e == OK:
-		world._push_event("📷 kartpostal kaydedildi (Resimler klasörü)")
+		world._push_event(Loc.t("ev_kartpostal"))
 		if is_instance_valid(audio):
 			audio.event("camera")
 	else:
-		world._push_event("📷 kartpostal kaydedilemedi")
+		world._push_event(Loc.t("ev_kartpostal_fail"))
 		push_warning("[postcard] save_png err=%d yol=%s" % [e, last_postcard_path])
 
 func _on_focus_timeout() -> void:

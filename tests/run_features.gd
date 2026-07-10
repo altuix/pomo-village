@@ -3,6 +3,7 @@ extends SceneTree
 # Kullanım: tools/godot.sh --headless --script tests/run_features.gd
 
 func _init() -> void:
+	Loc.lang = "tr"   # havuz/mektup metin kontrolleri TR varsayar (makine EN olabilir)
 	var ok := true
 	ok = _test_wish_letter() and ok
 	ok = _test_focus() and ok
@@ -23,6 +24,7 @@ func _init() -> void:
 	ok = _test_focus_reward() and ok
 	ok = _test_day_events() and ok
 	ok = _test_hardening() and ok
+	ok = _test_i18n() and ok
 	print("RESULT: %s" % ("PASS" if ok else "FAIL"))
 	quit(0 if ok else 1)
 
@@ -385,8 +387,8 @@ func _test_wish_variety() -> bool:
 	for l in w.letters:
 		if l.kind == "dilek":
 			var found := false
-			for key in Letters.DILEK.keys():
-				if Letters.DILEK[key].has(l.text):
+			for key in Letters.DILEK["tr"].keys():
+				if (Letters.DILEK["tr"][key] as Array).has(l.text):
 					found = true
 			if not found:
 				pool_ok = false
@@ -526,7 +528,7 @@ func _test_letters_depth() -> bool:
 		kinds[l.kind] = true
 		if l.kind == "veda":
 			var core: String = l.text.split("\n\n")[0]   # bond eki ayrılır
-			var in_pool: bool = Letters.VEDA.has(core) or Letters.VEDA_ATKI.has(core)
+			var in_pool: bool = (Letters.VEDA["tr"] as Array).has(core) or (Letters.VEDA_ATKI["tr"] as Array).has(core)
 			if not in_pool:
 				print("D: havuz dışı veda metni FAIL"); return false
 			veda_texts[core] = true
@@ -806,3 +808,85 @@ func _test_melody() -> bool:
 	var pass_ok: bool = good.ok and not weak.ok and concert_ok and has_konser and once_ok and code_ok
 	print("A5: %s" % ("OK" if pass_ok else "FAIL"))
 	return pass_ok
+
+# H1 i18n: (a) havuzlar tr/en eş-uzunluk + boş metin yok; (b) anahtar kümeleri özdeş;
+# (c) Loc.T her anahtarda tr+en + format işaretçi SAYISI eşit; (d) EN'de pick EN havuzundan;
+# (e) world olayı/mektubu aktif dilde üretilir. Dil test sonunda DAİMA tr'ye geri döner.
+func _test_i18n() -> bool:
+	var ok := true
+	# (a) dizi havuzları
+	var arrays := { "VEDA": Letters.VEDA, "VEDA_ATKI": Letters.VEDA_ATKI, "ODAK": Letters.ODAK,
+		"TASINMA": Letters.TASINMA, "DOGUM": Letters.DOGUM, "FESTIVAL": Letters.FESTIVAL,
+		"BOND_EK": Letters.BOND_EK }
+	for pname in arrays.keys():
+		var pool: Dictionary = arrays[pname]
+		var tr_a: Array = pool["tr"]
+		var en_a: Array = pool["en"]
+		if tr_a.size() != en_a.size() or tr_a.is_empty():
+			print("i18n: %s tr/en boyut uyumsuz (%d/%d) FAIL" % [pname, tr_a.size(), en_a.size()]); ok = false
+		for lg in ["tr", "en"]:
+			for t in pool[lg]:
+				if String(t).strip_edges() == "":
+					print("i18n: %s/%s içinde boş metin FAIL" % [pname, lg]); ok = false
+	# (b) anahtarlı havuzlar: tr/en anahtar kümeleri özdeş; DILEK ayrıca dizi boyları eşit + boş yok
+	var keyed := { "AN": Letters.AN, "OLAY": Letters.OLAY, "DILEK": Letters.DILEK,
+		"MILESTONE_TXT": Letters.MILESTONE_TXT, "SESSION_TXT": Letters.SESSION_TXT, "SERI": Letters.SERI }
+	for pname in keyed.keys():
+		var pool: Dictionary = keyed[pname]
+		var kt: Array = pool["tr"].keys(); kt.sort()
+		var ke: Array = pool["en"].keys(); ke.sort()
+		if kt != ke:
+			print("i18n: %s anahtar kümeleri farklı (tr=%s en=%s) FAIL" % [pname, str(kt), str(ke)]); ok = false
+	for kind in Letters.DILEK["tr"].keys():
+		var ta: Array = Letters.DILEK["tr"][kind]
+		var ea: Array = Letters.DILEK["en"].get(kind, [])
+		if ta.size() != ea.size() or ta.is_empty():
+			print("i18n: DILEK[%s] boyut uyumsuz (%d/%d) FAIL" % [kind, ta.size(), ea.size()]); ok = false
+		for lg_arr in [ta, ea]:
+			for t in lg_arr:
+				if String(t).strip_edges() == "":
+					print("i18n: DILEK[%s] boş metin FAIL" % kind); ok = false
+	# (c) Loc.T tamlık + format eşliği
+	for k in Loc.T.keys():
+		var e: Dictionary = Loc.T[k]
+		if not (e.has("tr") and e.has("en")):
+			print("i18n: T[%s] tr/en eksik FAIL" % k); ok = false
+			continue
+		if String(e.tr).strip_edges() == "" or String(e.en).strip_edges() == "":
+			print("i18n: T[%s] boş metin FAIL" % k); ok = false
+		if _fmt_count(e.tr) != _fmt_count(e.en):
+			print("i18n: T[%s] format sayısı farklı (tr=%d en=%d) FAIL" % [k, _fmt_count(e.tr), _fmt_count(e.en)]); ok = false
+	# (d) dil anahtarı: EN'de pick EN havuzundan gelir (TR listesinde YOK)
+	Loc.lang = "en"
+	var picked := Letters.pick(Letters.ODAK, 5)
+	var en_pick: bool = (Letters.ODAK["en"] as Array).has(picked) and not (Letters.ODAK["tr"] as Array).has(picked)
+	# (e) world üretimi aktif dilde: festival olayı + odak mektubu EN
+	var W := load("res://scripts/world.gd")
+	var w = W.new(); w.gen(0)
+	w.season_tick = w.SEASON_TICKS / 2 - 1
+	w.step_world()
+	var ev_en: bool = w.event_log.has(Loc.t("ev_fest0")) and not w.event_log.has(Loc.T["ev_fest0"]["tr"])
+	w.finish_focus_reward()
+	var letter_en := false
+	for l in w.letters:
+		if l.kind == "odak":
+			letter_en = (Letters.ODAK["en"] as Array).has(l.text)
+			break
+	Loc.lang = "tr"   # GERİ AL — sonraki testler/koşular tr varsayar
+	print("H1 i18n: havuzlar=%s en-pick=%s olay-en=%s mektup-en=%s" % [str(ok), str(en_pick), str(ev_en), str(letter_en)])
+	var pass_ok: bool = ok and en_pick and ev_en and letter_en
+	print("H1: %s" % ("OK" if pass_ok else "FAIL"))
+	return pass_ok
+
+## %s/%d/%.1f benzeri format işaretçilerini say ("%%" kaçışı sayılmaz).
+func _fmt_count(s: String) -> int:
+	var n := 0
+	var i := 0
+	while i < s.length():
+		if s[i] == "%":
+			if i + 1 < s.length() and s[i + 1] == "%":
+				i += 2
+				continue
+			n += 1
+		i += 1
+	return n

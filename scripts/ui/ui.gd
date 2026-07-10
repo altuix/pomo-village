@@ -40,7 +40,7 @@ var _premute := 0.7      # sustur öncesi master (geri açınca dönülecek sevi
 var _mail_seen := 0      # zarf salınımı yalnız YENİ mektupta (playtest: sürekli sallanma bunaltıcı)
 var _sway_until := 0.0
 
-const STAGE_NAMES := ["🌱 çocuk", "yetişkin", "🕰 bilge"]
+# sakin evre adları Loc.t("stage%d")'den (i18n H1 — dil değişince taze)
 
 # paneller (A3-A6 doldurur) — sağ/sol alt çekmeceler
 var sound_box: PanelContainer
@@ -173,10 +173,10 @@ func _build() -> void:
 	_clock = _label("18:30", 20, HONEY)
 	_clock.position = Vector2(14, 6)
 	root.add_child(_clock)
-	_sub = _label("kasaba uyanıyor", 11, MUTED)
+	_sub = _label(Loc.t("boot_sub"), 11, MUTED)
 	_sub.position = Vector2(14, 32)
 	root.add_child(_sub)
-	_stat = _label("ev 0 · sakin 0", 11, MUTED)
+	_stat = _label(Loc.t("stat_fmt") % [0, 0], 11, MUTED)
 	_stat.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_stat.position = Vector2(-160, 8)
 	_stat.size = Vector2(150, 20)
@@ -184,7 +184,7 @@ func _build() -> void:
 	root.add_child(_stat)
 
 	# ---- olay akışı (alt, buton şeridinin üstü) ----
-	_events = _label("Kasaba yaşıyor…", 11, SAGE)
+	_events = _label(Loc.t("boot_events"), 11, SAGE)
 	_events.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_events.position = Vector2(14, -52)   # bar ile çakışmasın (S1)
 	_events.size = Vector2(VW() - 28, 18)
@@ -406,7 +406,7 @@ func _on_focus() -> void:
 func _refresh_stats() -> void:
 	if world == null or _stats_body == null:
 		return
-	_stats_body.text = "bugün %d dk · toplam %d dk\nseri %d · en uzun seri %d · %d seans" % [
+	_stats_body.text = Loc.t("stats_body") % [
 		world.today_focus_min, world.stat_focus_min, world.streak, world.best_streak, world.sessions]
 
 ## Hızlı sustur (playtest: ses 3 tık uzaktaydı — always-on şeritte tek tık şart)
@@ -444,15 +444,15 @@ func show_offline(s: Dictionary) -> void:
 	vb.add_theme_constant_override("separation", 10)
 	card.add_child(vb)
 	var days := float(s.ticks) / 2400.0
-	vb.add_child(_label("SEN YOKKEN", 14, HONEY))
-	var body := "%.1f gün geçti.\n🌱 %d doğum    ✦ %d veda    🧳 %d yeni komşu\nNüfus %d → %d" % [days, s.births, s.farewells, s.arrivals, s.pop_before, s.pop_after]
+	vb.add_child(_label(Loc.t("offline_title"), 14, HONEY))
+	var body := Loc.t("offline_body") % [days, s.births, s.farewells, s.arrivals, s.pop_before, s.pop_after]
 	if s.get("capped", false):
-		body += "\n(kasaba uzunca kendi halinde yaşadı)"
+		body += Loc.t("offline_capped")
 	var bl := _label(body, 12, CREAM)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bl.custom_minimum_size = Vector2(344, 0)
 	vb.add_child(bl)
-	var ok := _button("kasabaya dön")
+	var ok := _button(Loc.t("offline_ok"))
 	ok.add_theme_color_override("font_color", Palette.MINT)
 	ok.pressed.connect(func(): card.queue_free())
 	vb.add_child(ok)
@@ -502,8 +502,8 @@ var _sound_sliders := {}   # kanal -> HSlider (sync_from_world ayarlardan doldur
 func _fill_sound() -> void:
 	var vb := sound_box.get_node("VB")
 	var rows := [
-		["🎵 müzik", "music"], ["🌧 yağmur", "rain"], ["💧 dere", "stream"],
-		["🎹 lo-fi pad", "pad"], ["🦗 gece", "cricket"], ["🔊 ana", "master"],
+		[Loc.t("snd_music"), "music"], [Loc.t("snd_rain"), "rain"], [Loc.t("snd_stream"), "stream"],
+		[Loc.t("snd_pad"), "pad"], [Loc.t("snd_cricket"), "cricket"], [Loc.t("snd_master"), "master"],
 	]
 	for row in rows:
 		var hb := HBoxContainer.new()
@@ -556,16 +556,16 @@ func _fill_melody() -> void:
 	vb.add_child(grid)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
-	var play := _button("▶ dinle")
+	var play := _button(Loc.t("mel_play"))
 	play.add_theme_color_override("font_color", Palette.MINT)
 	play.pressed.connect(_on_mel_play)
 	hb.add_child(play)
-	var teach := _button("🗼 kuleye öğret")
+	var teach := _button(Loc.t("mel_teach"))
 	teach.add_theme_color_override("font_color", HONEY)
 	teach.pressed.connect(_on_mel_teach)
 	hb.add_child(teach)
 	vb.add_child(hb)
-	_mel_note = _label("Kule her saat başı senin melodini çalar. Sütuna dokun: nota koy/kaldır.", 10, Palette.FADED)
+	_mel_note = _label(Loc.t("mel_note"), 10, Palette.FADED)
 	_mel_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mel_note.custom_minimum_size = Vector2(200, 0)
 	vb.add_child(_mel_note)
@@ -594,11 +594,11 @@ func _on_mel_teach() -> void:
 		return
 	var res: Dictionary = main.teach_tower(_melody)
 	if res.get("concert", false):
-		_mel_note.text = "Kule melodini öğrendi — MEYDAN KONSERİ! Herkes senin şarkınla dans etti."
+		_mel_note.text = Loc.t("mel_concert")
 	elif res.get("quality", {}).get("ok", false):
-		_mel_note.text = "Kule melodini öğrendi — her saat başı çalacak."
+		_mel_note.text = Loc.t("mel_learned")
 	else:
-		_mel_note.text = "Kule öğrendi. İpucu: en az 5 nota, 3 farklı ses ve iniş-çıkış olursa kasaba coşar…"
+		_mel_note.text = Loc.t("mel_hint")
 
 # J3: mektup = KAĞIT (duygusal çekirdek en soğuk ekrandı — juice kritiği). CREAM zemin,
 # ink mürekkep, honey mühür noktası. Kart lid yakalar (INDEX DEĞİL — push_front kaydırıyordu).
@@ -812,7 +812,7 @@ func _process(delta: float) -> void:
 	_sub.text = "%s · %s · %s · %s" % [Loc.t("tier%d" % world.tier),
 		Loc.t("date_fmt") % [world.year(), world.day()],
 		Loc.t("season%d" % world.season), world.status_text()]
-	_stat.text = "ev %d · sakin %d" % [world.lit_count(), world.population()]
+	_stat.text = Loc.t("stat_fmt") % [world.lit_count(), world.population()]
 	_streak_btn.text = ("🔥%d" % world.streak) if _compact else (Loc.t("series") % world.streak)
 	_refresh_focus_button()
 	_refresh_person_card()
@@ -839,7 +839,7 @@ func _process(delta: float) -> void:
 	_mail_btn.rotation = (sin(_t * 2.4) * 0.045) if (unreplied > 0 and _t < _sway_until) else 0.0
 	var wt := world.wish_text()
 	if wt != "":
-		_wish_btn.text = wt if not _compact else "💭 dilek"
+		_wish_btn.text = wt if not _compact else Loc.t("wish_short")
 		_wish_btn.visible = true
 	else:
 		_wish_btn.visible = false
@@ -877,28 +877,28 @@ func _refresh_album() -> void:
 		return
 	for c in _album_list.get_children():
 		c.queue_free()
-	_album_list.add_child(_label("SAKİNLER (%d)" % world.population(), 11, HONEY))
+	_album_list.add_child(_label(Loc.t("alb_residents") % world.population(), 11, HONEY))
 	for p in world.people:
-		var line: String = "● %s · %s" % [p.name, STAGE_NAMES[clampi(int(p.stage), 0, 2)]]
+		var line: String = "● %s · %s" % [p.name, Loc.t("stage%d" % clampi(int(p.stage), 0, 2))]
 		if p.scarf:
 			line += " · 💛"
 		_album_list.add_child(_label(line, 10, CREAM))
 	_album_list.add_child(_label(" ", 4, CREAM))
-	_album_list.add_child(_label("ANI AĞAÇLARI (%d)" % world.mem_trees.size(), 11, Palette.LILAC))
+	_album_list.add_child(_label(Loc.t("alb_trees") % world.mem_trees.size(), 11, Palette.LILAC))
 	for mt in world.mem_trees:
-		_album_list.add_child(_label("✦ %s'nin ağacı" % mt.name, 10, Palette.LILAC))
+		_album_list.add_child(_label(Loc.t("alb_tree_fmt") % mt.name, 10, Palette.LILAC))
 	_album_list.add_child(_label(" ", 4, CREAM))
-	_album_list.add_child(_label("KASABANIN HİKÂYESİ", 11, HONEY))
+	_album_list.add_child(_label(Loc.t("alb_story"), 11, HONEY))
 	var w := world
-	var story := "🌱 %d doğum · ✦ %d veda · 🧳 %d gelen\n🌟 %d dilek gerçekleşti · 💛 bağ %d\n🎯 %d seans · %d dk emek · en uzun seri %d" % [
+	var story := Loc.t("alb_story_body") % [
 		w.stat_births, w.stat_farewells, w.stat_arrivals, w.stat_wishes, w.bond,
 		w.sessions, w.stat_focus_min, w.best_streak]
 	if w.concert_done:
-		story += "\n🎻 Meydan Konseri verildi"
+		story += "\n" + Loc.t("alb_concert")
 	if w.unlocked.atolye:
-		story += "\n🔨 Atölye kuruldu"
+		story += "\n" + Loc.t("alb_atolye")
 	if w.unlocked.kutuphane:
-		story += "\n📚 Kütüphane yükseldi"
+		story += "\n" + Loc.t("alb_kutuphane")
 	var sl := _label(story, 10, CREAM)
 	sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sl.custom_minimum_size = Vector2(300, 0)
@@ -911,11 +911,11 @@ func _refresh_person_card() -> void:
 	var hp: Dictionary = main.hovered_person()
 	if hp.has("person"):
 		var p = hp.person
-		var line: String = STAGE_NAMES[clampi(int(p.stage), 0, 2)]
+		var line: String = Loc.t("stage%d" % clampi(int(p.stage), 0, 2))
 		if p.scarf:
-			line += " · 💛 atkılı"
+			line += " · " + Loc.t("pc_scarf")
 		if p.get("wants_home", false):
-			line += " · 🌿 yuva arıyor"
+			line += " · " + Loc.t("pc_wants_home")
 		_person_body.text = "%s\n%s" % [p.name, line]
 		var px: Vector2 = hp.px
 		var dw := 380.0 if _compact else VW()

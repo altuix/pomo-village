@@ -63,33 +63,25 @@ var streak := 0
 var sessions := 0
 var unlocked := { "atolye": false, "kutuphane": false, "rasathane": false, "sera": false, "hamam": false }
 # seri sonrası uzun-vade bina zinciri (Faz D): toplam seans eşikleriyle açılır
+# "ev" = Loc anahtarı; mektup gövdesi Letters.MILESTONE_TXT'te (i18n H1 — metin tek kaynak)
 const MILESTONE_BUILDINGS := [
-	{ "key": "rasathane", "at": 10, "ev": "🔭 Rasathane yükseliyor — gökyüzü artık daha yakın",
-	  "txt": "On seansın şerefine tepeye bir RASATHANE kuruyoruz. Gece gökyüzünü birlikte izleyeceğiz." },
-	{ "key": "sera", "at": 20, "ev": "🌿 Sera kuruluyor — kışın bile yeşil",
-	  "txt": "Yirmi seans! Meydanın yanına bir SERA dikiyoruz; kışın bile domates, her mevsim çiçek." },
-	{ "key": "hamam", "at": 35, "ev": "♨ Hamam yükseliyor — yorgunluğa veda",
-	  "txt": "Otuz beş seans... Emeğin şerefine kasabaya bir HAMAM yapıyoruz. Yorgunluk artık misafir, ev sahibi değil." },
+	{ "key": "rasathane", "at": 10, "ev": "ev_rasathane" },
+	{ "key": "sera", "at": 20, "ev": "ev_sera" },
+	{ "key": "hamam", "at": 35, "ev": "ev_hamam" },
 ]
 var best_streak := 0
 var tower_gilded := false        # 200-seans ödülü: kule yaldızı (render bayrağı, G1.7)
 # kümülatif seans ödülleri (G1.7 — Forest deseni): TOPLAM sayaç, zincir-kırılma kavramı YOK.
 # İlk 3 basamak MILESTONE_BUILDINGS'te (bina); bunlar kalıcı süs/anıt olarak devam eder.
+# "ev" = Loc anahtarı; mektup gövdesi Letters.SESSION_TXT'te (i18n H1 — metin tek kaynak)
 const SESSION_REWARDS := [
-	{ "at": 50, "kind": "heykel", "ev": "🗿 50. seans — meydana minik bir heykel dikildi",
-	  "txt": "Elli seans! Meydana küçük bir heykel diktik; kaidesinde tek kelime var: 'Emeğe.'" },
-	{ "at": 75, "kind": "kameriye", "ev": "⛩ 75. seans — çayıra bir kameriye kuruldu",
-	  "txt": "Yetmiş beş seans... Çayıra sarmaşıklı bir kameriye kurduk. En güzel gölge artık orada." },
-	{ "at": 100, "kind": "yuzyil_mesesi", "ev": "🌳 100. seans — Yüzyıl Meşesi dikildi",
-	  "txt": "YÜZ seans. Çayırın ortasına bir meşe fidanı diktik ve adını şimdiden koyduk: Yüzyıl Meşesi. Senin gibi sabırla büyüyecek." },
-	{ "at": 150, "kind": "fener_dizisi", "ev": "🏮 150. seans — meydana fener dizisi asıldı",
-	  "txt": "Yüz elli seans! Meydanın etrafına el yapımı fenerler astık. Akşamları hepsi senin için yanıyor." },
-	{ "at": 200, "kind": "kule_yaldizi", "ev": "✨ 200. seans — kulenin kenarları yaldızlandı",
-	  "txt": "İki yüz seans... Ustalar kulenin kenarlarına ince bir yaldız işledi. Güneş vurunca bütün kasaba parlıyor." },
-	{ "at": 300, "kind": "zafer_bahcesi", "ev": "🌷 300. seans — Zafer Bahçesi açıldı",
-	  "txt": "Üç yüz seans! Meydanın yanına küçük bir bahçe yaptık: Zafer Bahçesi. Her çiçeği bir seansın anısı." },
-	{ "at": 500, "kind": "ebedi_alev", "ev": "🔥 500. seans — meydanda Ebedi Alev yakıldı",
-	  "txt": "BEŞ YÜZ seans. Meydanda küçük, nazik bir alev yaktık; hiç sönmeyecek. Bu kasaba var oldukça emeğin anılacak." },
+	{ "at": 50, "kind": "heykel", "ev": "ev_ses50" },
+	{ "at": 75, "kind": "kameriye", "ev": "ev_ses75" },
+	{ "at": 100, "kind": "yuzyil_mesesi", "ev": "ev_ses100" },
+	{ "at": 150, "kind": "fener_dizisi", "ev": "ev_ses150" },
+	{ "at": 200, "kind": "kule_yaldizi", "ev": "ev_ses200" },
+	{ "at": 300, "kind": "zafer_bahcesi", "ev": "ev_ses300" },
+	{ "at": 500, "kind": "ebedi_alev", "ev": "ev_ses500" },
 ]
 var stat_focus_min := 0          # toplam odak dakikası
 var today_focus_min := 0
@@ -111,38 +103,40 @@ var density_level := 0                 # iç yoğunlaşma (G1.3): frontier dolun
 
 # --- kasaba ünvanı (G1.4): nüfus eşikleri — asla düşmez, her atlama tek seferlik kutlama ---
 var tier := 0
+# ünvan adları Loc.t("tier%d")'den (i18n H1); "key" = ünvan kutlaması AN mektubu anahtarı
 const TIERS := [
-	{ "name": "Mezra", "pop": 0, "key": "" },
-	{ "name": "Köy", "pop": 25, "key": "tier_koy" },
-	{ "name": "Büyük Köy", "pop": 60, "key": "tier_buyuk_koy" },
-	{ "name": "Kasaba", "pop": 100, "key": "tier_kasaba" },
-	{ "name": "Küçük Şehir", "pop": 150, "key": "tier_kucuk_sehir" },
-	{ "name": "Şehir", "pop": 220, "key": "tier_sehir" },
+	{ "pop": 0, "key": "" },
+	{ "pop": 25, "key": "tier_koy" },
+	{ "pop": 60, "key": "tier_buyuk_koy" },
+	{ "pop": 100, "key": "tier_kasaba" },
+	{ "pop": 150, "key": "tier_kucuk_sehir" },
+	{ "pop": 220, "key": "tier_sehir" },
 ]
 
 # İhtiyaç binaları (G1.5 — Banished merdiveni): tier açar, ev sayısına oranla kurulur.
 # per=999 → kasabada TEK. Her tip render'da izlenebilir davranış taşır (town_view).
 const NEED_BUILDINGS := [
-	{ "type": "kuyu", "tier": 1, "per": 10, "ev": "⛲ mahalleye bir KUYU kazılıyor" },
-	{ "type": "firin", "tier": 1, "per": 15, "ev": "🍞 kasabaya FIRIN yapılıyor — sabahlar ekmek kokacak" },
-	{ "type": "pazar", "tier": 2, "per": 25, "ev": "🧺 meydana PAZAR tezgâhı kuruluyor" },
-	{ "type": "cayevi", "tier": 2, "per": 20, "ev": "🍵 köşeye ÇAYEVİ açılıyor — akşam sohbetleri burada" },
-	{ "type": "okul", "tier": 3, "per": 30, "ev": "🏫 çocuklar için OKUL yükseliyor" },
-	{ "type": "degirmen", "tier": 3, "per": 999, "ev": "🌾 dere kenarına DEĞİRMEN kuruluyor" },
-	{ "type": "han", "tier": 4, "per": 999, "ev": "🏮 gezginler için HAN yapılıyor" },
-	{ "type": "festival_alani", "tier": 4, "per": 999, "ev": "🎪 FESTİVAL ALANI hazırlanıyor — bayraklar asıldı" },
+	{ "type": "kuyu", "tier": 1, "per": 10, "ev": "ev_kuyu" },
+	{ "type": "firin", "tier": 1, "per": 15, "ev": "ev_firin" },
+	{ "type": "pazar", "tier": 2, "per": 25, "ev": "ev_pazar" },
+	{ "type": "cayevi", "tier": 2, "per": 20, "ev": "ev_cayevi" },
+	{ "type": "okul", "tier": 3, "per": 30, "ev": "ev_okul" },
+	{ "type": "degirmen", "tier": 3, "per": 999, "ev": "ev_degirmen" },
+	{ "type": "han", "tier": 4, "per": 999, "ev": "ev_han" },
+	{ "type": "festival_alani", "tier": 4, "per": 999, "ev": "ev_festival_alani" },
 ]
 var milestones := {}                   # uzun-vade anları (gun30/sakin100/veda50/butunlendi — tek seferlik)
 var town_complete := false             # harita doldu: growth artık güzelleştirmeye akar (end-game, Faz D)
-# teşekkür metinleri Letters.DILEK havuzunda (tek kaynak; Faz D çeşitlilik)
+# teşekkür metinleri Letters.DILEK'te, görünen dilek cümlesi Loc "wtxt_*" (tek kaynak; i18n H1).
+# "k" sim durumuna girer (decor.kind, DILEK anahtarı) — TR anahtar olarak SABİT kalır.
 const WISH_TYPES := [
-	{ "k": "çeşme", "txt": "meydana küçük bir çeşme" },
-	{ "k": "ağaç",  "txt": "sokağıma bir ağaç" },
-	{ "k": "fener", "txt": "kapımın önüne bir fener" },
-	{ "k": "bank",  "txt": "ağacın altına bir bank" },
-	{ "k": "kuş yuvası", "txt": "bahçeme bir kuş yuvası" },
-	{ "k": "posta kutusu", "txt": "kapıma bir posta kutusu" },
-	{ "k": "rüzgâr gülü", "txt": "çatıma bir rüzgâr gülü" },
+	{ "k": "çeşme" },
+	{ "k": "ağaç" },
+	{ "k": "fener" },
+	{ "k": "bank" },
+	{ "k": "kuş yuvası" },
+	{ "k": "posta kutusu" },
+	{ "k": "rüzgâr gülü" },
 ]
 
 const SEASON_NAMES := ["ilkbahar", "yaz", "sonbahar", "kış"]
@@ -176,8 +170,7 @@ const DAY_EVENTS := [
 ]
 var festival_t := 0.0             # festival nabzı 1→0 (render gözlemler; chime_t deseni)
 var fest_done := false            # bu mevsim festivali oldu mu (mevsim dönünce sıfırlanır)
-const FEST_EVENTS := ["🌸 Çiçek Günü — meydan taçyaprağı içinde", "💧 Dere Şenliği — kâğıt kayıklar yarışıyor",
-	"🎃 Hasat Akşamı — meydanda uzun sofra kuruldu", "🏮 Fener Gecesi — ışıklar karda süzülüyor"]
+const FEST_EVENTS := ["ev_fest0", "ev_fest1", "ev_fest2", "ev_fest3"]   # Loc anahtarları (i18n H1)
 
 func population() -> int:
 	return people.size()
@@ -192,7 +185,7 @@ func year() -> int:
 	return (day() - 1) / DAYS_PER_YEAR + 1
 
 func tier_name() -> String:
-	return TIERS[tier].name
+	return Loc.t("tier%d" % tier)
 
 func clock_string() -> String:
 	var hh := int(floor(time_of_day))
@@ -201,17 +194,17 @@ func clock_string() -> String:
 
 func status_text() -> String:
 	if building_now != null:
-		return "yeni bir ev yükseliyor…"
+		return Loc.t("st_insaat")
 	if not movers.is_empty():
-		return "biri taşınıyor…"
+		return Loc.t("st_tasinma")
 	var ev := evening()
 	if ev > 0.7:
-		return "kasaba ışıl ışıl"
+		return Loc.t("st_isil")
 	if ev > 0.3:
-		return "akşam çöküyor, ışıklar yanıyor"
+		return Loc.t("st_aksam")
 	if ev > 0.0:
-		return "huzurlu bir akşamüstü"
-	return "huzurlu bir gün"   # öğlen "akşam" yazıyordu (HTML port kalıntısı)
+		return Loc.t("st_aksamustu")
+	return Loc.t("st_gun")   # öğlen "akşam" yazıyordu (HTML port kalıntısı)
 
 func unreplied_letters() -> int:
 	var n := 0
@@ -546,17 +539,17 @@ func step_world() -> void:
 		if not cands.is_empty() and _hf(tick * 31) < 0.6:
 			var who = cands[_h(tick) % cands.size()]
 			wish = { "who": who, "type": _h(tick * 7) % WISH_TYPES.size() }
-			_push_event("💭 %s bir dilek tuttu" % who.name)
+			_push_event(Loc.t("ev_dilek") % who.name)
 
 	# MEVSİM FESTİVALİ (Faz D): mevsim ortasında küçük şenlik — sakinler meydana, olay + seyrek mektup.
 	# Mevsim artık 7 gün → festival seyrek bir an; mektup şansı %50 (spam değil, hatıra).
 	if season_tick >= SEASON_TICKS / 2 and not fest_done:   # >=: yüklenen save eşiği geçmişse festival kaçmasın
 		fest_done = true
 		festival_t = 1.0
-		_push_event(FEST_EVENTS[season])
+		_push_event(Loc.t(FEST_EVENTS[season]))
 		if _hf(tick * 43) < 0.5:
-			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "festival", "replied": false,
-				"text": Letters.FESTIVAL[season] })
+			_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "festival", "replied": false,
+				"text": Letters.fest(season) })
 		for p in people:
 			if not p.moving and _hf(p.seed + tick) < 0.4:
 				p.x = clampf(landmark.x + float(_h(p.seed) % 7) - 3.0, 0.0, float(GW - 1))
@@ -567,9 +560,9 @@ func step_world() -> void:
 	# yağmur geçişleri (görsel/ses katmanının olay bildirimi; sim durumuna etkimez)
 	var raining := rain_amount() > 0.1
 	if raining and not rain_was:
-		_push_event("🌧 kasabaya yağmur geldi")
+		_push_event(Loc.t("ev_yagmur"))
 	elif rain_was and not raining:
-		_push_event("🌦 yağmur dindi — toprak kokusu")
+		_push_event(Loc.t("ev_yagmur_dindi"))
 	rain_was = raining
 
 	# EV EVRELERİ (G1.6 — Foundation deseni): 240 tick'te bir TEK terfi (görünür damlama,
@@ -582,11 +575,11 @@ func step_world() -> void:
 			var st: int = int(b.get("stage", 1))
 			if st == 0 and age >= 3 * TICKS_PER_DAY and _near_service(b, 6):
 				b.stage = 1
-				_push_event("🏠 bir kulübe sıcacık bir eve dönüştü")
+				_push_event(Loc.t("ev_kulube_ev"))
 				break
 			if st == 1 and age >= 10 * TICKS_PER_DAY and tier >= 3 and _near_service(b, 4):
 				b.stage = 2
-				_push_event("🏛 bir ev taş eve yükseldi — mahalle gururla bakıyor")
+				_push_event(Loc.t("ev_tas_ev"))
 				break
 
 	# KASABA ÜNVANI (G1.4): eşik aşımı → tabela + kutlama + mektup. 40 tick'te bir kontrol:
@@ -594,7 +587,7 @@ func step_world() -> void:
 	if tick % 40 == 0 and tier < TIERS.size() - 1 and population() >= TIERS[tier + 1].pop:
 		tier += 1
 		festival_t = 1.0   # meydan şenliği nabzı (mevcut festival deseni yeniden kullanılır)
-		_milestone(TIERS[tier].key, "🪧 tabela yenilendi — artık bir %s'yiz! Meydanda kutlama var" % str(TIERS[tier].name).to_upper())
+		_milestone(TIERS[tier].key, Loc.t("ev_tier") % Loc.t("tier%d" % tier).to_upper())
 
 	# GÜNLÜK OLAY (G1.8): ~%35 gün olaylı; saat 10-19 arası deterministik pencere (100 tick).
 	# gökkuşağı yağmurlu güne, hasat sonbahara, uçurtma ilkbahar/yaza koşullu (_event_ok).
@@ -611,11 +604,11 @@ func step_world() -> void:
 
 	# uzun-vade anları (Faz D): tek seferlik kutlamalar
 	if tick >= 30 * TICKS_PER_DAY and not milestones.get("gun30", false):
-		_milestone("gun30", "🕯 kasabanın 30. günü — meydanda mum ışığı")
+		_milestone("gun30", Loc.t("ev_gun30"))
 	if name_idx >= 100 and not milestones.get("sakin100", false):
-		_milestone("sakin100", "💯 100. komşu aramızda")
+		_milestone("sakin100", Loc.t("ev_sakin100"))
 	if stat_farewells >= 50 and not milestones.get("veda50", false):
-		_milestone("veda50", "🌳 50. anı ağacı — çayır artık bir koru")
+		_milestone("veda50", Loc.t("ev_veda50"))
 
 	# saat başı: kule nabzı (görsel çan/kuş A2; melodi A5)
 	var hr := int(floor(time_of_day))
@@ -926,7 +919,7 @@ func _start_construction() -> void:
 					cand.sort_custom(func(a, b): return _river_dist(a) < _river_dist(b))
 					pick = cand[0]
 				pick.type = need.type
-				_push_event(need.ev)
+				_push_event(Loc.t(need.ev))
 			building_now = pick
 			building_now.build_prog = 0.01
 			return
@@ -939,7 +932,7 @@ func _start_construction() -> void:
 		if not town_complete:
 			# harita doldu + yoğunlaşma bitti + inşasız yok → KASABA BÜTÜNLENDİ (bir kez)
 			town_complete = true
-			_milestone("butunlendi", "🎊 KASABA BÜTÜNLENDİ — son ev de yuvasını buldu")
+			_milestone("butunlendi", Loc.t("ev_butunlendi"))
 		return
 
 ## İç yoğunlaşma (G1.3): frontier tükendiğinde mevcut doku ARASINA yeni sokak+parseller.
@@ -978,7 +971,7 @@ func _densify(level: int) -> void:
 			occ[c] = true
 			_add_building(c.x, c.y, _hf(c.x * 3 + c.y * 7 + level) < 0.18)
 	_drain_pending_special()   # yeni inşasız binalar açıldı — bekleyen özel binalar kurulsun
-	_push_event("🏘 kasaba içe doğru sıklaşıyor — yeni sokaklar açıldı")
+	_push_event(Loc.t("ev_densify"))
 
 func _dist(b: Dictionary) -> int:
 	return abs(b.gx - landmark.x) + abs(b.gy - landmark.y)
@@ -1146,7 +1139,7 @@ func _milestone(key: String, ev_text: String) -> void:
 	if milestones.get(key, false):
 		return
 	milestones[key] = true
-	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "an", "replied": false, "text": Letters.AN[key] })
+	_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "an", "replied": false, "text": Letters.an(key) })
 	_push_event(ev_text)
 
 ## End-game güzelleştirme (Faz D): her goal bir evi çiçeklendirir; hepsi çiçekliyse nazik şenlik.
@@ -1155,9 +1148,9 @@ func _beautify() -> void:
 	for b in buildings:
 		if b.built == 1 and not b.get("bloom", false):
 			b.bloom = true
-			_push_event("🌸 bir evin pencereleri çiçeklendi")
+			_push_event(Loc.t("ev_cicek"))
 			return
-	_push_event("🎪 meydanda küçük bir şenlik kuruldu")
+	_push_event(Loc.t("ev_senlik"))
 
 func _life_cycle() -> void:
 	# yaşlanma + nazik veda (determinist tohumlu)
@@ -1169,11 +1162,11 @@ func _life_cycle() -> void:
 			p.stage = 1
 			p.age_t = 0
 			p.wants_home = true
-			_push_event("🌿 %s büyüdü, kendine yuva arıyor" % p.name)
+			_push_event(Loc.t("ev_buyudu") % p.name)
 		elif p.stage == 1 and p.age_t > p.span_b:
 			p.stage = 2
 			p.age_t = 0
-			_push_event("🕰 %s artık kasabanın bilgesi" % p.name)
+			_push_event(Loc.t("ev_bilge") % p.name)
 		elif p.stage == 2 and p.age_t > p.span_c:
 			_pass_away(p)
 
@@ -1213,9 +1206,9 @@ func _life_cycle() -> void:
 					movers.append(s)
 					s.wants_home = false
 				if nb.members.size() >= 2:
-					_push_event("💍 %s ve %s birlikte yuva kurdu" % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
+					_push_event(Loc.t("ev_cift") % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
 				else:
-					_push_event("🏡 %s kendi yuvasına taşındı" % seekers[0].name)
+					_push_event(Loc.t("ev_tek_yuva") % seekers[0].name)
 				_maybe_move_letter(seekers[0], seekers[0].seed * 41 + tick)
 
 	# GÖÇEBE MEKTUBU (G1.8): söz verilen aile ilk boş evde gelir — basınç kapısı
@@ -1235,7 +1228,7 @@ func _life_cycle() -> void:
 				movers.append(pp)
 			pending_family = 0
 			stat_arrivals += 1
-			_push_event("🧳 mektuptaki aile geldi — kapıda sıcak çorba bekliyordu")
+			_push_event(Loc.t("ev_soz_aile"))
 
 	# GÖÇ: boş ev + gevşek nüfus → yeni aile (kasaba asla ölmez; boşsa hızlanır).
 	# < 0.85: inşaat kapısı (0.72) ile örtüşen pencere — eski 0.75/0.75 tam-tamamlayıcı
@@ -1255,7 +1248,7 @@ func _life_cycle() -> void:
 				nb.members.append(p)
 				movers.append(p)
 			stat_arrivals += 1
-			_push_event("🧳 uzaktan yeni bir aile geldi")
+			_push_event(Loc.t("ev_yeni_aile"))
 			if not nb.members.is_empty():
 				_maybe_move_letter(nb.members[0], nb.seed * 29 + tick)
 
@@ -1274,7 +1267,7 @@ func _life_cycle() -> void:
 				var c := _add_person(b.gx, b.gy, b, 0)
 				b.members.append(c)
 				stat_births += 1
-				_push_event("🌱 %s dünyaya geldi" % c.name)
+				_push_event(Loc.t("ev_dogum") % c.name)
 				if _hf(b.seed * 5 + tick) < 0.30:
 					for m in b.members:
 						if m.stage == 1:   # mektup ebeveynden gelir
@@ -1296,9 +1289,9 @@ func _pass_away(p: Dictionary) -> void:
 		if p.home.members.is_empty():
 			p.home.awake = false
 			p.home.lit_frac = 0.0
-			_push_event("🌒 bir evin ışıkları söndü")
+			_push_event(Loc.t("ev_isik_sondu"))
 	_plant_memory_tree(p)
-	_push_event("✦ %s yıldızlara karıştı — çayıra bir anı ağacı dikildi" % p.name)
+	_push_event(Loc.t("ev_veda") % p.name)
 	# veda mektubu (duygusal çekirdek) — havuzdan determinist seçim; atkı sahibine kişisel ton
 	var vtxt: String = Letters.pick(Letters.VEDA_ATKI if p.scarf else Letters.VEDA, _h(p.seed * 31))
 	if bond >= 5 and _hf(p.seed * 7 + tick) < 0.4:
@@ -1310,7 +1303,7 @@ func _pass_away(p: Dictionary) -> void:
 func teach_tower(mel: Array) -> Dictionary:
 	melody = mel.duplicate()
 	melody_saved = true
-	_push_event("🎼 kule yeni melodini öğrendi")
+	_push_event(Loc.t("ev_melodi"))
 	var q := Melody.quality(mel)
 	if q.ok and not concert_done:
 		concert_done = true
@@ -1326,15 +1319,15 @@ func teach_tower(mel: Array) -> Dictionary:
 		if not eh.is_empty():
 			home = eh[0]
 		var muz := _add_person(landmark.x, landmark.y, home, 1)
-		muz.name = "Gezgin Müzisyen"
+		muz.name = Loc.t("from_muzisyen")
 		if home != null:
 			home.members.append(muz)
-		_push_letter({ "from": "Gezgin Müzisyen", "who": muz.seed, "kind": "konser", "replied": false,
-			"text": "Melodini kulenin tepesinden dinledim. Yıllardır yol alırım, böylesine yürekten bir ezgi az duydum. Bu akşam meydanda herkes senin şarkınla dans etti. Ben de artık burada kalıyorum." })
-		_push_event("🎻 MEYDAN KONSERİ! Gezgin Müzisyen kasabaya yerleşti")
+		_push_letter({ "from": Loc.t("from_muzisyen"), "who": muz.seed, "kind": "konser", "replied": false,
+			"text": Letters.konser_txt() })
+		_push_event(Loc.t("ev_konser"))
 		return { "concert": true, "quality": q }
 	elif not q.ok:
-		_push_event("🎼 kule öğrendi — ipucu: ≥5 nota, ≥3 farklı ses, iniş-çıkış")
+		_push_event(Loc.t("ev_melodi_ipucu"))
 	return { "concert": false, "quality": q }
 
 ## İnşasız bir binayı özel tipe çevirip inşaatı başlatır (atölye/kütüphane/zincir ortak yolu).
@@ -1394,14 +1387,14 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 		if building_now != null:
 			growth -= goal   # eklenen emek bu inşaata harcandı (bedava çifte inşaat olmasın)
 			vis = "insaat"
-			_push_event("🔨 seansının şerefine yeni bir yapı yükseliyor")
+			_push_event(Loc.t("ev_seans_insaat"))
 	if vis == "":
 		for b in buildings:
 			if b.type == "house" and b.built == 1 and int(b.get("stage", 1)) < 2 \
 					and (tick - int(b.get("built_at", -1))) >= 3 * TICKS_PER_DAY:
 				b.stage = int(b.get("stage", 1)) + 1   # seans ödülü servisi beklemez (yaş yeter)
 				vis = "terfi"
-				_push_event("🏠 emeğinle bir ev güzelleşti")
+				_push_event(Loc.t("ev_seans_terfi"))
 				break
 	if vis == "":
 		_beautify()
@@ -1420,33 +1413,33 @@ func finish_focus_reward(day: int = -1, minutes: int = 0) -> Dictionary:
 		unlocked.atolye = true
 		res.atolye = true
 		_convert_unbuilt("shop")
-		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
-			"text": "Üç seanslık emeğinin şerefine bir ATÖLYE kuruyoruz. Ellerine sağlık." })
-		_push_event("🔨 seri ödülü: Atölye kuruluyor")
+		_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "seri", "replied": false,
+			"text": Letters.seri_txt("atolye") })
+		_push_event(Loc.t("ev_atolye"))
 	if streak >= 5 and not unlocked.kutuphane:
 		unlocked.kutuphane = true
 		res.kutuphane = true
 		_convert_unbuilt("library")
-		_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false,
-			"text": "Beş seans! Meydanda bir KÜTÜPHANE yükseliyor. Kasaba seninle akıllanıyor." })
-		_push_event("📚 seri ödülü: Kütüphane yükseliyor")
+		_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "seri", "replied": false,
+			"text": Letters.seri_txt("kutuphane") })
+		_push_event(Loc.t("ev_kutuphane"))
 	# zincirin devamı (denetim #12: 5'ten sonra ödül yoktu): toplam seans eşikleri
 	for mb in MILESTONE_BUILDINGS:
 		if sessions >= mb.at and not unlocked[mb.key]:
 			unlocked[mb.key] = true
 			res["special"] = true
 			_convert_unbuilt(mb.key)
-			_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false, "text": mb.txt })
-			_push_event(mb.ev)
+			_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "seri", "replied": false, "text": Letters.milestone_txt(mb.key) })
+			_push_event(Loc.t(mb.ev))
 	# kümülatif seans anıtları (G1.7): 50→500 — tek seferlik, milestones anahtarıyla
 	for sr in SESSION_REWARDS:
 		if sessions >= sr.at and not milestones.get("ses%d" % int(sr.at), false):
 			milestones["ses%d" % int(sr.at)] = true
 			_apply_session_reward(sr)
 			res["special"] = true
-	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "odak", "replied": false,
+	_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "odak", "replied": false,
 		"text": Letters.pick(Letters.ODAK, _h(sessions * 97 + tick)) })
-	_push_event("🎉 odak seansı tamamlandı — kasaba kutluyor")
+	_push_event(Loc.t("ev_seans_bitti"))
 	return res
 
 # ============================================================ GÜN OLAYLARI (G1.8)
@@ -1492,9 +1485,9 @@ func _fire_day_event(d: int) -> void:
 		0:   # gezgin tüccar: handa konaklar, meydana bir hediye bırakır (dilek objesi havuzundan)
 			var gift: Dictionary = WISH_TYPES[_h(d * 31) % WISH_TYPES.size()]
 			decor.append({ "gx": clampi(landmark.x + 2 + _h(d) % 3, 1, GW - 2), "gy": clampi(landmark.y + 2, 1, GH - 2), "kind": gift.k })
-			_push_event("🐴 gezgin tüccar uğradı — meydana bir %s hediye bıraktı" % gift.k)
+			_push_event(Loc.t("ev_tuccar") % Loc.t("kind_" + str(gift.k)))
 			if _hf(d * 43 + 1) < 0.3:
-				_push_letter({ "from": "Gezgin tüccar", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.tuccar })
+				_push_letter({ "from": Loc.t("from_tuccar"), "who": -1, "kind": "olay", "replied": false, "text": Letters.olay("tuccar") })
 		1:   # düğün: çift boş eve taşınır (büyümeye gerçek katkı) + şenlik
 			var eh := empty_houses()
 			var nb: Dictionary = eh[0]
@@ -1508,39 +1501,39 @@ func _fire_day_event(d: int) -> void:
 				nb.members.append(p)
 				movers.append(p)
 			festival_t = maxf(festival_t, 0.6)
-			_push_event("💒 bugün düğün var — %s ve %s yeni yuvalarına taşınıyor" % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
+			_push_event(Loc.t("ev_dugun") % [nb.members[nb.members.size() - 2].name, nb.members[nb.members.size() - 1].name])
 			if _hf(d * 43 + 2) < 0.5:
-				_push_letter({ "from": "Yeni evli çift", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.dugun })
+				_push_letter({ "from": Loc.t("from_cift"), "who": -1, "kind": "olay", "replied": false, "text": Letters.olay("dugun") })
 		2:   # hasat şenliği: meydan sofrası + çiçekler
 			festival_t = 1.0
 			_beautify()
 			_beautify()
-			_push_event("🌾 hasat şenliği — meydanda uzun sofra, herkes davetli")
+			_push_event(Loc.t("ev_hasat"))
 		3:
 			rainbow_t = 1.0
-			_push_event("🌈 yağmurun ardından gökkuşağı çıktı — herkes başını kaldırdı")
+			_push_event(Loc.t("ev_gokkusagi"))
 		4:
 			balloon_t = 1.0
-			_push_event("🎈 gökyüzünden bir balon geçiyor — çocuklar el sallıyor")
+			_push_event(Loc.t("ev_balon"))
 		5:
 			pending_family = 2 + _h(d * 17) % 2
-			_push_letter({ "from": "Uzaktan bir aile", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.gocebe })
-			_push_event("📮 uzaktan bir mektup: 'yarın geliyoruz' — bir aile katılmak istiyor")
+			_push_letter({ "from": Loc.t("from_aile"), "who": -1, "kind": "olay", "replied": false, "text": Letters.olay("gocebe") })
+			_push_event(Loc.t("ev_gocebe"))
 		6:
-			_push_event("🕊 bir kuş sürüsü kasabanın üstünden geçti — kule bir kez selam çaldı")
+			_push_event(Loc.t("ev_kus"))
 		7:
 			kite_t = 1.0
-			_push_event("🪁 uçurtma günü — çocuklar çayırda, gökyüzü rengârenk")
+			_push_event(Loc.t("ev_ucurtma"))
 		8:   # yıldız yağmuru: bedava dilek belirir
 			starfall_t = 1.0
-			_push_event("🌠 gece yıldız yağmuru — herkes bir dilek tuttu")
+			_push_event(Loc.t("ev_yildiz"))
 			if wish == null and not people.is_empty():
 				var who = people[_h(d * 7) % people.size()]
 				if who.stage == 1:
 					wish = { "who": who, "type": _h(d * 3) % WISH_TYPES.size() }
 		9:
-			_push_event("🏮 nadir bir konuk: Işık Toplayıcısı melodini dinlemeye geldi")
-			_push_letter({ "from": "Işık Toplayıcısı", "who": -1, "kind": "olay", "replied": false, "text": Letters.OLAY.ziyaretci })
+			_push_event(Loc.t("ev_ziyaretci"))
+			_push_letter({ "from": Loc.t("from_toplayici"), "who": -1, "kind": "olay", "replied": false, "text": Letters.olay("ziyaretci") })
 
 ## Seans anıtını kur (G1.7): süsler meydan/çayır çevresine deterministik yerleşir.
 func _apply_session_reward(sr: Dictionary) -> void:
@@ -1554,8 +1547,8 @@ func _apply_session_reward(sr: Dictionary) -> void:
 	else:
 		var off: int = int(sr.at) % 5
 		decor.append({ "gx": clampi(landmark.x - 3 + off, 1, GW - 2), "gy": clampi(landmark.y + 1 + (off % 3), 1, GH - 2), "kind": sr.kind })
-	_push_letter({ "from": "Kasaba halkı", "who": -1, "kind": "seri", "replied": false, "text": sr.txt })
-	_push_event(sr.ev)
+	_push_letter({ "from": Loc.t("from_kasaba"), "who": -1, "kind": "seri", "replied": false, "text": Letters.session_txt(sr.kind) })
+	_push_event(Loc.t(sr.ev))
 
 # ============================================================ DİLEK + MEKTUP (A4)
 ## Dileği gerçekleştir: obje sakinin evinin yanına kurulur + teşekkür mektubu. Grid pos döner (juice için).
@@ -1575,16 +1568,16 @@ func grant_wish():
 		"fener": lamps.append({ "gx": px, "gy": py, "ph": _hf(px * py) * TAU })
 		_: decor.append({ "gx": px, "gy": py, "kind": t.k })   # bank/kuş yuvası/posta kutusu/rüzgâr gülü
 	_push_letter({ "from": who.name, "who": who.seed, "kind": "dilek", "replied": false,
-		"text": Letters.pick(Letters.DILEK[t.k], _h(tick * 11 + px)) })
+		"text": Letters.dilek(t.k, _h(tick * 11 + px)) })
 	stat_wishes += 1
-	_push_event("🌟 %s'nın dileği gerçek oldu" % who.name)
+	_push_event(Loc.t("ev_dilek_gercek") % who.name)
 	wish = null
 	return Vector2i(px, py)
 
 func wish_text() -> String:
 	if wish == null:
 		return ""
-	return "💭 %s: \"keşke %s olsa\" — dokun, gerçekleştir" % [wish.who.name, WISH_TYPES[wish.type].txt]
+	return Loc.t("wish_fmt") % [wish.who.name, Loc.t("wtxt_" + str(WISH_TYPES[wish.type].k))]
 
 ## Mektuba içtenlikle yanıt: bond+1, sakin atkı kazanır (bağın görünür nişanı).
 ## lid = kalıcı kimlik (index DEĞİL — sim push_front yapınca index kayıyor, yanlış mektup
@@ -1606,7 +1599,7 @@ func reply_letter(lid: int) -> void:
 			if p.seed == who_seed:
 				p.scarf = true
 				break
-	_push_event("💛 %s yanıtını aldı" % l.from)
+	_push_event(Loc.t("ev_yanit") % l.from)
 
 func _plant_memory_tree(p: Dictionary) -> void:
 	for t2 in range(40):
