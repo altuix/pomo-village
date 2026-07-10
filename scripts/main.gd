@@ -37,7 +37,9 @@ func _ready() -> void:
 		return
 	if not _is_capture:
 		_setup_window()
-		Engine.max_fps = 30   # always-on şerit: 30fps cozy'ye yeter, CPU/pil yarıya (perf bütçesi)
+		# pil dostu mod (Faz E): 20fps — cozy izleme için yeterli, dizüstünde belirgin tasarruf
+		Engine.max_fps = 20 if Settings.get_flag("powersave") else 30
+		SteamBridge.boot()   # Steam yoksa sessiz no-op (güvenli-yokluk)
 	if world == null and not _is_capture:
 		world = World.new()
 		if SaveGame.has_save():
@@ -64,6 +66,11 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		_save()
+		if not _is_capture:
+			# konum hafızası (Faz E): son pencere konumu — açılışta geri
+			var p := DisplayServer.window_get_position()
+			Settings.set_int("win_x", p.x)
+			Settings.set_int("win_y", p.y)
 		SaveGame.release_lock()
 		get_tree().quit()
 
@@ -75,12 +82,47 @@ var _scale := 1                          # pencere ölçeği 1×/2×/3× (kullan
 var _cam_base_zoom := Vector2.ONE       # dikeyde kamera kasaba çekirdeğine yaklaşır; pulse buna göre
 
 func _setup_window() -> void:
-	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+	# çerçeveli mod (Faz E): borderless istemeyenler için title-bar'lı, boyutlandırılabilir pencere
+	var framed := Settings.get_flag("framed")
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, not framed)
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, not framed)
 	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_ALWAYS_ON_TOP, true)
-	# ölçek: kayıtlı tercih; VARSAYILAN = EKRANA SIĞDIR (0) — sabit 1× MacBook mantıksal
-	# çözünürlüğünde minicik kalıyordu ("hâlâ çok küçük" geri bildirimi)
+	# ilk açılış oto-ölçek (Faz E): kayıt yoksa ekrana göre öner — küçük ekranda 1×, yoksa sığdır
+	if Settings.get_int("scale", -1) == -1:
+		Settings.set_int("scale", 1 if DisplayServer.screen_get_size().y < 900 else 0)
 	_scale = clampi(Settings.get_int("scale", 0), 0, 3)
 	_apply_layout()
+
+func set_framed(v: bool) -> void:
+	Settings.set_flag("framed", v)
+	if not _is_capture:
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, not v)
+		DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_RESIZE_DISABLED, not v)
+
+func set_powersave(v: bool) -> void:
+	Settings.set_flag("powersave", v)
+	Engine.max_fps = 20 if v else 30
+
+## Achievement eşikleri (docs/ACHIEVEMENTS.md ile birebir) — dünya durumundan türetilir;
+## SteamBridge.unlock idempotent + Steam yoksa no-op. Sim SAF kalır (yalnız okuma).
+func _check_achievements() -> void:
+	if not SteamBridge.is_active() or world == null:
+		return
+	var w := world
+	var pairs := [
+		[w.sessions >= 1, "ACH_FIRST_SESSION"], [w.best_streak >= 3, "ACH_STREAK_3"],
+		[w.best_streak >= 5, "ACH_STREAK_5"], [w.sessions >= 10, "ACH_SESSIONS_10"],
+		[w.sessions >= 20, "ACH_SESSIONS_20"], [w.sessions >= 35, "ACH_SESSIONS_35"],
+		[w.sessions >= 50, "ACH_SESSIONS_50"], [w.sessions >= 100, "ACH_SESSIONS_100"],
+		[w.sessions >= 200, "ACH_SESSIONS_200"], [w.sessions >= 500, "ACH_SESSIONS_500"],
+		[w.tier >= 1, "ACH_TIER_VILLAGE"], [w.tier >= 3, "ACH_TIER_TOWN"],
+		[w.tier >= 5, "ACH_TIER_CITY"], [w.bond >= 1, "ACH_FIRST_REPLY"],
+		[w.bond >= 10, "ACH_BOND_10"], [w.melody_saved, "ACH_MELODY"],
+		[w.concert_done, "ACH_CONCERT"], [w.milestones.get("butunlendi", false), "ACH_COMPLETE"],
+	]
+	for p in pairs:
+		if p[0]:
+			SteamBridge.unlock(p[1])
 
 ## Menüden ölçek seçimi. 0 = EKRANA SIĞDIR (ekran genişliğinin ~%94'ü, kesirli içerik ölçeği);
 ## 1-3 = tam sayı katlar (pixel-art bulanıksız).
@@ -134,7 +176,16 @@ func _apply_layout() -> void:
 		ui.set_vertical(_vertical)
 	_place_strip()
 
+var _pos_restored := false   # konum hafızası yalnız İLK yerleşimde uygulanır (sonraki toggle'lar standart)
+
 func _place_strip() -> void:
+	# konum/monitör hafızası (Faz E): kullanıcı pencereyi taşıdıysa açılışta oraya dön
+	if not _pos_restored:
+		_pos_restored = true
+		var mx := Settings.get_int("win_x", -99999)
+		if mx != -99999:
+			DisplayServer.window_set_position(Vector2i(mx, Settings.get_int("win_y", 0)))
+			return
 	var scr := DisplayServer.window_get_current_screen()
 	var sz := DisplayServer.screen_get_size(scr)
 	var origin := DisplayServer.screen_get_position(scr)
@@ -228,9 +279,16 @@ func _daily_seed() -> int:
 	var d := Time.get_date_dict_from_system()
 	return d.year * 10000 + d.month * 100 + d.day   # YYYYMMDD
 
+var _ach_accum := 0.0
+
 func _process(delta: float) -> void:
 	if _frozen or world == null:
 		return
+	SteamBridge.tick()
+	_ach_accum += delta
+	if _ach_accum >= 2.0:   # achievement'lar dünya durumundan GÖZLEMLE (sim'e sıfır dokunuş)
+		_ach_accum = 0.0
+		_check_achievements()
 	if is_instance_valid(audio):
 		audio.evening = world.evening()   # cırcır kanalı geceyle nefes alır
 		audio.weather_rain = world.rain_amount()   # yağmurda rain kanalı hafif kendiliğinden

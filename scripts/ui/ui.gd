@@ -779,6 +779,23 @@ func _build_menu() -> void:
 			db.pressed.connect(func(): if main != null and main.has_method("set_time_mult"): main.set_time_mult(mm))
 			drow.add_child(db)
 		svb.add_child(drow)
+	# Faz E pencere/güç toggles: çerçeveli pencere + pil dostu mod
+	var frame_cb := CheckBox.new()
+	frame_cb.text = Loc.t("framed")
+	frame_cb.add_theme_font_size_override("font_size", 10)
+	frame_cb.add_theme_color_override("font_color", MUTED)
+	frame_cb.focus_mode = Control.FOCUS_NONE
+	frame_cb.set_pressed_no_signal(Settings.get_flag("framed"))
+	frame_cb.toggled.connect(func(v): if main != null and main.has_method("set_framed"): main.set_framed(v))
+	svb.add_child(frame_cb)
+	var power_cb := CheckBox.new()
+	power_cb.text = Loc.t("powersave")
+	power_cb.add_theme_font_size_override("font_size", 10)
+	power_cb.add_theme_color_override("font_color", MUTED)
+	power_cb.focus_mode = Control.FOCUS_NONE
+	power_cb.set_pressed_no_signal(Settings.get_flag("powersave"))
+	power_cb.toggled.connect(func(v): if main != null and main.has_method("set_powersave"): main.set_powersave(v))
+	svb.add_child(power_cb)
 	_quick_cb = CheckBox.new()
 	_quick_cb.text = Loc.t("quick")
 	_quick_cb.add_theme_font_size_override("font_size", 10)

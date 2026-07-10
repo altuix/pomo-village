@@ -34,6 +34,8 @@ const T := {
 	"vertical": { "tr": "↕ dikey/yatay", "en": "↕ vertical/horizontal" },
 	"language": { "tr": "dil / language", "en": "language / dil" },
 	"quick": { "tr": "açılışta menüyü atla, doğrudan kasabaya gel", "en": "skip this menu on launch, go straight to town" },
+	"framed": { "tr": "🪟 çerçeveli pencere (taşı/boyutlandır — yeniden başlatınca tam etki)", "en": "🪟 framed window (move/resize — full effect on restart)" },
+	"powersave": { "tr": "🔋 pil dostu mod (20fps)", "en": "🔋 battery saver (20fps)" },
 	"dev_speed": { "tr": "⏩ dev hız", "en": "⏩ dev speed" },
 	"hint": { "tr": "Esc: menü/panel kapat · V: dikey · pencereyi boş alandan sürükle", "en": "Esc: menu/close panel · V: vertical · drag window from empty space" },
 	"start": { "tr": "🎯 Başlat", "en": "🎯 Start" },

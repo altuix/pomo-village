@@ -11,6 +11,7 @@ const MAIN_CONTRACT := [
 	"start_focus", "cancel_focus", "focus_state", "hovered_person", "reply_letter",
 	"grant_wish", "teach_tower", "play_tone", "play_melody", "take_postcard",
 	"new_town", "quit_game", "set_window_scale", "toggle_vertical", "set_time_mult",
+	"set_framed", "set_powersave",
 ]
 
 # @onready alanlar _init'te hazır değil (bilinen tuzak — null erişim script hatasıyla
